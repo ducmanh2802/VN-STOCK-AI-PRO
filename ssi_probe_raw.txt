@@ -1,0 +1,3 @@
+[probe] start=2026-09-04T15:43:01.707Z
+[probe] url=wss://iboard.ssi.com.vn/ symbol=HPG runMs=25000
+^C
