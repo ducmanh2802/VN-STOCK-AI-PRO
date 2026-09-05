@@ -23,6 +23,7 @@ export const MARKET_KEYS = {
     ['market', 'chartData', symbol.toUpperCase(), timeframe, price] as const,
   watchlist: (symbols: string[]) => ['market', 'watchlist', symbols.sort().join(',')] as const,
   aiSummary: ['market', 'aiSummary'] as const,
+  analysis: (symbol: string) => ['market', 'analysis', symbol.toUpperCase()] as const,
 };
 
 /**
@@ -217,6 +218,24 @@ export function useAIMarketSummary() {
 /**
  * Hook to refetch all market queries simultaneously
  */
+
+
+/**
+ * Hook to retrieve comprehensive technical analysis (score, signal, confidence, indicators)
+ */
+export function useStockAnalysis(symbol: string | null) {
+  return useQuery<Record<string, unknown> | null>({
+    queryKey: MARKET_KEYS.analysis(symbol || ''),
+    queryFn: async () => {
+      if (!symbol) return null;
+      const res = await fetch(`/api/analysis/${symbol}`);
+      if (!res.ok) throw new Error('Failed to fetch analysis');
+      return res.json();
+    },
+    enabled: Boolean(symbol),
+    staleTime: 60 * 1000,
+  });
+}
 export function useRefreshMarket() {
   const queryClient = useQueryClient();
   return () => {

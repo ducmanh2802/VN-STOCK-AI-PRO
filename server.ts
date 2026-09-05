@@ -1,6 +1,6 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
+      // (vite import moved to top)
 import {
   StockRepository,
   PriceRepository,
@@ -346,26 +346,49 @@ async function startServer() {
     }
   });
 
+
+  // Unified Stock Analysis (Technical Indicators + Signal + Score)
+  app.get('/api/analysis/:symbol', async (req, res) => {
+    try {
+      const symbol = req.params.symbol?.toUpperCase()?.trim();
+      if (!symbol || !/^[A-Z]{2,4}$/.test(symbol)) {
+        return res.status(400).json({ error: 'Invalid symbol format' });
+      }
+      const stock = await StockRepository.getBySymbol(symbol);
+      if (!stock) {
+        return res.status(404).json({ error: 'Stock not found', dataStatus: 'DATA_UNAVAILABLE' });
+      }
+      const history = await PriceRepository.getDailyHistory(stock.id, { limit: 250 });
+      if (!history || history.length < 5) {
+        return res.status(200).json({ symbol, dataStatus: 'INSUFFICIENT_DATA', message: 'Not enough historical data for analysis' });
+      }
+      const candles = history.map((h: any) => ({
+        time: h.date,
+        open: Number(h.open), high: Number(h.high),
+        low: Number(h.low), close: Number(h.close),
+        volume: Number(h.volume),
+      }));
+      const { StockAnalysisEngine } = await import('./src/lib/analysis/technical/StockAnalysisEngine.ts');
+      const result = StockAnalysisEngine.analyze({ candles, high52Week: stock.high52Week || null, low52Week: stock.low52Week || null });
+      res.json({ symbol, price: candles[candles.length - 1].close, score: result.score, signal: result.signal, confidence: result.confidence, indicators: result.indicators, support: result.supportResistance.support, resistance: result.supportResistance.resistance, pricePosition: result.pricePosition, reasons: result.reasons, risks: result.risks, dataStatus: 'OK', candleCount: candles.length });
+    } catch (error: any) {
+      console.error('Error in GET /api/analysis/' + req.params.symbol + ':', error);
+      res.status(500).json({ error: error.message || 'Analysis failed' });
+    }
+  });
+
   // ========================================================
   // VITE MIDDLEWARE / STATIC ASSETS
   // ========================================================
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
+    const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    app.get('*', (req, res) => { res.sendFile(path.join(distPath, 'index.html')); });
   }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`VN STOCK AI Server running on http://0.0.0.0:${PORT}`);
-  });
+  app.listen(PORT, '0.0.0.0', () => { console.log(`VN STOCK AI Server running on http://0.0.0.0:${PORT}`); });
 }
 
 startServer();

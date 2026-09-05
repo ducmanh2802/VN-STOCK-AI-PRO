@@ -48,6 +48,7 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
 
   // Fetch deterministic money flow analysis
   const { data: moneyFlowAnalysis } = useMoneyFlowAnalysis(symbol);
+  const { data: stockAnalysis, isLoading: isAnalysisLoading } = useStockAnalysis(symbol);
 
   if (isStockLoading) {
     return (
