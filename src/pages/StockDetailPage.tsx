@@ -1,17 +1,27 @@
 import React, { useState } from 'react';
-import { useFullStockDetail, useStockChartData, useMoneyFlowAnalysis } from '../hooks/useMarketQueries';
+import {
+  useFullStockDetail,
+  useStockChartData,
+  useMoneyFlowAnalysis,
+  useStockAnalysis,
+  useRealtimeQuote,
+  useRealFundamentals,
+} from '../hooks/useMarketQueries';
 import { TimeframeOption } from '../types/stockDetail';
+import type { StockChartDataBundle } from '../services/market/stockHistory';
 import { StockHeader } from '../components/stock/StockHeader';
 import { StockPriceSummary } from '../components/stock/StockPriceSummary';
 import { StockAISignalCard } from '../components/stock/StockAISignalCard';
 import { StockCandlestickChart } from '../components/stock/StockCandlestickChart';
 import { StockTechnicalIndicators } from '../components/stock/StockTechnicalIndicators';
 import { StockFundamentals } from '../components/stock/StockFundamentals';
+import { StockRealFundamentals } from '../components/stock/StockRealFundamentals';
 import { StockValuation } from '../components/stock/StockValuation';
 import { StockMoneyFlow } from '../components/stock/StockMoneyFlow';
 import { StockSupportResistance } from '../components/stock/StockSupportResistance';
 import { StockRiskReward } from '../components/stock/StockRiskReward';
 import { StockAIExplanation } from '../components/stock/StockAIExplanation';
+import { DataSourceBadge } from '../components/stock/DataSourceBadge';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorBoundary';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
@@ -40,11 +50,45 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
     isRefetching,
   } = useFullStockDetail(symbol);
 
-  // Fetch deterministic candle history and pre-calculated indicator bundle
-  const {
-    data: chartData,
-    isLoading: isChartLoading,
-  } = useStockChartData(symbol, timeframe, stock?.price || 0);
+  // PHASE 8.5C — REAL data sources (KBS history, VPS quote, VPS fundamentals)
+  const { data: chartResp, isLoading: isChartLoading } = useStockChartData(symbol, timeframe);
+  const { data: realtimeQuoteResp } = useRealtimeQuote(symbol);
+  const { data: realFundamentalsResp, isLoading: isRealFundamentalsLoading } = useRealFundamentals(symbol);
+
+  const quote = realtimeQuoteResp?.dataStatus === 'OK' ? realtimeQuoteResp.quote ?? null : null;
+  const quoteUnavailableReason =
+    realtimeQuoteResp && realtimeQuoteResp.dataStatus !== 'OK'
+      ? realtimeQuoteResp.error ?? 'VPS trả về trạng thái không khả dụng'
+      : null;
+  const realFundamentals =
+    realFundamentalsResp && realFundamentalsResp.dataStatus === 'OK' ? realFundamentalsResp : null;
+  const realFundamentalsUnavailableReason =
+    realFundamentalsResp && realFundamentalsResp.dataStatus !== 'OK'
+      ? realFundamentalsResp.error ?? 'VPS trả về trạng thái không khả dụng'
+      : null;
+
+  // Real KBS chart bundle (only when the endpoint returned dataStatus OK)
+  const chartBundle: StockChartDataBundle | null =
+    chartResp && chartResp.dataStatus === 'OK' && Array.isArray(chartResp.candles)
+      ? (chartResp as unknown as StockChartDataBundle)
+      : null;
+  const chartUnavailableReason =
+    chartResp && chartResp.dataStatus !== 'OK' ? chartResp.error ?? 'Không khả dụng' : null;
+
+  // 52-week extremes / avg volume / latest session value computed from REAL KBS candles
+  const candles52 = chartBundle?.candles ? chartBundle.candles.slice(-252) : [];
+  const realHigh52 = candles52.length > 0 ? Math.max(...candles52.map((c) => c.high)) : undefined;
+  const realLow52 = candles52.length > 0 ? Math.min(...candles52.map((c) => c.low)) : undefined;
+  const realAvgVolume20 =
+    chartBundle && chartBundle.candles.length >= 20
+      ? Math.round(
+          chartBundle.candles.slice(-20).reduce((sum, c) => sum + c.volume, 0) / 20
+        )
+      : undefined;
+  const realTradingValueBillion =
+    chartBundle?.latestValueVnd && chartBundle.latestValueVnd > 0
+      ? chartBundle.latestValueVnd / 1e9
+      : undefined;
 
   // Fetch deterministic money flow analysis
   const { data: moneyFlowAnalysis } = useMoneyFlowAnalysis(symbol);
@@ -108,24 +152,46 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
         isRefreshing={isRefetching}
       />
 
-      {/* 2. Price Summary */}
-      <StockPriceSummary
-        price={stock.price}
-        change={stock.change}
-        changePercent={stock.changePercent}
-        refPrice={stock.refPrice}
-        ceilingPrice={stock.ceilingPrice}
-        floorPrice={stock.floorPrice}
-        open={stock.open}
-        high={stock.high}
-        low={stock.low}
-        volume={stock.volume}
-        tradingValue={stock.tradingValue}
-        high52Week={stock.high52Week}
-        low52Week={stock.low52Week}
-        avgVolume20D={stock.avgVolume20D}
-        foreignOwnershipPercent={stock.foreignOwnershipPercent}
+      {/* 1b. Real data-source indicator (PHASE 8.5C STEP 13) */}
+      <DataSourceBadge
+        historical={{ source: 'KBS', ok: Boolean(chartBundle) }}
+        realtime={{ source: 'VPS', ok: Boolean(quote), detail: quoteUnavailableReason ?? undefined }}
+        fundamentals={{
+          source: 'VPS',
+          ok: Boolean(realFundamentals),
+          detail: realFundamentalsUnavailableReason ?? undefined,
+        }}
       />
+
+      {/* 2. Price Summary — REAL VPS quote when available, explicit unavailable state otherwise */}
+      {quote ? (
+        <StockPriceSummary
+          price={quote.lastPrice}
+          change={quote.change ?? 0}
+          changePercent={quote.changePercent ?? 0}
+          refPrice={quote.referencePrice ?? undefined}
+          ceilingPrice={quote.ceilingPrice ?? undefined}
+          floorPrice={quote.floorPrice ?? undefined}
+          open={quote.openPrice ?? undefined}
+          high={quote.highPrice ?? undefined}
+          low={quote.lowPrice ?? undefined}
+          volume={quote.matchedVolumeShares ?? 0}
+          tradingValue={realTradingValueBillion ?? 0}
+          high52Week={realHigh52}
+          low52Week={realLow52}
+          avgVolume20D={realAvgVolume20}
+          dataSourceLabel="VPS"
+        />
+      ) : (
+        <StockPriceSummary
+          price={0}
+          change={0}
+          changePercent={0}
+          volume={0}
+          tradingValue={0}
+          realtimeUnavailableReason={quoteUnavailableReason ?? 'đang tải hoặc nguồn lỗi'}
+        />
+      )}
 
       {/* 3. AI Signal Card */}
       <StockAISignalCard
@@ -133,24 +199,37 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
         currentPrice={stock.price}
       />
 
-      {/* 4. Interactive Candlestick Chart with Indicators */}
+      {/* 4. Interactive Candlestick Chart with REAL KBS data */}
       <StockCandlestickChart
         symbol={stock.symbol}
-        chartData={chartData || null}
+        chartData={chartBundle}
         timeframe={timeframe}
         onChangeTimeframe={setTimeframe}
         isLoading={isChartLoading}
       />
+      {!chartBundle && !isChartLoading && (
+        <div className="p-3 rounded-xl bg-terminal-surface border border-amber-400/30 text-[11px] text-amber-400 font-mono">
+          Lịch sử giá thật (KBS) không khả dụng{chartUnavailableReason ? ` — ${chartUnavailableReason}` : ''}.
+          Không hiển thị dữ liệu giả.
+        </div>
+      )}
 
-      {/* 5. Technical Indicators (Pre-calculated snapshot) */}
+      {/* 5. Technical Indicators (Pre-calculated snapshot from REAL candles) */}
       <StockTechnicalIndicators
-        snapshot={chartData?.snapshot || null}
-        currentPrice={stock.price}
+        snapshot={chartBundle?.snapshot || null}
+        currentPrice={quote?.lastPrice ?? chartBundle?.candles[chartBundle.candles.length - 1]?.close ?? 0}
       />
 
       {/* 2-Column Responsive Layout for Deep Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* 6. Fundamental Metrics */}
+        {/* 6. Fundamental Metrics (REAL VPS data, periods as provided by source) */}
+        <StockRealFundamentals
+          fundamentals={realFundamentals}
+          isLoading={isRealFundamentalsLoading && !realFundamentals}
+          unavailableReason={realFundamentalsUnavailableReason}
+        />
+
+        {/* 6b. Legacy Phase 8.4 fundamental metrics (demo data — kept for UI continuity) */}
         <StockFundamentals fundamentals={stock.fundamentals} />
 
         {/* 7. Valuation */}

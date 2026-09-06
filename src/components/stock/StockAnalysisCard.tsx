@@ -72,6 +72,15 @@ export const StockAnalysisCard: React.FC<StockAnalysisCardProps> = ({ analysis, 
         </div>
         {reasons.length > 0 && <div className="space-y-1"><div className="flex items-center gap-1 text-xs font-bold text-terminal-text-primary"><Shield className="w-3 h-3" /> Lý do</div>{reasons.slice(0,4).map((r,i) => <div key={i} className="text-[11px] text-terminal-text-secondary pl-4">• {r}</div>)}</div>}
         {risks.length > 0 && <div className="space-y-1"><div className="flex items-center gap-1 text-xs font-bold text-amber-400"><AlertTriangle className="w-3 h-3" /> Rủi ro</div>{risks.slice(0,4).map((r,i) => <div key={i} className="text-[11px] text-terminal-text-secondary pl-4">• {r}</div>)}</div>}
+        {/* PHASE 8.5C STEP 13 — real data-source provenance */}
+        {analysis.dataSource && (
+          <div className="pt-2 border-t border-terminal-border/50 flex items-center justify-between text-[10px] font-mono text-terminal-text-muted">
+            <span>
+              Dữ liệu lịch sử: <span className="text-emerald-400">{String(analysis.dataSource)} ✓ (thật)</span>
+            </span>
+            {typeof analysis.candleCount === "number" && <span>{analysis.candleCount} phiên</span>}
+          </div>
+        )}
       </div>
     </div>
   );

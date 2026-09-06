@@ -1,4 +1,5 @@
 import express from 'express';
+import { createServer as createViteServer } from 'vite';
 import path from 'path';
       // (vite import moved to top)
 import {
@@ -20,6 +21,16 @@ import {
 } from './src/lib/analysis/index.ts';
 import { requireAuth, type AuthRequest } from './src/middleware/auth.ts';
 import { getOrCreateUser } from './src/db/users.ts';
+// PHASE 8.5C — REAL market data (KBS historical OHLCV + VPS realtime/fundamentals)
+import {
+  getHistoricalStockData,
+  getRealtimeQuote,
+  getStockFundamentals,
+  MarketDataUnavailableError,
+} from './src/services/market/realMarketDataService.ts';
+import { buildChartDataBundleFromCandles } from './src/services/market/stockHistory.ts';
+import { StockAnalysisEngine } from './src/lib/analysis/technical/StockAnalysisEngine.ts';
+import { cacheStats } from './src/services/market/marketDataCache.ts';
 
 async function startServer() {
   const app = express();
@@ -32,7 +43,7 @@ async function startServer() {
   // ========================================================
 
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({ status: 'ok', timestamp: new Date().toISOString(), marketDataCache: cacheStats() });
   });
 
   // Current Authenticated User Profile (Cloud SQL + Firebase Auth)
@@ -347,30 +358,167 @@ async function startServer() {
   });
 
 
+  // ========================================================
+  // PHASE 8.5C — REAL MARKET DATA ENDPOINTS (KBS + VPS)
+  // No PostgreSQL. No synthetic fallback. No mock prices.
+  // ========================================================
+
+  const TIMEFRAMES = ['1W', '1M', '3M', '6M', '1Y', '3Y'] as const;
+  type ApiTimeframe = (typeof TIMEFRAMES)[number];
+
+  function isSupportedTimeframe(value: string): value is ApiTimeframe {
+    return (TIMEFRAMES as readonly string[]).includes(value);
+  }
+
+  function respondMarketDataUnavailable(res: any, source: string, symbol: string, reason: string) {
+    // Explicit unavailable state — the UI renders this as "no real data", never fake data.
+    res.status(200).json({ symbol, dataStatus: 'DATA_UNAVAILABLE', dataSource: source, error: reason });
+  }
+
+  // Real historical OHLCV + technical indicator bundle (KBS)
+  app.get('/api/market-data/history/:symbol', async (req, res) => {
+    try {
+      const symbol = req.params.symbol?.toUpperCase()?.trim() || '';
+      const timeframeParam = (req.query.timeframe as string) || '3M';
+      if (!/^[A-Z0-9_.]{1,20}$/.test(symbol)) {
+        return res.status(400).json({ error: 'Invalid symbol format' });
+      }
+      if (!isSupportedTimeframe(timeframeParam)) {
+        return respondMarketDataUnavailable(
+          res,
+          'KBS',
+          symbol,
+          `TIMEFRAME_NOT_SUPPORTED: "${timeframeParam}" requires intraday bars which KBS does not provide; synthetic candles are disabled.`
+        );
+      }
+      try {
+        const history = await getHistoricalStockData(symbol, timeframeParam);
+        const lastBar = history.bars[history.bars.length - 1] ?? null;
+        const bundle = buildChartDataBundleFromCandles(history.candles, {
+          from: history.from,
+          to: history.to,
+          latestValueVnd: lastBar ? lastBar.value : null,
+        });
+        res.json({
+          symbol: history.symbol,
+          timeframe: history.timeframe,
+          dataStatus: 'OK',
+          dataSource: 'KBS',
+          retrievedAt: history.retrievedAt,
+          ...bundle,
+        });
+      } catch (error) {
+        if (error instanceof MarketDataUnavailableError) {
+          return respondMarketDataUnavailable(res, error.source, symbol, error.reason);
+        }
+        throw error;
+      }
+    } catch (error: any) {
+      console.error(`Error in GET /api/market-data/history/${req.params.symbol}:`, error);
+      res.status(500).json({ error: error.message || 'Lỗi khi tải dữ liệu lịch sử thật' });
+    }
+  });
+
+  // Realtime quote snapshot (VPS) with KBS cross-check metadata
+  app.get('/api/market-data/quote/:symbol', async (req, res) => {
+    try {
+      const symbol = req.params.symbol?.toUpperCase()?.trim() || '';
+      if (!/^[A-Z0-9_.]{1,20}$/.test(symbol)) {
+        return res.status(400).json({ error: 'Invalid symbol format' });
+      }
+      try {
+        const realtime = await getRealtimeQuote(symbol);
+        res.json(realtime);
+      } catch (error) {
+        if (error instanceof MarketDataUnavailableError) {
+          return respondMarketDataUnavailable(res, error.source, symbol, error.reason);
+        }
+        throw error;
+      }
+    } catch (error: any) {
+      console.error(`Error in GET /api/market-data/quote/${req.params.symbol}:`, error);
+      res.status(500).json({ error: error.message || 'Lỗi khi tải giá realtime thật' });
+    }
+  });
+
+  // Real fundamentals (VPS) — periods exposed as provided, mapping flagged AMBIGUOUS
+  app.get('/api/market-data/fundamentals/:symbol', async (req, res) => {
+    try {
+      const symbol = req.params.symbol?.toUpperCase()?.trim() || '';
+      if (!/^[A-Z0-9_.]{1,20}$/.test(symbol)) {
+        return res.status(400).json({ error: 'Invalid symbol format' });
+      }
+      try {
+        const fundamentals = await getStockFundamentals(symbol);
+        res.json({ ...fundamentals, dataStatus: 'OK' });
+      } catch (error) {
+        if (error instanceof MarketDataUnavailableError) {
+          return respondMarketDataUnavailable(res, error.source, symbol, error.reason);
+        }
+        throw error;
+      }
+    } catch (error: any) {
+      console.error(`Error in GET /api/market-data/fundamentals/${req.params.symbol}:`, error);
+      res.status(500).json({ error: error.message || 'Lỗi khi tải dữ liệu tài chính thật' });
+    }
+  });
+
   // Unified Stock Analysis (Technical Indicators + Signal + Score)
+  // PHASE 8.5C: pipeline is now  KBS historical OHLCV → normalized candles →
+  // StockAnalysisEngine → JSON.  No PostgreSQL, no synthetic/mock fallback.
   app.get('/api/analysis/:symbol', async (req, res) => {
     try {
       const symbol = req.params.symbol?.toUpperCase()?.trim();
       if (!symbol || !/^[A-Z]{2,4}$/.test(symbol)) {
         return res.status(400).json({ error: 'Invalid symbol format' });
       }
-      const stock = await StockRepository.getBySymbol(symbol);
-      if (!stock) {
-        return res.status(404).json({ error: 'Stock not found', dataStatus: 'DATA_UNAVAILABLE' });
+      try {
+        // '1Y' window (≈500 calendar days) keeps ≥200 trading bars so MA200 is real.
+        const history = await getHistoricalStockData(symbol, '1Y');
+        const candles = history.candles;
+        if (candles.length < 20) {
+          return res.status(200).json({
+            symbol,
+            dataStatus: 'INSUFFICIENT_DATA',
+            dataSource: 'KBS',
+            message: 'Not enough real historical data for analysis',
+            candleCount: candles.length,
+          });
+        }
+
+        // 52-week extremes computed from the real candles themselves.
+        const window52 = candles.slice(-252);
+        const high52Week = Math.max(...window52.map((c) => c.high));
+        const low52Week = Math.min(...window52.map((c) => c.low));
+
+        const result = StockAnalysisEngine.analyze({ candles, high52Week, low52Week });
+        res.json({
+          symbol,
+          price: candles[candles.length - 1].close,
+          score: result.score,
+          signal: result.signal,
+          confidence: result.confidence,
+          indicators: result.indicators,
+          support: result.supportResistance.support,
+          resistance: result.supportResistance.resistance,
+          pricePosition: result.pricePosition,
+          reasons: result.reasons,
+          risks: result.risks,
+          dataStatus: 'OK',
+          dataSource: 'KBS',
+          historyFrom: history.from,
+          historyTo: history.to,
+          candleCount: candles.length,
+          high52Week,
+          low52Week,
+          retrievedAt: history.retrievedAt,
+        });
+      } catch (error) {
+        if (error instanceof MarketDataUnavailableError) {
+          return respondMarketDataUnavailable(res, error.source, symbol, error.reason);
+        }
+        throw error;
       }
-      const history = await PriceRepository.getDailyHistory(stock.id, { limit: 250 });
-      if (!history || history.length < 5) {
-        return res.status(200).json({ symbol, dataStatus: 'INSUFFICIENT_DATA', message: 'Not enough historical data for analysis' });
-      }
-      const candles = history.map((h: any) => ({
-        time: h.date,
-        open: Number(h.open), high: Number(h.high),
-        low: Number(h.low), close: Number(h.close),
-        volume: Number(h.volume),
-      }));
-      const { StockAnalysisEngine } = await import('./src/lib/analysis/technical/StockAnalysisEngine.ts');
-      const result = StockAnalysisEngine.analyze({ candles, high52Week: stock.high52Week || null, low52Week: stock.low52Week || null });
-      res.json({ symbol, price: candles[candles.length - 1].close, score: result.score, signal: result.signal, confidence: result.confidence, indicators: result.indicators, support: result.supportResistance.support, resistance: result.supportResistance.resistance, pricePosition: result.pricePosition, reasons: result.reasons, risks: result.risks, dataStatus: 'OK', candleCount: candles.length });
     } catch (error: any) {
       console.error('Error in GET /api/analysis/' + req.params.symbol + ':', error);
       res.status(500).json({ error: error.message || 'Analysis failed' });

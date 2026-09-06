@@ -2,9 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { marketService } from '../services/market';
 import { StockSummarySchema, IndexDataSchema, SectorHeatmapItemSchema } from '../schemas/stockSchema';
 import { getFullStockDetail } from '../services/market/stockDetailService';
-import { buildChartDataBundle, StockChartDataBundle } from '../services/market/stockHistory';
+import { StockChartDataBundle } from '../services/market/stockHistory';
 import { TimeframeOption } from '../types/stockDetail';
 import type { MoneyFlowResult } from '../lib/analysis/moneyFlow/MoneyFlowEngine';
+// PHASE 8.5C — real market data types (type-only imports: no server code bundled into the client)
+import type { VpsNormalizedFundamentals, VpsNormalizedQuote } from '../services/market/providers/vps/types';
+import type { QuoteCrossCheck } from '../services/market/realMarketDataService';
 
 export const MARKET_KEYS = {
   all: ['market'] as const,
@@ -19,11 +22,13 @@ export const MARKET_KEYS = {
   stockDetail: (symbol: string) => ['market', 'stock', symbol.toUpperCase()] as const,
   fullStockDetail: (symbol: string) => ['market', 'fullStockDetail', symbol.toUpperCase()] as const,
   moneyFlowAnalysis: (symbol: string) => ['market', 'moneyFlowAnalysis', symbol.toUpperCase()] as const,
-  chartData: (symbol: string, timeframe: string, price: number) =>
-    ['market', 'chartData', symbol.toUpperCase(), timeframe, price] as const,
+  chartData: (symbol: string, timeframe: string) =>
+    ['market', 'chartData', symbol.toUpperCase(), timeframe] as const,
   watchlist: (symbols: string[]) => ['market', 'watchlist', symbols.sort().join(',')] as const,
   aiSummary: ['market', 'aiSummary'] as const,
   analysis: (symbol: string) => ['market', 'analysis', symbol.toUpperCase()] as const,
+  realtimeQuote: (symbol: string) => ['market', 'realtimeQuote', symbol.toUpperCase()] as const,
+  realFundamentals: (symbol: string) => ['market', 'realFundamentals', symbol.toUpperCase()] as const,
 };
 
 /**
@@ -178,19 +183,95 @@ export function useMoneyFlowAnalysis(symbol: string | null) {
 /**
  * Hook to retrieve deterministic candlestick history and precomputed technical indicators
  */
+/** Response envelope of GET /api/market-data/history/:symbol */
+export interface ChartDataHistoryResponse extends Partial<StockChartDataBundle> {
+  symbol: string;
+  timeframe: string;
+  dataStatus: 'OK' | 'DATA_UNAVAILABLE';
+  dataSource?: 'KBS';
+  error?: string;
+  retrievedAt?: string;
+}
+
+/**
+ * PHASE 8.5C — REAL candlestick history + indicators from the server
+ * (KBS daily OHLCV → StockAnalysisEngine pipeline). No synthetic data.
+ * Returns null when the real source is unavailable so the UI can render
+ * an explicit DATA_UNAVAILABLE state.
+ */
 export function useStockChartData(
   symbol: string | null,
-  timeframe: TimeframeOption,
-  currentPrice: number = 0
+  timeframe: TimeframeOption
 ) {
-  return useQuery<StockChartDataBundle | null>({
-    queryKey: MARKET_KEYS.chartData(symbol || '', timeframe, currentPrice),
+  return useQuery<ChartDataHistoryResponse | null>({
+    queryKey: MARKET_KEYS.chartData(symbol || '', timeframe),
     queryFn: async () => {
-      if (!symbol || currentPrice <= 0) return null;
-      return buildChartDataBundle(symbol, currentPrice, timeframe);
+      if (!symbol) return null;
+      const res = await fetch(`/api/market-data/history/${symbol.toUpperCase()}?timeframe=${timeframe}`);
+      if (!res.ok) throw new Error('Failed to fetch real chart history');
+      const json = (await res.json()) as ChartDataHistoryResponse;
+      if (json.dataStatus !== 'OK') return json;
+      return json;
     },
-    enabled: Boolean(symbol) && currentPrice > 0,
+    enabled: Boolean(symbol),
     staleTime: 60 * 1000,
+    retry: 1,
+  });
+}
+
+/** Response envelope of GET /api/market-data/quote/:symbol */
+export interface RealtimeQuoteResponse {
+  symbol: string;
+  source: 'VPS';
+  dataStatus: 'OK' | 'DATA_UNAVAILABLE';
+  quote?: VpsNormalizedQuote;
+  crossCheck?: QuoteCrossCheck;
+  error?: string;
+  retrievedAt?: string;
+}
+
+/**
+ * PHASE 8.5C — realtime quote snapshot from VPS (unit-normalized to VND/share,
+ * cross-checked against KBS). Null quote == DATA_UNAVAILABLE — never a mock price.
+ */
+export function useRealtimeQuote(symbol: string | null) {
+  return useQuery<RealtimeQuoteResponse | null>({
+    queryKey: MARKET_KEYS.realtimeQuote(symbol || ''),
+    queryFn: async () => {
+      if (!symbol) return null;
+      const res = await fetch(`/api/market-data/quote/${symbol.toUpperCase()}`);
+      if (!res.ok) throw new Error('Failed to fetch realtime quote');
+      return res.json();
+    },
+    enabled: Boolean(symbol),
+    staleTime: 15 * 1000,
+    refetchInterval: 30 * 1000,
+    retry: 1,
+  });
+}
+
+/** Response envelope of GET /api/market-data/fundamentals/:symbol */
+export type RealFundamentalsResponse =
+  | ({ dataStatus: 'OK' } & VpsNormalizedFundamentals)
+  | { dataStatus: 'DATA_UNAVAILABLE'; source: 'VPS'; symbol: string; error: string };
+
+/**
+ * PHASE 8.5C — real fundamentals from VPS. Period metadata is exposed as the
+ * source provides it (mappingStatus AMBIGUOUS) — the UI must not present any
+ * slot as the current period.
+ */
+export function useRealFundamentals(symbol: string | null) {
+  return useQuery<RealFundamentalsResponse | null>({
+    queryKey: MARKET_KEYS.realFundamentals(symbol || ''),
+    queryFn: async () => {
+      if (!symbol) return null;
+      const res = await fetch(`/api/market-data/fundamentals/${symbol.toUpperCase()}`);
+      if (!res.ok) throw new Error('Failed to fetch real fundamentals');
+      return res.json();
+    },
+    enabled: Boolean(symbol),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 }
 

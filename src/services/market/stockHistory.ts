@@ -19,11 +19,22 @@ export interface StockChartDataBundle {
   bollinger: BollingerBandsPoint[];
   volume: VolumeBarPoint[];
   snapshot: IndicatorSnapshot | null;
+  /** Provenance (optional, additive) — set only when the bundle is built from REAL data. */
+  dataSource?: 'KBS';
+  from?: string;
+  to?: string;
+  /** KBS trading value of the latest bar, VND (0 when the source omits it). */
+  latestValueVnd?: number | null;
 }
 
 /**
  * Deterministic pseudo-random number generator (LCG) based on a string seed.
  * Ensures the same (symbol, timeframe) combination always generates the exact same sequence.
+ *
+ * @deprecated LEGACY ONLY (Phase 8.4 demo UI). FORBIDDEN for real stock analysis:
+ * since Phase 8.5C the analysis pipeline uses KBS real OHLCV via
+ * `buildChartDataBundleFromCandles` / realMarketDataService. Do not call this
+ * from any real-data path.
  */
 function createSeededRandom(seedStr: string) {
   let seed = 0;
@@ -155,6 +166,9 @@ export function generateCandlestickHistory(
 
 /**
  * Orchestrates complete deterministic technical indicator pipeline outside of React.
+ *
+ * @deprecated LEGACY ONLY (Phase 8.4 demo UI) — built on generateCandlestickHistory.
+ * Use `buildChartDataBundleFromCandles` with REAL KBS candles instead.
  */
 export function buildChartDataBundle(
   symbol: string,
@@ -182,5 +196,44 @@ export function buildChartDataBundle(
     bollinger,
     volume,
     snapshot,
+  };
+}
+
+/**
+ * STEP 6/10 — builds the same chart bundle from REAL candles (KBS daily OHLCV).
+ * Pure function: identical indicator formulas, zero synthetic data.
+ * Used by the server for /api/market-data/history/:symbol.
+ */
+export function buildChartDataBundleFromCandles(
+  realCandles: CandlePoint[],
+  provenance?: { from?: string; to?: string; latestValueVnd?: number | null }
+): StockChartDataBundle {
+  const candles = realCandles;
+
+  const sma20 = calculateSMA(candles, 20);
+  const sma50 = calculateSMA(candles, 50);
+  const sma200 = calculateSMA(candles, 200);
+  const rsi = calculateRSI(candles, 14);
+  const macd = calculateMACD(candles, 12, 26, 9);
+  const bollinger = calculateBollingerBands(candles, 20, 2);
+  const volume = calculateVolumeSeries(candles, 20);
+  const snapshot = computeIndicatorSnapshot(candles);
+
+  const lastBar = candles.length > 0 ? candles[candles.length - 1] : null;
+
+  return {
+    candles,
+    sma20,
+    sma50,
+    sma200,
+    rsi,
+    macd,
+    bollinger,
+    volume,
+    snapshot,
+    dataSource: 'KBS',
+    from: provenance?.from ?? (lastBar && candles.length > 0 ? String(candles[0].time) : undefined),
+    to: provenance?.to ?? (lastBar ? String(lastBar.time) : undefined),
+    latestValueVnd: provenance?.latestValueVnd ?? null,
   };
 }
