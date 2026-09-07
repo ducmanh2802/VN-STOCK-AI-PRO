@@ -27,7 +27,7 @@ export interface StockSummary {
   aiScore: number; // 0 - 100
   fairValue: number;
   sparkline: number[];
-  isDemo: true;
+  isDemo?: boolean;
 }
 
 export interface TopMover {
@@ -39,7 +39,7 @@ export interface TopMover {
   changePercent: number;
   volume: number;
   tradingValue: number; // in billion VND
-  isDemo: true;
+  isDemo?: boolean;
 }
 
 export interface SectorHeatmapItem {
@@ -50,5 +50,5 @@ export interface SectorHeatmapItem {
   leaderSymbol: string;
   stocksCount: number;
   volume: number;
-  isDemo: true;
+  isDemo?: boolean;
 }

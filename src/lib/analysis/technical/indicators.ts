@@ -18,6 +18,7 @@ export interface BollingerPoint {
   middle: number;
   lower: number;
   bandwidth: number;
+  percentB?: number;
 }
 
 export interface ADXPoint {
@@ -282,6 +283,8 @@ export function calculateBollingerBands(
     const upper = mean + stdDevMultiplier * stdDev;
     const lower = mean - stdDevMultiplier * stdDev;
     const bandwidth = mean === 0 ? 0 : (upper - lower) / mean;
+    const bandSpan = upper - lower;
+    const percentB = bandSpan === 0 ? 0.5 : (valid[i].close - lower) / bandSpan;
 
     results.push({
       time: valid[i].time,
@@ -289,6 +292,7 @@ export function calculateBollingerBands(
       middle: Number(mean.toFixed(2)),
       lower: Number(lower.toFixed(2)),
       bandwidth: Number(bandwidth.toFixed(4)),
+      percentB: Number(percentB.toFixed(4)),
     });
   }
 
@@ -533,4 +537,187 @@ export function calculateVolumeRatio(
     volumeSMA: latestSMA,
     ratio,
   };
+}
+
+export type VolumeTrend = 'SURGE' | 'NORMAL' | 'DRY' | 'INCREASING' | 'DECLINING';
+
+/**
+ * 11. Complete Volume Metrics (Current, SMA20, Ratio, Trend)
+ */
+export function calculateVolumeMetrics(
+  candles: CandleInput[],
+  period: number = 20
+): {
+  current: number;
+  average20: number;
+  ratio: number;
+  trend: VolumeTrend;
+} | null {
+  const volRatio = calculateVolumeRatio(candles, period);
+  if (!volRatio) return null;
+
+  const valid = validateCandles(candles);
+  const latest = valid[valid.length - 1];
+  const prev = valid.length > 1 ? valid[valid.length - 2] : null;
+
+  let trend: VolumeTrend = 'NORMAL';
+  if (volRatio.ratio >= 1.5) {
+    trend = 'SURGE';
+  } else if (volRatio.ratio >= 1.1 || (prev && latest.volume > prev.volume * 1.2)) {
+    trend = 'INCREASING';
+  } else if (volRatio.ratio <= 0.6) {
+    trend = 'DRY';
+  } else if (prev && latest.volume < prev.volume * 0.8) {
+    trend = 'DECLINING';
+  }
+
+  return {
+    current: volRatio.currentVolume,
+    average20: volRatio.volumeSMA,
+    ratio: volRatio.ratio,
+    trend,
+  };
+}
+
+/**
+ * 12. Price Position Relative to Moving Averages & 52-Week Range
+ */
+export function calculatePricePosition(
+  candles: CandleInput[],
+  currentPriceInput?: number
+): {
+  distSMA20: number | null;
+  distSMA50: number | null;
+  distSMA200: number | null;
+  dist52wHigh: number | null;
+  dist52wLow: number | null;
+  high52Week: number | null;
+  low52Week: number | null;
+} {
+  const valid = validateCandles(candles);
+  if (valid.length === 0) {
+    return {
+      distSMA20: null,
+      distSMA50: null,
+      distSMA200: null,
+      dist52wHigh: null,
+      dist52wLow: null,
+      high52Week: null,
+      low52Week: null,
+    };
+  }
+
+  const latestCandle = valid[valid.length - 1];
+  const price = currentPriceInput && currentPriceInput > 0 ? currentPriceInput : latestCandle.close;
+
+  // Moving averages
+  const sma20 = calculateSMA(valid, 20);
+  const sma50 = calculateSMA(valid, 50);
+  const sma200 = calculateSMA(valid, 200);
+
+  const lastSMA20 = sma20.length > 0 ? sma20[sma20.length - 1].value : null;
+  const lastSMA50 = sma50.length > 0 ? sma50[sma50.length - 1].value : null;
+  const lastSMA200 = sma200.length > 0 ? sma200[sma200.length - 1].value : null;
+
+  const distSMA20 = lastSMA20 ? Number((((price - lastSMA20) / lastSMA20) * 100).toFixed(2)) : null;
+  const distSMA50 = lastSMA50 ? Number((((price - lastSMA50) / lastSMA50) * 100).toFixed(2)) : null;
+  const distSMA200 = lastSMA200 ? Number((((price - lastSMA200) / lastSMA200) * 100).toFixed(2)) : null;
+
+  // 52-Week High / Low (using up to 250 trading sessions)
+  const lookback52w = Math.min(valid.length, 250);
+  const slice52w = valid.slice(valid.length - lookback52w);
+
+  let high52Week: number | null = null;
+  let low52Week: number | null = null;
+  let dist52wHigh: number | null = null;
+  let dist52wLow: number | null = null;
+
+  if (slice52w.length >= 20) {
+    high52Week = Math.max(...slice52w.map((c) => c.high));
+    low52Week = Math.min(...slice52w.map((c) => c.low));
+
+    if (high52Week > 0) {
+      dist52wHigh = Number((((price - high52Week) / high52Week) * 100).toFixed(2));
+    }
+    if (low52Week > 0) {
+      dist52wLow = Number((((price - low52Week) / low52Week) * 100).toFixed(2));
+    }
+  }
+
+  return {
+    distSMA20,
+    distSMA50,
+    distSMA200,
+    dist52wHigh,
+    dist52wLow,
+    high52Week,
+    low52Week,
+  };
+}
+
+export interface MovingAverageCrossovers {
+  goldenCross: boolean;
+  deathCross: boolean;
+  bullishMaCross: boolean;
+  bearishMaCross: boolean;
+}
+
+/**
+ * 13. Detect Moving Average Crossovers (Golden Cross, Death Cross, Bullish/Bearish MA Cross)
+ */
+export function detectMovingAverageCrossovers(
+  candles: CandleInput[],
+  lookbackBars: number = 5
+): MovingAverageCrossovers {
+  const valid = validateCandles(candles);
+  const result: MovingAverageCrossovers = {
+    goldenCross: false,
+    deathCross: false,
+    bullishMaCross: false,
+    bearishMaCross: false,
+  };
+
+  if (valid.length < 52) {
+    return result;
+  }
+
+  const sma20 = calculateSMA(valid, 20);
+  const sma50 = calculateSMA(valid, 50);
+
+  if (sma20.length > 0 && sma50.length > 0) {
+    const minLen = Math.min(sma20.length, sma50.length);
+    const s20Aligned = sma20.slice(sma20.length - minLen);
+    const s50Aligned = sma50.slice(sma50.length - minLen);
+
+    const checkBars = Math.min(minLen - 1, lookbackBars);
+    for (let i = minLen - checkBars; i < minLen; i++) {
+      if (s20Aligned[i].value > s50Aligned[i].value && s20Aligned[i - 1].value <= s50Aligned[i - 1].value) {
+        result.bullishMaCross = true;
+      }
+      if (s20Aligned[i].value < s50Aligned[i].value && s20Aligned[i - 1].value >= s50Aligned[i - 1].value) {
+        result.bearishMaCross = true;
+      }
+    }
+  }
+
+  if (valid.length >= 201) {
+    const sma200 = calculateSMA(valid, 200);
+    if (sma50.length > 0 && sma200.length > 0) {
+      const minLen = Math.min(sma50.length, sma200.length);
+      const s50Aligned = sma50.slice(sma50.length - minLen);
+      const s200Aligned = sma200.slice(sma200.length - minLen);
+
+      const checkBars = Math.min(minLen - 1, lookbackBars);
+      for (let i = minLen - checkBars; i < minLen; i++) {
+        if (s50Aligned[i].value > s200Aligned[i].value && s50Aligned[i - 1].value <= s200Aligned[i - 1].value) {
+          result.goldenCross = true;
+        }
+        if (s50Aligned[i].value < s200Aligned[i].value && s50Aligned[i - 1].value >= s200Aligned[i - 1].value) {
+          result.deathCross = true;
+        }
+      }
+    }
+  }
+
+  return result;
 }

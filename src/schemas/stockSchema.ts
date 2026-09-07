@@ -28,7 +28,7 @@ export const StockSummarySchema = z.object({
   aiScore: z.number().min(0).max(100),
   fairValue: z.number().nonnegative(),
   sparkline: z.array(z.number()),
-  isDemo: z.literal(true),
+  isDemo: z.boolean().optional(),
 });
 
 export const TopMoverSchema = z.object({
@@ -40,7 +40,7 @@ export const TopMoverSchema = z.object({
   changePercent: z.number(),
   volume: z.number().nonnegative(),
   tradingValue: z.number().nonnegative(),
-  isDemo: z.literal(true),
+  isDemo: z.boolean().optional(),
 });
 
 export const SectorHeatmapItemSchema = z.object({
@@ -51,7 +51,7 @@ export const SectorHeatmapItemSchema = z.object({
   leaderSymbol: z.string(),
   stocksCount: z.number().int().positive(),
   volume: z.number().nonnegative(),
-  isDemo: z.literal(true),
+  isDemo: z.boolean().optional(),
 });
 
 export const IndexDataSchema = z.object({
@@ -69,7 +69,7 @@ export const IndexDataSchema = z.object({
   floors: z.number().int().nonnegative(),
   status: z.enum(['TRADING', 'CLOSED']),
   sparkline: z.array(z.number()),
-  isDemo: z.literal(true),
+  isDemo: z.boolean().optional(),
 });
 
 export const MarketStatusSchema = z.object({
@@ -77,7 +77,7 @@ export const MarketStatusSchema = z.object({
   stateLabel: z.enum(['ĐANG GIAO DỊCH', 'ĐÓNG CỬA']),
   sessionName: z.enum(['Phiên sáng', 'Phiên chiều', 'Khớp lệnh liên tục', 'Phiên ATC', 'Đã đóng cửa']),
   timestamp: z.string(),
-  isDemo: z.literal(true),
+  isDemo: z.boolean().optional(),
 });
 
 export const AIMarketSummarySchema = z.object({
@@ -90,5 +90,5 @@ export const AIMarketSummarySchema = z.object({
   overallComment: z.string(),
   disclaimer: z.string(),
   updatedAt: z.string(),
-  isDemo: z.literal(true),
+  isDemo: z.boolean().optional(),
 });

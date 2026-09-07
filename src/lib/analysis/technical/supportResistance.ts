@@ -1,13 +1,11 @@
 import { CandleInput } from '../common/types.ts';
-
-export interface SupportResistanceLevel {
-  price: number;
-  strength: number;
-}
+import { SupportResistanceLevel } from './types.ts';
 
 export interface SupportResistanceResult {
   support: SupportResistanceLevel[];
   resistance: SupportResistanceLevel[];
+  supportLevels: SupportResistanceLevel[];
+  resistanceLevels: SupportResistanceLevel[];
 }
 
 const DEFAULT_TOLERANCE = 0.02;
@@ -31,7 +29,7 @@ function isSwingLow(candles: CandleInput[], i: number, lookback: number): boolea
   return true;
 }
 
-function clusterLevels(prices: number[], tolerance: number): SupportResistanceLevel[] {
+function clusterLevels(prices: number[], tolerance: number, type: 'SUPPORT' | 'RESISTANCE'): SupportResistanceLevel[] {
   if (prices.length === 0) return [];
   const sorted = [...prices].sort((a, b) => a - b);
   const clusters: number[][] = [];
@@ -49,16 +47,21 @@ function clusterLevels(prices: number[], tolerance: number): SupportResistanceLe
   return clusters.map((c) => ({
     price: Math.round((c.reduce((a, b) => a + b, 0) / c.length) * 100) / 100,
     strength: c.length,
+    type,
   }));
 }
 
 export function calculateSupportResistance(
   candles: CandleInput[],
-  tolerance: number = DEFAULT_TOLERANCE,
+  toleranceOrPrice?: number,
   lookback: number = SWING_LOOKBACK
 ): SupportResistanceResult {
+  const tolerance = (toleranceOrPrice && toleranceOrPrice > 0 && toleranceOrPrice < 1)
+    ? toleranceOrPrice
+    : DEFAULT_TOLERANCE;
+
   if (!candles || candles.length < lookback * 2 + 1) {
-    return { support: [], resistance: [] };
+    return { support: [], resistance: [], supportLevels: [], resistanceLevels: [] };
   }
   const swingHighs: number[] = [];
   const swingLows: number[] = [];
@@ -66,8 +69,14 @@ export function calculateSupportResistance(
     if (isSwingHigh(candles, i, lookback)) swingHighs.push(candles[i].high);
     if (isSwingLow(candles, i, lookback)) swingLows.push(candles[i].low);
   }
+
+  const support = clusterLevels(swingLows, tolerance, 'SUPPORT').sort((a, b) => b.price - a.price);
+  const resistance = clusterLevels(swingHighs, tolerance, 'RESISTANCE').sort((a, b) => a.price - b.price);
+
   return {
-    support: clusterLevels(swingLows, tolerance),
-    resistance: clusterLevels(swingHighs, tolerance),
+    support,
+    resistance,
+    supportLevels: support,
+    resistanceLevels: resistance,
   };
 }
