@@ -6,7 +6,7 @@ import {
   normalizeVpsReferencePrice,
   normalizeVpsValueThousands,
   parseVpsNumeric,
-} from '../../normalize.ts';
+} from '../normalize.ts';
 
 /**
  * PHASE 8.5C STEP 5/15 — VPS price normalization unit tests.

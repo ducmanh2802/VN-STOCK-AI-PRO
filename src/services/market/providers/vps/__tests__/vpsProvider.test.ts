@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { VpsProvider, VpsApiError } from '../../VpsProvider.ts';
+import { VpsProvider, VpsApiError } from '../VpsProvider.ts';
 
 /**
  * PHASE 8.5C STEP 15 — VPS provider unit tests.
@@ -82,6 +82,8 @@ const REAL_BASEINFO_SHAPE = {
 };
 
 function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
+}
 
 describe('VpsProvider.getQuote', () => {
   afterEach(() => {
@@ -234,5 +236,3 @@ describe('VpsProvider.getFundamentals', () => {
     await expect(VpsProvider.getFundamentals('HPG')).rejects.toMatchObject({ reason: 'HTTP', statusCode: 500 });
   });
 });
-  return new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
-}

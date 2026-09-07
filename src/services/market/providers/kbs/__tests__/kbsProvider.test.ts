@@ -4,7 +4,7 @@ import {
   KbsApiError,
   toKbsDate,
   parseKbsTimestamp,
-} from '../../KbsHistoricalProvider.ts';
+} from '../KbsHistoricalProvider.ts';
 
 /**
  * PHASE 8.5C STEP 15 — KBS provider unit tests.
@@ -17,7 +17,7 @@ const REAL_REVERSE_BARS = [
   { t: '2026-08-28 07:00', o: 22250, h: 22350, l: 22050, c: 22100, v: 17126700, va: 380204245000 },
   { t: '2026-08-27 07:00', o: 22050, h: 22400, l: 22050, c: 22200, v: 19201900, va: 426680415000 },
   { t: '2026-08-27 07:00', o: 22050, h: 22400, l: 22050, c: 22200, v: 19201900, va: 426680415000 }, // duplicate
-  { t: '2026-08-26 07:00', o: 21800, h: 999999, l: 21750, c: 22050, v: 19394800, va: 425726480000 }, // corrupt (h < max(o,c) violated)
+  { t: '2026-08-26 07:00', o: 21800, h: 20000, l: 21750, c: 22050, v: 19394800, va: 425726480000 }, // corrupt (h < max(o,c) violated: high below open/close)
   { t: '2026-08-25 07:00', o: 22250, h: 22300, l: 21800, c: 21800, v: 25844100, va: 568777710000 },
 ];
 
@@ -35,6 +35,8 @@ describe('KBS date conversion', () => {
   it('extracts the trading date from the vendor timestamp', () => {
     expect(parseKbsTimestamp('2026-08-28 07:00')).toBe('2026-08-28');
     expect(parseKbsTimestamp('2026-09-04 07:00')).toBe('2026-09-04');
+  });
+});
 
 describe('KbsHistoricalProvider.getDailyHistory', () => {
   beforeEach(() => {
@@ -138,6 +140,21 @@ describe('KbsHistoricalProvider.getDailyHistory', () => {
     });
   });
 
+  it('throws KbsApiError on the vendor error envelope (e.g. range exceeded)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ st: 'err', code: 1, errorCode: 4000014, msg: 'Vượt quá range timeFrame' }),
+          { status: 200 }
+        )
+      )
+    );
+    await expect(KbsHistoricalProvider.getDailyHistory('HPG', '2025-01-01', '2026-09-06')).rejects.toMatchObject({
+      name: 'KbsApiError',
+    });
+  });
+
   it('throws KbsApiError on malformed (non-JSON) response', async () => {
     vi.stubGlobal(
       'fetch',
@@ -181,7 +198,5 @@ describe('KbsHistoricalProvider.getDailyHistory', () => {
       KbsApiError
     );
     expect(fetchMock).not.toHaveBeenCalled();
-  });
-});
   });
 });

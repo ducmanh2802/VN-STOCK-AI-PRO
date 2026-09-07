@@ -92,7 +92,12 @@ function findRow(rows: VpsRawStatementRow[] | undefined, nameEn: string): VpsRaw
 
 /** Extracts the 4 slot values (V1..V4) of a row; null where the source reports nothing. */
 function rowValues(row: VpsRawStatementRow | null): (number | null)[] {
-  return VPS_VALUE_SLOTS.map((slot) => parseVpsNumeric(row?.[slot]));
+  // Vendor statement payload uses Value1..Value4 (NOT V1..V4). VPS_VALUE_SLOTS
+  // ('V1'..'V4') is only used to map period slots in buildPeriodLabels, so the
+  // value fields are read here verbatim. Fixes "no numeric data" on real payloads.
+  return (['Value1', 'Value2', 'Value3', 'Value4'] as (keyof VpsRawStatementRow)[]).map((field) =>
+    parseVpsNumeric(row?.[field])
+  );
 }
 
 function emptySeries(): VpsFinancialSeries {

@@ -60,6 +60,13 @@ const HISTORY_WINDOW_DAYS: Record<TimeframeOption, number> = {
 /** Deviation (%) between VPS last price and KBS last close tolerated by the sanity cross-check. */
 const QUOTE_CROSSCHECK_TOLERANCE_PERCENT = 10;
 
+/**
+ * KBS only serves ~1 year of lookback (verified live: windows beyond ~365 days
+ * are rejected with errorCode 4000014). Cap every window to this so '1Y'/'3Y'
+ * return the most recent real bars KBS can serve instead of an empty response.
+ */
+const KBS_MAX_LOOKBACK_DAYS = 355;
+
 export interface HistoricalStockData {
   symbol: string;
   timeframe: TimeframeOption;
@@ -112,7 +119,9 @@ export async function getHistoricalStockData(
   options?: { timeoutMs?: number; forceRefresh?: boolean }
 ): Promise<HistoricalStockData> {
   const sym = normalizeSymbol(symbol);
-  const windowDays = HISTORY_WINDOW_DAYS[timeframe] ?? 0;
+  // Cap at KBS's supported lookback so multi-year timeframes serve the most
+  // recent real bars (KBS rejects ranges beyond ~1 year with errorCode 4000014).
+  const windowDays = Math.min(HISTORY_WINDOW_DAYS[timeframe] ?? 0, KBS_MAX_LOOKBACK_DAYS);
   if (timeframe === '1D' || windowDays === 0) {
     throw new MarketDataUnavailableError(
       'KBS',

@@ -153,6 +153,18 @@ export class KbsHistoricalProvider {
       throw new KbsApiError(`KBS payload is not an object for ${sym}`, response.status);
     }
 
+    // Detect the vendor's error envelope (observed: range-exceeded) instead of
+    // treating it as an empty history:
+    //   {"st":"err","code":1,"errorCode":4000014,"msg":"Vượt quá range timeFrame"}
+    const probe = payload as { st?: unknown; errorCode?: unknown; code?: unknown; msg?: unknown };
+    if (probe.st === 'err' || probe.errorCode !== undefined) {
+      const detail =
+        typeof probe.msg === 'string' && probe.msg.trim()
+          ? probe.msg
+          : `errorCode ${probe.errorCode ?? probe.code ?? 'unknown'}`;
+      throw new KbsApiError(`KBS error for ${sym}: ${detail}`, response.status);
+    }
+
     const envelope = payload as KbsDataDayResponse;
     // Vendor may return null/undefined data_day for symbols with no history in range.
     const rawBars = Array.isArray(envelope.data_day) ? envelope.data_day : [];

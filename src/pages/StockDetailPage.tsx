@@ -14,6 +14,7 @@ import { StockPriceSummary } from '../components/stock/StockPriceSummary';
 import { StockAISignalCard } from '../components/stock/StockAISignalCard';
 import { StockCandlestickChart } from '../components/stock/StockCandlestickChart';
 import { StockTechnicalIndicators } from '../components/stock/StockTechnicalIndicators';
+import { StockAnalysisCard } from '../components/stock/StockAnalysisCard';
 import { StockFundamentals } from '../components/stock/StockFundamentals';
 import { StockRealFundamentals } from '../components/stock/StockRealFundamentals';
 import { StockValuation } from '../components/stock/StockValuation';
@@ -219,6 +220,9 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
         snapshot={chartBundle?.snapshot || null}
         currentPrice={quote?.lastPrice ?? chartBundle?.candles[chartBundle.candles.length - 1]?.close ?? 0}
       />
+
+      {/* 5b. Real technical analysis engine result (Phase 8.4 / 8.5C) — real KBS data → StockAnalysisEngine */}
+      <StockAnalysisCard analysis={stockAnalysis} isLoading={isAnalysisLoading} />
 
       {/* 2-Column Responsive Layout for Deep Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

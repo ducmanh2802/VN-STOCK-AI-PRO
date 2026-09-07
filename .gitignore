@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# WIP recovery backup (not part of the build)
+_wip_backup/

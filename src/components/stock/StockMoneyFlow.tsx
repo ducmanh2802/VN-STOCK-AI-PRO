@@ -182,7 +182,7 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
           )}
         </div>
 
-        {analysis?.foreignFlow.signal !== 'NO_DATA' && analysis?.foreignFlow.foreignNet !== null ? (
+        {analysis?.foreignFlow && analysis.foreignFlow.signal !== 'NO_DATA' && analysis.foreignFlow.foreignNet !== null ? (
           <div className="grid grid-cols-3 gap-2 pt-1 text-xs font-mono">
             <div>
               <span className="text-[10px] text-terminal-text-muted block">Foreign Buy (Mua):</span>
