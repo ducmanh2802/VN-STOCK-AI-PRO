@@ -164,7 +164,7 @@ export class StockAnalysisEngine {
           bollingerUpper: null, bollingerMiddle: null, bollingerLower: null,
           atr14: null, volumeRatio: null, avgVolume20: null, currentVolume: null,
         },
-        supportResistance: { support: [], resistance: [] },
+        supportResistance: { support: [], resistance: [], supportLevels: [], resistanceLevels: [] },
         pricePosition: { distSma20: null, distSma50: null, distSma200: null, dist52WeekHigh: null, dist52WeekLow: null },
         technicalScore: ts,
       };

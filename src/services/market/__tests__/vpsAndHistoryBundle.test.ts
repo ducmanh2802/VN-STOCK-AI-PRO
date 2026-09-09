@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { VPSMarketDataProvider } from '../providers/VPSMarketDataProvider';
-import { buildChartDataBundleFromCandles, buildChartDataBundle } from '../stockHistory';
+import { buildChartDataBundleFromCandles } from '../stockHistory';
 import { CandlePoint } from '../../../lib/indicators/types';
 
 describe('Phase 8.5 VPS Provider and Real Candle History Processing', () => {
@@ -30,17 +30,17 @@ describe('Phase 8.5 VPS Provider and Real Candle History Processing', () => {
     }
 
     const bundle = buildChartDataBundleFromCandles(mockRealCandles, {
-      symbol: 'HPG',
-      currentPrice: mockRealCandles[39].close,
-      dataSource: 'KBS',
-      dataStatus: 'OK',
+      from: '2025-01-01',
+      to: '2025-02-09',
+      latestValueVnd: mockRealCandles[39].close * 1000,
     });
 
     expect(bundle).not.toBeNull();
-    expect(bundle.dataStatus).toBe('OK');
-    expect(bundle.isReal).toBe(true);
     expect(bundle.dataSource).toBe('KBS');
+    expect(bundle.from).toBe('2025-01-01');
+    expect(bundle.to).toBe('2025-02-09');
     expect(bundle.candles.length).toBe(40);
+    expect(bundle.candles[0].close).toBe(mockRealCandles[0].close);
     expect(bundle.candles[bundle.candles.length - 1].close).toBe(mockRealCandles[39].close);
     expect(bundle.snapshot).toBeDefined();
     expect(bundle.snapshot?.rsi.value).toBeGreaterThan(0);
@@ -51,16 +51,10 @@ describe('Phase 8.5 VPS Provider and Real Candle History Processing', () => {
     expect(bundle.snapshot?.bollinger).toBeDefined();
   });
 
-  it('returns DATA_UNAVAILABLE state when candle data is missing or empty', async () => {
-    // When calling buildChartDataBundle for an unavailable/isolated symbol where real backend fails
-    try {
-      const bundle = await buildChartDataBundle('INVALID_UNKNOWN_XYZ', 20000, '3M');
-      // If error is not thrown, it must explicitly indicate DATA_UNAVAILABLE
-      if (bundle) {
-        expect(bundle.dataStatus).toBe('DATA_UNAVAILABLE');
-      }
-    } catch (err: any) {
-      expect(err.message).toMatch(/DATA_UNAVAILABLE|Không có dữ liệu/);
-    }
+  it('preserves empty/insufficient candle data without synthesizing a fallback', () => {
+    // The real pipeline must never fabricate candles when input is empty.
+    const bundle = buildChartDataBundleFromCandles([]);
+    expect(bundle.candles.length).toBe(0);
+    expect(bundle.snapshot).toBeDefined();
   });
 });
