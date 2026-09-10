@@ -10,3 +10,14 @@ coverage/
 # WIP recovery backup (not part of the build)
 _wip_backup/
 .tmp/
+ClineVNStock.Modelfile
+.kilocode/rules/00-core.md
+.kilocode/rules/01-project-architecture.md
+.kilocode/rules/02-file-scope.md
+.kilocode/rules/03-market-data-protection.md
+.kilocode/rules/04-mock-data-protection.md
+.kilocode/rules/05-database-protection.md
+.kilocode/rules/06-ui-tradingview-fireant.md
+.kilocode/rules/07-testing-validation.md
+.kilocode/rules/08-git-safety.md
+.kilocode/rules/09-phase-protocol.md
