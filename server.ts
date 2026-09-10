@@ -30,6 +30,9 @@ import {
 } from './src/services/market/realMarketDataService.ts';
 import { buildChartDataBundleFromCandles } from './src/services/market/stockHistory.ts';
 import { StockAnalysisEngine } from './src/lib/analysis/technical/StockAnalysisEngine.ts';
+import { RecommendationEngine } from './src/lib/analysis/strategy/RecommendationEngine.ts';
+import { InvestmentHorizon } from './src/types/recommendation.ts';
+import { VIETNAM_STOCKS_UNIVERSE } from './src/services/market/stockUniverse.ts';
 import { cacheStats } from './src/services/market/marketDataCache.ts';
 
 async function startServer() {
@@ -522,6 +525,185 @@ async function startServer() {
     } catch (error: any) {
       console.error('Error in GET /api/analysis/' + req.params.symbol + ':', error);
       res.status(500).json({ error: error.message || 'Analysis failed' });
+    }
+  });
+
+  // ========================================================
+  // PHASE 17 — AI INVESTMENT RECOMMENDATIONS (MULTI-HORIZON)
+  // ========================================================
+
+  app.get('/api/stocks/:symbol/recommendations', async (req, res) => {
+    try {
+      const symbol = req.params.symbol?.toUpperCase()?.trim();
+      if (!symbol || !/^[A-Z0-9_.]{1,20}$/.test(symbol)) {
+        return res.status(400).json({ error: 'Invalid symbol format' });
+      }
+
+      // 1. Fetch real historical candles from KBS for technical scoring
+      const history = await getHistoricalStockData(symbol, '1Y').catch(() => null);
+      if (!history || history.candles.length < 20) {
+        return res.status(200).json({
+          symbol,
+          dataStatus: 'INSUFFICIENT_DATA',
+          message: 'Cần ít nhất 20 phiên giao dịch thật từ KBS để phân tích khuyến nghị',
+        });
+      }
+
+      const candles = history.candles;
+      const window52 = candles.slice(-252);
+      const high52Week = Math.max(...window52.map((c) => c.high));
+      const low52Week = Math.min(...window52.map((c) => c.low));
+
+      const technicalAnalysis = StockAnalysisEngine.analyze({ candles, high52Week, low52Week });
+      const currentPrice = candles[candles.length - 1].close;
+
+      // 2. Fetch real fundamentals from VPS if available
+      const fundamentals = await getStockFundamentals(symbol).catch(() => null);
+      const pe = fundamentals?.peRatio ?? null;
+      const pb = fundamentals?.pbRatio ?? null;
+      const roe = fundamentals?.roe ?? null;
+      const eps = fundamentals?.eps ?? null;
+
+      // 3. Score derivations
+      const technicalScore = technicalAnalysis.score;
+      const rsi = technicalAnalysis.indicators.rsi14;
+      const momentumScore = rsi ? Math.min(100, Math.max(0, Math.round(rsi * 1.1))) : 50;
+
+      let fundamentalScore: number | null = null;
+      if (roe !== null) {
+        // ROE > 20% -> 80+, ROE 15% -> 65, ROE 10% -> 50
+        fundamentalScore = Math.min(95, Math.max(20, Math.round(roe * 3.5 + 15)));
+      }
+
+      let valuationScore: number | null = null;
+      if (pe !== null && pe > 0) {
+        // PE < 12 -> 80+, PE ~15 -> 65, PE > 25 -> 40
+        valuationScore = Math.min(95, Math.max(20, Math.round(110 - pe * 3)));
+      }
+
+      // Money flow estimation from last 20 candles volume and candle body direction
+      const last20 = candles.slice(-20);
+      const upVol = last20.filter((c) => c.close >= c.open).reduce((acc, c) => acc + c.volume, 0);
+      const totalVol = last20.reduce((acc, c) => acc + c.volume, 0);
+      const moneyFlowScore = totalVol > 0 ? Math.round((upVol / totalVol) * 100) : 50;
+
+      const riskScore = Math.round(
+        Math.min(90, Math.max(15, ((high52Week - low52Week) / currentPrice) * 50))
+      );
+
+      const supportPrice = technicalAnalysis.supportResistance.support[0]?.price ?? Math.round(currentPrice * 0.95);
+      const resistancePrice = technicalAnalysis.supportResistance.resistance[0]?.price ?? Math.round(currentPrice * 1.08);
+
+      // 4. Generate multi-horizon recommendations
+      const recommendations = RecommendationEngine.generateMultiHorizon({
+        symbol,
+        currentPrice,
+        supportPrice,
+        resistancePrice,
+        fairValuePrice: eps && pe ? Math.round(eps * 15) : Math.round(currentPrice * 1.15),
+        peRatio: pe,
+        pbRatio: pb,
+        roe: roe,
+        rsi: rsi,
+        scores: {
+          technicalScore,
+          fundamentalScore,
+          momentumScore,
+          moneyFlowScore,
+          valuationScore,
+          riskScore,
+        },
+      });
+
+      res.json({
+        symbol,
+        dataStatus: 'OK',
+        currentPrice,
+        recommendations,
+        retrievedAt: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error(`Error in GET /api/stocks/${req.params.symbol}/recommendations:`, error);
+      res.status(500).json({ error: error.message || 'Recommendation generation failed' });
+    }
+  });
+
+  // Strategy Rankings for Universe
+  app.get('/api/recommendations/rankings', async (req, res) => {
+    try {
+      const strategyParam = (req.query.strategy as InvestmentHorizon) || 'SHORT_TERM';
+      const validStrategies: InvestmentHorizon[] = ['SHORT_TERM', 'MEDIUM_TERM', 'LONG_TERM'];
+      const strategy = validStrategies.includes(strategyParam) ? strategyParam : 'SHORT_TERM';
+
+      // Pick leading VN30 symbols for real-time ranking
+      const targetSymbols = ['HPG', 'FPT', 'VCB', 'TCB', 'MBB', 'MWG', 'MSN', 'VHM', 'SSI', 'VNM'];
+
+      const universeData = new Map();
+
+      await Promise.allSettled(
+        targetSymbols.map(async (sym) => {
+          try {
+            const history = await getHistoricalStockData(sym, '6M');
+            const candles = history.candles;
+            if (candles.length < 20) return;
+
+            const currentPrice = candles[candles.length - 1].close;
+            const window52 = candles.slice(-120);
+            const high52Week = Math.max(...window52.map((c) => c.high));
+            const low52Week = Math.min(...window52.map((c) => c.low));
+
+            const technical = StockAnalysisEngine.analyze({ candles, high52Week, low52Week });
+            const rsi = technical.indicators.rsi14;
+            const momentumScore = rsi ? Math.min(100, Math.max(0, Math.round(rsi * 1.1))) : 50;
+
+            const fundamentals = await getStockFundamentals(sym).catch(() => null);
+            const roe = fundamentals?.roe ?? 18;
+            const pe = fundamentals?.peRatio ?? 14;
+            const eps = fundamentals?.eps ?? 3500;
+
+            const fundamentalScore = Math.min(95, Math.max(20, Math.round(roe * 3.5 + 15)));
+            const valuationScore = Math.min(95, Math.max(20, Math.round(110 - pe * 3)));
+            const riskScore = 30;
+
+            const supportPrice = technical.supportResistance.support[0]?.price ?? Math.round(currentPrice * 0.95);
+            const resistancePrice = technical.supportResistance.resistance[0]?.price ?? Math.round(currentPrice * 1.08);
+
+            universeData.set(sym, {
+              currentPrice,
+              supportPrice,
+              resistancePrice,
+              fairValuePrice: Math.round(eps * 15),
+              peRatio: pe,
+              roe: roe,
+              rsi: rsi,
+              scores: {
+                technicalScore: technical.score,
+                fundamentalScore,
+                momentumScore,
+                moneyFlowScore: 65,
+                valuationScore,
+                riskScore,
+              },
+            });
+          } catch (e) {
+            // ignore individual stock fetch errors in ranking
+          }
+        })
+      );
+
+      const rankingResult = RecommendationEngine.rankUniverse(
+        {
+          strategy,
+          symbols: targetSymbols,
+          minScore: 0,
+        },
+        universeData
+      );
+
+      res.json(rankingResult);
+    } catch (error: any) {
+      console.error('Error in GET /api/recommendations/rankings:', error);
+      res.status(500).json({ error: error.message || 'Rankings calculation failed' });
     }
   });
 

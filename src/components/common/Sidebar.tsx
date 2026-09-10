@@ -1,10 +1,11 @@
-import { LayoutDashboard, TrendingUp, BarChart3, LineChart, PieChart, Calculator, Scale, Bookmark, Brain, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, BarChart3, LineChart, PieChart, Calculator, Scale, Bookmark, Brain, Sparkles, ChevronRight } from 'lucide-react';
 
 export type ActiveNavView =
   | 'dashboard'
   | 'market'
   | 'stocks'
   | 'watchlist'
+  | 'recommendations'
   | 'technical'
   | 'fundamentals'
   | 'valuation'
@@ -56,6 +57,14 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Danh mục Theo dõi',
     icon: Bookmark,
     phase: 1,
+    isPhase1: true,
+  },
+  {
+    id: 'recommendations',
+    label: 'Khuyến nghị AI',
+    icon: Sparkles,
+    badge: 'Phase 17',
+    phase: 17,
     isPhase1: true,
   },
   {

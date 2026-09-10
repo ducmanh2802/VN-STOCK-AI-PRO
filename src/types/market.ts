@@ -15,7 +15,7 @@ export interface IndexData {
   floors: number;
   status: MarketState;
   sparkline: number[];
-  isDemo: true;
+  isDemo?: boolean;
 }
 
 export interface MarketStatus {
@@ -23,7 +23,7 @@ export interface MarketStatus {
   stateLabel: 'ĐANG GIAO DỊCH' | 'ĐÓNG CỬA';
   sessionName: 'Phiên sáng' | 'Phiên chiều' | 'Khớp lệnh liên tục' | 'Phiên ATC' | 'Đã đóng cửa';
   timestamp: string;
-  isDemo: true;
+  isDemo?: boolean;
 }
 
 export interface AIMarketSummary {
@@ -36,7 +36,7 @@ export interface AIMarketSummary {
   overallComment: string;
   disclaimer: string;
   updatedAt: string;
-  isDemo: true;
+  isDemo?: boolean;
 }
 
 export interface MarketSentiment {
@@ -64,7 +64,7 @@ export interface MarketSentiment {
   shortTermOutlook: string;
   keyFactors: string[];
   updatedAt: string;
-  isDemo: true;
+  isDemo?: boolean;
 }
 
 export interface MarketBreadth {
@@ -92,7 +92,7 @@ export interface MarketBreadth {
     upcom: { advances: number; declines: number; unchanged: number; ceilings: number; floors: number };
   };
   updatedAt: string;
-  isDemo: true;
+  isDemo?: boolean;
 }
 
 export interface AITopSignal {
@@ -114,5 +114,5 @@ export interface AITopSignal {
   catalysts: string[];
   technicalSummary: string;
   updatedAt: string;
-  isDemo: true;
+  isDemo?: boolean;
 }

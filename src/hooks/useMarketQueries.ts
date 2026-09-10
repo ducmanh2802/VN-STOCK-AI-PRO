@@ -8,6 +8,11 @@ import type { MoneyFlowResult } from '../lib/analysis/moneyFlow/MoneyFlowEngine'
 // PHASE 8.5C — real market data types (type-only imports: no server code bundled into the client)
 import type { VpsNormalizedFundamentals, VpsNormalizedQuote } from '../services/market/providers/vps/types';
 import type { QuoteCrossCheck } from '../services/market/realMarketDataService';
+import type {
+  InvestmentHorizon,
+  InvestmentRecommendation,
+  RankingResult,
+} from '../types/recommendation';
 
 export const MARKET_KEYS = {
   all: ['market'] as const,
@@ -29,6 +34,8 @@ export const MARKET_KEYS = {
   analysis: (symbol: string) => ['market', 'analysis', symbol.toUpperCase()] as const,
   realtimeQuote: (symbol: string) => ['market', 'realtimeQuote', symbol.toUpperCase()] as const,
   realFundamentals: (symbol: string) => ['market', 'realFundamentals', symbol.toUpperCase()] as const,
+  recommendations: (symbol: string) => ['market', 'recommendations', symbol.toUpperCase()] as const,
+  rankings: (strategy: string) => ['market', 'rankings', strategy] as const,
 };
 
 /**
@@ -317,6 +324,49 @@ export function useStockAnalysis(symbol: string | null) {
     staleTime: 60 * 1000,
   });
 }
+
+/** Response envelope for Stock Recommendations */
+export interface StockRecommendationsResponse {
+  symbol: string;
+  dataStatus: 'OK' | 'INSUFFICIENT_DATA' | 'DATA_UNAVAILABLE';
+  currentPrice: number;
+  recommendations?: Record<InvestmentHorizon, InvestmentRecommendation>;
+  message?: string;
+  retrievedAt?: string;
+}
+
+/**
+ * PHASE 17 — Hook to retrieve multi-horizon AI recommendations (Short, Medium, Long term)
+ */
+export function useStockRecommendations(symbol: string | null) {
+  return useQuery<StockRecommendationsResponse | null>({
+    queryKey: MARKET_KEYS.recommendations(symbol || ''),
+    queryFn: async () => {
+      if (!symbol) return null;
+      const res = await fetch(`/api/stocks/${symbol.toUpperCase()}/recommendations`);
+      if (!res.ok) throw new Error('Failed to fetch recommendations');
+      return res.json();
+    },
+    enabled: Boolean(symbol),
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * PHASE 17 — Hook to retrieve Strategy Rankings across universe
+ */
+export function useRecommendationRankings(strategy: InvestmentHorizon = 'SHORT_TERM') {
+  return useQuery<RankingResult | null>({
+    queryKey: MARKET_KEYS.rankings(strategy),
+    queryFn: async () => {
+      const res = await fetch(`/api/recommendations/rankings?strategy=${strategy}`);
+      if (!res.ok) throw new Error('Failed to fetch recommendation rankings');
+      return res.json();
+    },
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useRefreshMarket() {
   const queryClient = useQueryClient();
   return () => {

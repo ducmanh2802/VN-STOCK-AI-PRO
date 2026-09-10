@@ -22,6 +22,7 @@ import { StockMoneyFlow } from '../components/stock/StockMoneyFlow';
 import { StockSupportResistance } from '../components/stock/StockSupportResistance';
 import { StockRiskReward } from '../components/stock/StockRiskReward';
 import { StockAIExplanation } from '../components/stock/StockAIExplanation';
+import { StockRecommendationsView } from '../components/stock/StockRecommendationsView';
 import { DataSourceBadge } from '../components/stock/DataSourceBadge';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorBoundary';
@@ -223,6 +224,9 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
 
       {/* 5b. Real technical analysis engine result (Phase 8.4 / 8.5C) — real KBS data → StockAnalysisEngine */}
       <StockAnalysisCard analysis={stockAnalysis} isLoading={isAnalysisLoading} />
+
+      {/* PHASE 17 — Multi-Horizon AI Recommendation Engine */}
+      <StockRecommendationsView symbol={symbol} />
 
       {/* 2-Column Responsive Layout for Deep Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -1,10 +1,10 @@
 import { MarketDataProvider } from '../../types/provider';
-import { MockMarketDataProvider } from './MockMarketDataProvider';
+import { RealMarketDataProvider, realMarketDataProvider } from './RealMarketDataProvider';
 
-// Singleton instance of the data provider
-// In Phase 10 or when real API is configured, simply replace MockMarketDataProvider with RealMarketDataProvider
-export const marketDataProvider: MarketDataProvider = new MockMarketDataProvider();
+// Singleton instance of the real market data provider (KBS & VPS)
+export const marketDataProvider: MarketDataProvider = realMarketDataProvider;
 export const marketService: MarketDataProvider = marketDataProvider;
 
-export * from './MockMarketDataProvider';
+export { RealMarketDataProvider, realMarketDataProvider };
 export * from '../../types/provider';
+export * from './stockUniverse';

@@ -352,7 +352,7 @@ describe('SignalEngine', () => {
           score: 50,
           customThresholds,
         })
-      ).toThrow('buyMin.*must be greater than holdMin');
+      ).toThrow(/buyMin.*must be greater than holdMin/);
     });
 
     it('validates custom thresholds (buyMin in range)', () => {
@@ -363,7 +363,7 @@ describe('SignalEngine', () => {
           score: 50,
           customThresholds,
         })
-      ).toThrow('buyMin must be in \\[0, 100\\]');
+      ).toThrow(/buyMin must be in \[0, 100\]/);
     });
 
     it('validates custom thresholds (holdMin in range)', () => {
@@ -374,7 +374,7 @@ describe('SignalEngine', () => {
           score: 50,
           customThresholds,
         })
-      ).toThrow('holdMin must be in \\[0, 100\\]');
+      ).toThrow(/holdMin must be in \[0, 100\]/);
     });
   });
 

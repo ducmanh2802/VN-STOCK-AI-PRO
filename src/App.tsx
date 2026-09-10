@@ -20,6 +20,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { MarketPage } from './pages/MarketPage';
 import { StocksPage } from './pages/StocksPage';
 import { WatchlistPage } from './pages/WatchlistPage';
+import { RecommendationsPage } from './pages/RecommendationsPage';
 import { AIAnalystPage } from './pages/AIAnalystPage';
 import { StockDetailPage } from './pages/StockDetailPage';
 import { PhasePlaceholderPage } from './pages/PhasePlaceholderPage';
@@ -214,6 +215,10 @@ export default function App() {
                     onAddToWatchlist={addToWatchlist}
                     onRemoveFromWatchlist={removeFromWatchlist}
                   />
+                )}
+
+                {currentView === 'recommendations' && (
+                  <RecommendationsPage onSelectStock={handleSelectStock} />
                 )}
 
                 {currentView === 'ai-analyst' && aiSummary && (
