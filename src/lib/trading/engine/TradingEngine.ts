@@ -45,15 +45,13 @@ import type {
   BrokerPosition,
   OrderResult,
 } from '../execution/BrokerAdapter.ts';
+import type { SimulationMarketTick } from '../paper/PaperBrokerTypes.ts';
 import { OrderManager } from '../execution/OrderManager.ts';
 import { RiskManager } from '../risk/RiskManager.ts';
 import { PositionSizer } from '../risk/PositionSizer.ts';
 import { TradingDataValidator } from '../validation/TradingDataValidator.ts';
-import { RecommendationEngine } from '../../analysis/strategy/RecommendationEngine.ts';
-import { StockAnalysisEngine } from '../../analysis/technical/StockAnalysisEngine.ts';
 import {
   getRealtimeQuote,
-  getHistoricalStockData,
   MarketDataUnavailableError,
 } from '../../../services/market/realMarketDataService.ts';
 import type {
@@ -65,6 +63,7 @@ import type {
   TradingCycleOptions,
   TradingCycleResult,
 } from './TradingEngineTypes.ts';
+import { TradeCapitalAllocation } from '../capitalAllocation/TradeCapitalAllocation.ts';
 
 export class TradingEngine {
   private broker: BrokerAdapter;
@@ -290,7 +289,7 @@ export class TradingEngine {
           high: q.highPrice,
           low: q.lowPrice,
           close: q.lastPrice,
-          volume: q.totalVolume,
+          volume: q.matchedVolumeShares ?? null,
           referencePrice: q.referencePrice,
           ceilingPrice: q.ceilingPrice,
           floorPrice: q.floorPrice,
@@ -335,7 +334,7 @@ export class TradingEngine {
     }
 
     // 3b. Update broker's internal tick cache so market orders can be executed accurately
-    const brokerWithTicks = this.broker as { processMarketData?: (tick: any) => void };
+    const brokerWithTicks = this.broker as { processMarketData?: (tick: SimulationMarketTick) => void };
     if (typeof brokerWithTicks.processMarketData === 'function') {
       brokerWithTicks.processMarketData(marketData);
     }
@@ -360,72 +359,15 @@ export class TradingEngine {
     let recommendation: InvestmentRecommendation;
     if (options.recommendation) {
       recommendation = options.recommendation;
-    } else if (options.signal) {
-      recommendation = {
-        symbol,
-        strategy: horizon,
-        signal: options.signal.signal === 'BUY' ? 'BUY' : options.signal.signal === 'SELL' ? 'SELL' : 'HOLD',
-        score: options.signal.score ?? 70,
-        confidence: typeof options.signal.confidence === 'string' ? (options.signal.confidence as any) : 'MEDIUM',
-        entryPrice: options.signal.entryPrice,
-        targetPrice: options.signal.targetPrice,
-        stopLoss: options.signal.stopLoss,
-        riskReward: options.signal.riskReward ?? 2.5,
-        expectedReturn: 15,
-        holdingPeriod: 14,
-        reasons: options.signal.reasons ?? ['User-supplied signal'],
-      };
     } else {
-      try {
-        const history = await getHistoricalStockData(symbol, '6M');
-        const candles = history.candles;
-        if (candles.length < 20) {
-          const res: TradingCycleResult = {
-            status: 'REJECTED',
-            symbol,
-            action: 'NO_TRADE',
-            marketData,
-            rejectionCode: 'DATA_UNAVAILABLE',
-            reason: `Insufficient historical candles for ${symbol} (${candles.length} bars, minimum 20 required).`,
-            timestamp,
-          };
-          this.recordAudit(res);
-          return res;
-        }
-
-        const analysis = StockAnalysisEngine.analyze({ candles });
-        const supportPrice = analysis.supportResistance.supportLevels[0]?.price ?? null;
-        const resistancePrice = analysis.supportResistance.resistanceLevels[0]?.price ?? null;
-
-        recommendation = RecommendationEngine.generate({
-          symbol,
-          strategy: horizon,
-          currentPrice: marketData.price,
-          scores: {
-            technicalScore: analysis.score,
-            fundamentalScore: 65,
-            momentumScore: 65,
-            valuationScore: 65,
-            moneyFlowScore: 65,
-            riskScore: 35,
-          },
-          supportPrice,
-          resistancePrice,
-          rsi: analysis.indicators.rsi14,
-        });
-      } catch (err) {
-        const res: TradingCycleResult = {
-          status: 'REJECTED',
-          symbol,
-          action: 'NO_TRADE',
-          marketData,
-          rejectionCode: 'DATA_UNAVAILABLE',
-          reason: `Failed to generate recommendation: ${err instanceof Error ? err.message : String(err)}`,
-          timestamp,
-        };
-        this.recordAudit(res);
-        return res;
-      }
+      const res: TradingCycleResult = {
+        status: 'REJECTED', symbol, action: 'NO_TRADE', marketData,
+        rejectionCode: 'DATA_UNAVAILABLE',
+        reason: 'No RecommendationEngine result was supplied. TradingEngine will not fabricate missing analysis inputs or a recommendation.',
+        timestamp,
+      };
+      this.recordAudit(res);
+      return res;
     }
 
     // 6. Tradable Signal Decision Check
@@ -583,8 +525,42 @@ export class TradingEngine {
         return res;
       }
 
-      // Run PositionSizer
+      // Phase 19.3A: Capital Allocation within the risk-approved ceiling.
+      // RiskManager owns the approved capital ceiling; TradeCapitalAllocation
+      // derives usable allocation capital (cash / exposure / risk capped).
       const riskConfig = this.riskManager.getConfig();
+      const riskApprovedCapital = riskCheck.metrics?.riskApprovedCapital ?? 0;
+      const capitalAllocation = TradeCapitalAllocation.allocate({
+        account: {
+          equity: account.equity,
+          availableCash: account.availableCash,
+          marketValue: currentExposure,
+        },
+        recommendation,
+        riskDecision: riskCheck,
+        riskConfig,
+        riskApprovedCapital,
+      });
+
+      if (capitalAllocation.status !== 'ALLOCATED') {
+        const res: TradingCycleResult = {
+          status: 'NO_TRADE',
+          symbol,
+          action: 'BUY',
+          marketData,
+          recommendation,
+          signal: tradingSignal,
+          riskCheck,
+          capitalAllocation,
+          rejectionCode: 'INSUFFICIENT_CASH',
+          reason: capitalAllocation.reason,
+          timestamp,
+        };
+        this.recordAudit(res);
+        return res;
+      }
+
+      // Run PositionSizer (quantity authority) under the allocation capital ceiling
       const sizing = PositionSizer.calculate({
         equity: riskContext.accountEquity,
         availableCash: riskContext.availableCash,
@@ -596,6 +572,7 @@ export class TradingEngine {
         slippageRate: riskConfig.slippageRate,
         existingExposure: riskContext.currentExposure,
         maxPortfolioExposureRate: riskConfig.maxPortfolioExposureRate,
+        capitalCeiling: capitalAllocation.allocationCapital,
       });
 
       if (!sizing.canTrade || sizing.quantity < 100) {
@@ -648,6 +625,7 @@ export class TradingEngine {
         recommendation,
         signal: tradingSignal,
         riskCheck,
+        capitalAllocation,
         positionSizing: sizing,
         tradeDecision,
         order: orderResult.order,

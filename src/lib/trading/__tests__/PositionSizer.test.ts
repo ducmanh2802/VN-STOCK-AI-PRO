@@ -160,3 +160,51 @@ describe('Phase 18.1 — PositionSizer', () => {
     });
   });
 });
+describe('Phase 19.3A — PositionSizer capital ceiling contract', () => {
+  const baseInput = {
+    equity: 100_000_000,
+    availableCash: 50_000_000,
+    entryPrice: 50_000,
+    stopLossPrice: 47_000,     // Risk = 3,000 VND / share
+    maxRiskPerTradeRate: 0.01, // 1% => Risk budget = 1,000,000 VND
+    lotSize: 100,
+    buyFeeRate: 0.0015,
+    slippageRate: 0.0010,
+    existingExposure: 0,
+    maxPortfolioExposureRate: 0.80,
+  };
+
+  it('accepts a capital ceiling that the required capital stays within', () => {
+    const res = PositionSizer.calculate({ ...baseInput, capitalCeiling: 15_037_500 });
+    expect(res.canTrade).toBe(true);
+    expect(res.quantity).toBe(300);
+    expect(res.totalCapitalRequirement).toBeLessThanOrEqual(15_037_500);
+  });
+
+  it('rejects fail-closed when total capital requirement exceeds the ceiling', () => {
+    const res = PositionSizer.calculate({ ...baseInput, capitalCeiling: 10_000_000 });
+    expect(res.canTrade).toBe(false);
+    expect(res.code).toBe('INVALID_CAPITAL');
+    expect(res.totalCapitalRequirement).toBe(15_037_500); // preserves computed size for auditing
+  });
+
+  it('never exceeds the capital ceiling when provided', () => {
+    for (const ceiling of [5_000_000, 14_000_000, 15_000_000, 15_037_500]) {
+      const res = PositionSizer.calculate({ ...baseInput, capitalCeiling: ceiling });
+      if (res.canTrade) expect(res.totalCapitalRequirement).toBeLessThanOrEqual(ceiling);
+    }
+  });
+
+  it('fails closed for zero, negative, NaN, and Infinity ceilings', () => {
+    expect(PositionSizer.calculate({ ...baseInput, capitalCeiling: 0 }).code).toBe('INVALID_CAPITAL');
+    expect(PositionSizer.calculate({ ...baseInput, capitalCeiling: -100 }).code).toBe('INVALID_CAPITAL');
+    expect(PositionSizer.calculate({ ...baseInput, capitalCeiling: Number.NaN }).code).toBe('INVALID_CAPITAL');
+    expect(PositionSizer.calculate({ ...baseInput, capitalCeiling: Number.POSITIVE_INFINITY }).code).toBe('INVALID_CAPITAL');
+    expect(PositionSizer.calculate({ ...baseInput, capitalCeiling: Number.NEGATIVE_INFINITY }).code).toBe('INVALID_CAPITAL');
+  });
+
+  it('remains the quantity authority (no ceiling → prior sizing unchanged)', () => {
+    expect(PositionSizer.calculate(baseInput).quantity).toBe(300);
+    expect(PositionSizer.calculate(baseInput).code).toBe('SUCCESS');
+  });
+});

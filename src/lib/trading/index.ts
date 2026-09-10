@@ -15,3 +15,5 @@ export * from './execution/OrderManager.ts';
 export * from './paper/PaperBrokerTypes.ts';
 export * from './paper/PaperBroker.ts';
 export * from './engine/index.ts';
+export * from './api/index.ts';
+export * from './capitalAllocation/index.ts';

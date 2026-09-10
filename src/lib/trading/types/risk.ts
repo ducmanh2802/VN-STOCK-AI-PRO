@@ -75,6 +75,13 @@ export interface RiskCheckResult {
     riskPercent?: number;
     exposurePercent?: number;
     rrRatio?: number;
+    /**
+     * Canonical risk-approved capital ceiling for this trade.
+     * Source of truth is RiskManager's own risk sizing (the approved
+     * total capital requirement it derives from its risk policy).
+     * It is NOT a client-supplied value, not quantity, not exposure share.
+     */
+    riskApprovedCapital?: number;
   };
 }
 
@@ -89,6 +96,12 @@ export interface PositionSizingInput {
   slippageRate?: number;
   existingExposure?: number;
   maxPortfolioExposureRate?: number;
+  /**
+   * Optional capital ceiling (VND) that the computed position's total
+   * capital requirement must never exceed. Supplied by the domain layer
+   * (e.g. risk-approved capital). PositionSizer enforces it fail-closed.
+   */
+  capitalCeiling?: number;
 }
 
 export interface PositionSizingResult {

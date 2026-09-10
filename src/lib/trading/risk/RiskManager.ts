@@ -190,6 +190,7 @@ export class RiskManager {
           (((context.currentExposure + sizingResult.buyCost) / context.accountEquity) * 100).toFixed(1)
         ),
         rrRatio,
+        riskApprovedCapital: sizingResult.totalCapitalRequirement,
       },
     };
   }
@@ -251,6 +252,7 @@ export class RiskManager {
       targetPrice: signal.targetPrice,
       riskRewardRatio: rrRatio,
       totalCapitalRequirement: sizing.totalCapitalRequirement,
+      riskApprovedCapital: sizing.totalCapitalRequirement,
       timestamp: nowIso,
     };
   }

@@ -34,12 +34,19 @@ import { RecommendationEngine } from './src/lib/analysis/strategy/Recommendation
 import { InvestmentHorizon } from './src/types/recommendation.ts';
 import { VIETNAM_STOCKS_UNIVERSE } from './src/services/market/stockUniverse.ts';
 import { cacheStats } from './src/services/market/marketDataCache.ts';
+import { PaperBroker } from './src/lib/trading/paper/PaperBroker.ts';
+import { TradingEngine } from './src/lib/trading/engine/TradingEngine.ts';
+import { createTradingApiRouter } from './src/lib/trading/api/TradingApiRouter.ts';
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json());
+
+  // Paper-only process-local runtime. Portfolio/account state stays in PaperBroker.
+  const tradingEngine = new TradingEngine({ broker: new PaperBroker() });
+  app.use('/api/trading', requireAuth, createTradingApiRouter(tradingEngine));
 
   // ========================================================
   // API ROUTES (Backend Data Layer over PostgreSQL / Drizzle)

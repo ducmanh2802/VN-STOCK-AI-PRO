@@ -173,4 +173,40 @@ describe('Phase 18.1 — RiskManager', () => {
       expect(check.code).toBe('INVALID_RISK_REWARD');
     });
   });
+
+  describe('Phase 19.3A — canonical riskApprovedCapital contract', () => {
+    it('exposes a canonical riskApprovedCapital on an approved trade', () => {
+      const check = riskManager.checkRisk(validSignal, validMarketData, validContext);
+      expect(check.approved).toBe(true);
+      expect(check.metrics?.riskApprovedCapital).toBeDefined();
+      expect(check.metrics!.riskApprovedCapital!).toBeGreaterThan(0);
+      expect(check.metrics!.riskApprovedCapital!).toBe(check.metrics!.riskAmount! * 0 + 22_000_000 + 33_000 + 22_000);
+      // 200 * 110k buyCost = 22,000,000; fee 0.15% = 33,000; slippage 0.1% = 22,000
+      expect(check.metrics!.riskApprovedCapital!).toBe(22_055_000);
+    });
+
+    it('exposes riskApprovedCapital on evaluateTrade approved decision', () => {
+      const decision = riskManager.evaluateTrade(validSignal, validMarketData, validContext);
+      expect(decision.decision).toBe('APPROVED_TRADE');
+      expect(decision.riskApprovedCapital).toBe(22_055_000);
+      expect(decision.riskApprovedCapital).toBe(decision.totalCapitalRequirement);
+    });
+
+    it('does not provide usable capital when risk rejects the trade', () => {
+      const check = riskManager.checkRisk(validSignal, validMarketData, { ...validContext, tradingEnabled: false });
+      expect(check.approved).toBe(false);
+      expect(check.metrics?.riskApprovedCapital).toBeUndefined();
+
+      const decision = riskManager.evaluateTrade(validSignal, validMarketData, { ...validContext, emergencyStop: true });
+      expect(decision.decision).toBe('NO_TRADE');
+      expect(decision.riskApprovedCapital).toBeUndefined();
+      expect(decision.totalCapitalRequirement).toBe(0);
+    });
+
+    it('exposed capital is not quantity and not an allocation percentage', () => {
+      const check = riskManager.checkRisk(validSignal, validMarketData, validContext);
+      expect(check.metrics!.riskApprovedCapital!).not.toBe(200); // not quantity
+      expect(check.metrics!.riskApprovedCapital!).not.toBe(22); // not a percentage
+    });
+  });
 });

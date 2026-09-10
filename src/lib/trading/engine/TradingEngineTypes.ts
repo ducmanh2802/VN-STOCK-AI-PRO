@@ -16,7 +16,7 @@ import type {
 import type {
   RiskConfig,
   RiskCheckResult,
-  PositionSizeResult,
+  PositionSizingResult,
 } from '../types/risk.ts';
 import type {
   BrokerAdapter,
@@ -25,6 +25,7 @@ import type {
   OrderResult,
 } from '../execution/BrokerAdapter.ts';
 import type { OrderManager } from '../execution/OrderManager.ts';
+import type { TradeCapitalAllocationResult } from '../capitalAllocation/TradeCapitalAllocationTypes.ts';
 import type {
   InvestmentHorizon,
   InvestmentRecommendation,
@@ -87,8 +88,10 @@ export interface TradingCycleResult {
   signal?: TradingSignal | null;
   /** RiskManager evaluation outcome */
   riskCheck?: RiskCheckResult | null;
+  /** Trade capital allocation outcome (Phase 19.3A contract) */
+  capitalAllocation?: TradeCapitalAllocationResult | null;
   /** Position sizer calculation outcome */
-  positionSizing?: PositionSizeResult | null;
+  positionSizing?: PositionSizingResult | null;
   /** Trade decision produced */
   tradeDecision?: TradeDecision | null;
   /** Executed or submitted order */

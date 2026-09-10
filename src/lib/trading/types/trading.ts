@@ -25,6 +25,7 @@ export type ValidationErrorCode =
   | 'INVALID_ORDER'
   | 'INVALID_SYMBOL'
   | 'INVALID_QUANTITY'
+  | 'INVALID_CAPITAL'
   | 'INSUFFICIENT_POSITION'
   | 'SHORT_SELL_NOT_SUPPORTED'
   | 'DUPLICATE_ORDER'
@@ -83,6 +84,11 @@ export interface TradeDecision {
   targetPrice: number;
   riskRewardRatio: number;
   totalCapitalRequirement: number;
+  /**
+   * Canonical risk-approved capital ceiling for this trade, owned by
+   * RiskManager and derived from its own risk sizing policy.
+   */
+  riskApprovedCapital?: number;
   rejectionCode?: ValidationErrorCode;
   rejectionReason?: string;
   timestamp: string;

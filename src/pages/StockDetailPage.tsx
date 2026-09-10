@@ -17,6 +17,7 @@ import { StockTechnicalIndicators } from '../components/stock/StockTechnicalIndi
 import { StockAnalysisCard } from '../components/stock/StockAnalysisCard';
 import { StockFundamentals } from '../components/stock/StockFundamentals';
 import { StockRealFundamentals } from '../components/stock/StockRealFundamentals';
+import { StockCapitalAllocation } from '../components/stock/StockCapitalAllocation';
 import { StockValuation } from '../components/stock/StockValuation';
 import { StockMoneyFlow } from '../components/stock/StockMoneyFlow';
 import { StockSupportResistance } from '../components/stock/StockSupportResistance';
@@ -27,6 +28,8 @@ import { DataSourceBadge } from '../components/stock/DataSourceBadge';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorBoundary';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { CapitalAllocationEngine } from '../lib/analysis/capitalAllocation';
+import { normalizeVpsAnnualFundamentals } from '../lib/analysis/enterprise/financialFacts';
 
 export interface StockDetailPageProps {
   symbol: string;
@@ -68,6 +71,13 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
     realFundamentalsResp && realFundamentalsResp.dataStatus !== 'OK'
       ? realFundamentalsResp.error ?? 'VPS trả về trạng thái không khả dụng'
       : null;
+  // VPS currently provides no cash-flow, CAPEX, or verified dividend lines.
+  // The engine consequently exposes DATA_UNAVAILABLE rather than fabricating allocation data.
+  const capitalAllocation = CapitalAllocationEngine.analyze({
+    symbol,
+    facts: { annals: realFundamentals ? normalizeVpsAnnualFundamentals(realFundamentals) : [] },
+    asOfDate: realFundamentals?.fetchedAt ?? null,
+  });
 
   // Real KBS chart bundle (only when the endpoint returned dataStatus OK)
   const chartBundle: StockChartDataBundle | null =
@@ -236,6 +246,8 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
           isLoading={isRealFundamentalsLoading && !realFundamentals}
           unavailableReason={realFundamentalsUnavailableReason}
         />
+
+        <StockCapitalAllocation analysis={capitalAllocation} />
 
         {/* 6b. Legacy Phase 8.4 fundamental metrics (demo data — kept for UI continuity) */}
         <StockFundamentals fundamentals={stock.fundamentals} />

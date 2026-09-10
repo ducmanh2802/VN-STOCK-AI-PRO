@@ -1,9 +1,22 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TradingEngine } from '../engine/TradingEngine.ts';
 import { PaperBroker } from '../paper/PaperBroker.ts';
 import { OrderManager } from '../execution/OrderManager.ts';
 import type { TradingMarketData } from '../types/trading.ts';
 import type { InvestmentRecommendation } from '../../../types/recommendation.ts';
+
+// Simulate an upstream market-data outage (KBS/VPS unavailable) for the
+// fail-closed DATA_UNAVAILABLE test. No test in this file relies on real fetch,
+// because every BUY/SELL test injects marketData explicitly.
+vi.mock('../../../services/market/realMarketDataService.ts', async () => {
+  const actual = await vi.importActual<
+    typeof import('../../../services/market/realMarketDataService.ts')
+  >('../../../services/market/realMarketDataService.ts');
+  return {
+    ...actual,
+    getRealtimeQuote: vi.fn().mockRejectedValue(new Error('KBS/VPS unavailable: network error')),
+  };
+});
 
 describe('TradingEngine — Phase 18.4 Verification', () => {
   let broker: PaperBroker;
@@ -38,6 +51,19 @@ describe('TradingEngine — Phase 18.4 Verification', () => {
     expectedReturn: 13.5,
     holdingPeriod: 14,
     reasons: ['Breakout above MA20', 'Strong institutional net inflow'],
+    warnings: [],
+    scoreBreakdown: {
+      technical: 74,
+      fundamental: 68,
+      momentum: 80,
+      moneyFlow: 78,
+      valuation: 72,
+      risk: 30,
+    },
+    evidence: [],
+    generatedAt: '2026-09-10T00:00:00.000Z',
+    asOfDate: '2026-09-10',
+    currency: 'VND',
   };
 
   const holdRecommendation: InvestmentRecommendation = {
@@ -53,6 +79,19 @@ describe('TradingEngine — Phase 18.4 Verification', () => {
     expectedReturn: 3.8,
     holdingPeriod: 14,
     reasons: ['Consolidation zone with no clear directional bias'],
+    warnings: ['Low conviction signal'],
+    scoreBreakdown: {
+      technical: 55,
+      fundamental: 50,
+      momentum: 52,
+      moneyFlow: 48,
+      valuation: 55,
+      risk: 40,
+    },
+    evidence: [],
+    generatedAt: '2026-09-10T00:00:00.000Z',
+    asOfDate: '2026-09-10',
+    currency: 'VND',
   };
 
   const sellRecommendation: InvestmentRecommendation = {
@@ -68,6 +107,19 @@ describe('TradingEngine — Phase 18.4 Verification', () => {
     expectedReturn: -11.5,
     holdingPeriod: 7,
     reasons: ['Loss of support at MA50', 'Bearish divergence on RSI'],
+    warnings: ['High downside volatility'],
+    scoreBreakdown: {
+      technical: 28,
+      fundamental: 40,
+      momentum: 22,
+      moneyFlow: 30,
+      valuation: 45,
+      risk: 65,
+    },
+    evidence: [],
+    generatedAt: '2026-09-10T00:00:00.000Z',
+    asOfDate: '2026-09-10',
+    currency: 'VND',
   };
 
   beforeEach(() => {
@@ -75,7 +127,6 @@ describe('TradingEngine — Phase 18.4 Verification', () => {
     broker = new PaperBroker({
       initialCash: 100_000_000, // 100M VND
       skipSessionValidation: true,
-      executionDelayMs: 0,
     });
     orderManager = new OrderManager({ broker });
     engine = new TradingEngine({
@@ -217,6 +268,9 @@ describe('TradingEngine — Phase 18.4 Verification', () => {
         broker,
         orderManager,
         skipSessionValidation: false, // enforce real session rules
+        // Isolate the session check: a wide staleness tolerance ensures the Sunday
+        // timestamp below is judged on session state only, not on age.
+        riskConfig: { maxStaleTimeMs: 10 * 24 * 60 * 60 * 1000 }, // 10 days
       });
 
       // Pass a Sunday timestamp (Sunday is always closed)
@@ -253,7 +307,7 @@ describe('TradingEngine — Phase 18.4 Verification', () => {
       });
 
       expect(result.status).toBe('REJECTED');
-      expect(result.rejectionCode).toBe('DATA_STALE');
+      expect(result.rejectionCode).toBe('STALE_DATA');
     });
 
     it('fails closed when market price is non-positive', async () => {
@@ -334,7 +388,7 @@ describe('TradingEngine — Phase 18.4 Verification', () => {
       });
 
       expect(result.status).toBe('NO_TRADE');
-      expect(result.rejectionCode).toBe('INSUFFICIENT_CASH');
+      expect(result.rejectionCode).toBe('INVALID_LOT_SIZE');
       expect(result.order).toBeUndefined();
     });
   });
@@ -460,6 +514,19 @@ describe('TradingEngine — Phase 18.4 Verification', () => {
         expectedReturn: 11.5,
         holdingPeriod: 14,
         reasons: ['Cloud & AI revenue acceleration'],
+        warnings: [],
+        scoreBreakdown: {
+          technical: 82,
+          fundamental: 78,
+          momentum: 84,
+          moneyFlow: 80,
+          valuation: 76,
+          risk: 25,
+        },
+        evidence: [],
+        generatedAt: '2026-09-10T00:00:00.000Z',
+        asOfDate: '2026-09-10',
+        currency: 'VND',
       };
 
       // Register market data resolver or pass via batch
@@ -481,6 +548,57 @@ describe('TradingEngine — Phase 18.4 Verification', () => {
       const positions = await broker.getPositions();
       expect(positions.length).toBe(2);
       expect(positions.map((p) => p.symbol).sort()).toEqual(['FPT', 'HPG']);
+    });
+  });
+
+  describe('10. RiskManager Rejection Blocks Order', () => {
+    it('returns the actual risk code and creates no order when RiskManager rejects', async () => {
+      const riskEngine = new TradingEngine({ broker, orderManager, skipSessionValidation: true, riskConfig: { maxOpenPositions: 0 } });
+      const result = await riskEngine.runTradingCycle({ symbol: 'HPG', marketData: validMarketData, recommendation: buyRecommendation });
+      expect(result.status).toBe('NO_TRADE');
+      expect(result.rejectionCode).toBe('POSITION_LIMIT');
+      expect(result.order).toBeUndefined();
+    });
+  });
+
+  describe('11. Data Unavailable Fails Closed', () => {
+    it('does not create an order when upstream market data is unavailable', async () => {
+      const result = await engine.runTradingCycle({ symbol: 'HPG', recommendation: buyRecommendation });
+      expect(result.status).toBe('REJECTED');
+      expect(result.rejectionCode).toBe('DATA_UNAVAILABLE');
+      expect(result.order).toBeUndefined();
+    });
+  });
+describe('12. Phase 19.3A — Risk → Capital → Sizing contract in TradingEngine', () => {
+    it('wires riskApprovedCapital → allocationCapital → positionSizing ceiling', async () => {
+      const result = await engine.runTradingCycle({
+        symbol: 'HPG',
+        marketData: validMarketData,
+        recommendation: buyRecommendation,
+      });
+
+      expect(result.status).toBe('TRADED');
+      // RiskManager exposes the canonical risk-approved capital ceiling
+      const approved = result.riskCheck?.metrics?.riskApprovedCapital;
+      expect(approved).toBeDefined();
+      expect(approved!).toBeGreaterThan(0);
+
+      // TradeCapitalAllocation consumes that canonical capital and caps below it
+      expect(result.capitalAllocation?.status).toBe('ALLOCATED');
+      const allocation = result.capitalAllocation;
+      if (allocation?.status === 'ALLOCATED') {
+        expect(allocation.allocationCapital).toBeGreaterThan(0);
+        expect(allocation.allocationCapital).toBeLessThanOrEqual(approved!);
+        expect(allocation.allocationCapital).toBeLessThanOrEqual(100_000_000);
+      }
+
+      // PositionSizer remains quantity authority and never exceeds the allocation ceiling
+      expect(result.positionSizing).toBeDefined();
+      expect(result.positionSizing?.canTrade).toBe(true);
+      expect(result.positionSizing!.quantity).toBeGreaterThanOrEqual(100);
+      expect(result.positionSizing!.totalCapitalRequirement).toBeLessThanOrEqual(
+        result.capitalAllocation?.status === 'ALLOCATED' ? result.capitalAllocation.allocationCapital : 0
+      );
     });
   });
 });

@@ -31,7 +31,26 @@ export class PositionSizer {
       slippageRate = DEFAULT_RISK_CONFIG.slippageRate,
       existingExposure = 0,
       maxPortfolioExposureRate = DEFAULT_RISK_CONFIG.maxPortfolioExposureRate,
+      capitalCeiling,
     } = input;
+
+    // 0. Capital ceiling validation (fail-closed)
+    if (capitalCeiling !== undefined) {
+      if (!Number.isFinite(capitalCeiling) || capitalCeiling <= 0) {
+        return {
+          canTrade: false,
+          quantity: 0,
+          riskAmount: 0,
+          riskPerShare: 0,
+          buyCost: 0,
+          buyFee: 0,
+          slippageBuffer: 0,
+          totalCapitalRequirement: 0,
+          code: 'INVALID_CAPITAL',
+          reason: `Capital ceiling must be a positive finite value, got: ${capitalCeiling}`,
+        };
+      }
+    }
 
     // 1. Validation of capital and account values
     if (equity <= 0 || !Number.isFinite(equity)) {
@@ -159,6 +178,22 @@ export class PositionSizer {
     const buyFee = Math.round(buyCost * buyFeeRate);
     const slippageBuffer = Math.round(buyCost * slippageRate);
     const totalCapitalRequirement = buyCost + buyFee + slippageBuffer;
+
+    // 6b. Capital ceiling enforcement (fail-closed: never exceed the approved ceiling)
+    if (capitalCeiling !== undefined && totalCapitalRequirement > capitalCeiling) {
+      return {
+        canTrade: false,
+        quantity: adjustedQuantity,
+        riskAmount: adjustedQuantity * riskPerShare,
+        riskPerShare,
+        buyCost,
+        buyFee,
+        slippageBuffer,
+        totalCapitalRequirement,
+        code: 'INVALID_CAPITAL',
+        reason: `Total capital required (${totalCapitalRequirement.toLocaleString('vi-VN')} VND) exceeds the approved capital ceiling (${capitalCeiling.toLocaleString('vi-VN')} VND)`,
+      };
+    }
 
     // 7. Available Cash check (Fail-closed: do not force arbitrary down-sizing)
     if (totalCapitalRequirement > availableCash) {
