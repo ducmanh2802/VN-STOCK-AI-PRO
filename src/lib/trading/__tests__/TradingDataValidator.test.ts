@@ -273,4 +273,91 @@ describe('Phase 18.1 — TradingDataValidator', () => {
       expect(candidateRes.code).toBe('INVALID_PRICE');
     });
   });
+
+  describe('Recommendation Validation', () => {
+    it('validates structured investment recommendation', () => {
+      const rec = {
+        symbol: 'HPG',
+        strategy: 'SHORT_TERM' as const,
+        signal: 'BUY' as const,
+        score: 85,
+        confidence: 'HIGH' as const,
+        entryPrice: 28500,
+        stopLoss: 27000,
+        targetPrice: 31500,
+        riskReward: 2.0,
+        expectedReturn: 10.5,
+        holdingPeriod: 15,
+        reasons: ['Uptrend confirmed'],
+        warnings: [],
+        scoreBreakdown: { technical: 85, fundamental: 80, momentum: 90, moneyFlow: 80, valuation: 75, risk: 20 },
+        evidence: [],
+        generatedAt: new Date().toISOString(),
+        asOfDate: '2026-03-10',
+        currency: 'VND' as const,
+      };
+
+      const res = TradingDataValidator.validateRecommendation(rec, validMarketData);
+      expect(res.isValid).toBe(true);
+      expect(res.code).toBe('OK');
+      expect(res.errors).toHaveLength(0);
+    });
+
+    it('rejects recommendation with missing prices or stopLoss >= entry', () => {
+      const badRec = {
+        symbol: 'HPG',
+        strategy: 'SHORT_TERM' as const,
+        signal: 'BUY' as const,
+        score: 85,
+        confidence: 'HIGH' as const,
+        entryPrice: 28500,
+        stopLoss: 28500,
+        targetPrice: 31500,
+        riskReward: 2.0,
+        expectedReturn: 10.5,
+        holdingPeriod: 15,
+        reasons: [],
+        warnings: [],
+        scoreBreakdown: { technical: null, fundamental: null, momentum: null, moneyFlow: null, valuation: null, risk: null },
+        evidence: [],
+        generatedAt: new Date().toISOString(),
+        asOfDate: null,
+        currency: 'VND' as const,
+      };
+
+      const res = TradingDataValidator.validateRecommendation(badRec);
+      expect(res.isValid).toBe(false);
+      expect(res.code).toBe('INVALID_STOP_LOSS');
+    });
+  });
+
+  describe('Risk Parameters Validation', () => {
+    it('validates clean account parameters', () => {
+      const res = TradingDataValidator.validateRiskParameters({
+        accountEquity: 500_000_000,
+        availableCash: 200_000_000,
+        currentExposure: 150_000_000,
+        quantity: 1000,
+        lotSize: 100,
+      });
+      expect(res.isValid).toBe(true);
+      expect(res.code).toBe('OK');
+    });
+
+    it('rejects non-positive equity or non-lot quantities', () => {
+      expect(TradingDataValidator.validateRiskParameters({
+        accountEquity: 0,
+        availableCash: 100_000,
+        currentExposure: 0,
+      }).isValid).toBe(false);
+
+      expect(TradingDataValidator.validateRiskParameters({
+        accountEquity: 100_000_000,
+        availableCash: 100_000_000,
+        currentExposure: 0,
+        quantity: 150, // not multiple of 100
+        lotSize: 100,
+      }).code).toBe('INVALID_LOT_SIZE');
+    });
+  });
 });

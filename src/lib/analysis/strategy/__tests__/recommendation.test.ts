@@ -131,4 +131,70 @@ describe('PHASE 17 — RecommendationEngine', () => {
     expect(ranking.rankings[0].rank).toBe(1);
     expect(ranking.rankings[0].signal).toBe('BUY');
   });
+
+  it('generates a HOLD recommendation for intermediate score stock', () => {
+    const rec = RecommendationEngine.generate({
+      symbol: 'VNM',
+      strategy: 'SHORT_TERM',
+      currentPrice: 68_000,
+      scores: {
+        technicalScore: 48,
+        fundamentalScore: 55,
+        momentumScore: 50,
+        moneyFlowScore: 45,
+        valuationScore: 55,
+        riskScore: 40,
+      },
+      supportPrice: 64_000,
+      resistancePrice: 72_000,
+    });
+
+    expect(rec.symbol).toBe('VNM');
+    expect(rec.signal).toBe('HOLD');
+    expect(rec.score).toBeGreaterThanOrEqual(40);
+    expect(rec.score).toBeLessThan(65);
+    expect(rec.confidence).toBe('HIGH');
+  });
+
+  it('generates a SELL recommendation for weak score stock', () => {
+    const rec = RecommendationEngine.generate({
+      symbol: 'NVL',
+      strategy: 'SHORT_TERM',
+      currentPrice: 12_000,
+      scores: {
+        technicalScore: 25,
+        fundamentalScore: 20,
+        momentumScore: 30,
+        moneyFlowScore: 25,
+        valuationScore: 35,
+        riskScore: 85,
+      },
+    });
+
+    expect(rec.symbol).toBe('NVL');
+    expect(rec.signal).toBe('SELL');
+    expect(rec.score).toBeLessThan(40);
+  });
+
+  it('handles partial scores gracefully and assigns LOW confidence when data is sparse', () => {
+    const rec = RecommendationEngine.generate({
+      symbol: 'VIC',
+      strategy: 'LONG_TERM',
+      currentPrice: 42_000,
+      scores: {
+        technicalScore: 60,
+        fundamentalScore: null,
+        momentumScore: null,
+        moneyFlowScore: null,
+        valuationScore: null,
+        riskScore: null,
+      },
+    });
+
+    expect(rec.symbol).toBe('VIC');
+    expect(rec.confidence).toBe('LOW');
+    expect(rec.score).toBe(60); // normalized weight from single available component
+    expect(rec.evidence.length).toBe(1);
+    expect(rec.evidence[0].metric).toBe('Technical Strategy Score');
+  });
 });

@@ -32,6 +32,11 @@ export interface SubmitOrderRequest {
   limitPrice?: number | null;
   /** Optional expiration date/time string */
   expiresAt?: string | null;
+  /** Phase 18.3.3 Context Binding Metadata */
+  marketDataSnapshotId?: string;
+  recommendationId?: string;
+  strategyVersion?: string;
+  riskPolicyVersion?: string;
 }
 
 export interface OrderResult {

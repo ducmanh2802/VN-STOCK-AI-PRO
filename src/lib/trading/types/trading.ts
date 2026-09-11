@@ -11,12 +11,21 @@ export type ValidationErrorCode =
   | 'STALE_DATA'
   | 'INVALID_PRICE'
   | 'INVALID_SIGNAL'
+  | 'INVALID_MARKET_DATA'
+  | 'INVALID_STOP_LOSS'
+  | 'INVALID_TARGET'
   | 'INVALID_RISK_REWARD'
   | 'MARKET_CLOSED'
   | 'PRICE_LIMIT_VIOLATION'
   | 'INSUFFICIENT_CASH'
   | 'POSITION_LIMIT'
+  | 'POSITION_LIMIT_EXCEEDED'
+  | 'RISK_LIMIT_EXCEEDED'
+  | 'EXPOSURE_LIMIT_EXCEEDED'
+  | 'INSUFFICIENT_CONFIDENCE'
+  | 'RR_TOO_LOW'
   | 'DAILY_LOSS_LIMIT'
+  | 'DAILY_LOSS_LIMIT_REACHED'
   | 'EMERGENCY_STOP'
   | 'TRADING_DISABLED'
   | 'EXCESSIVE_RISK'
@@ -69,6 +78,19 @@ export interface ValidationResult {
   code: ValidationErrorCode | 'OK';
   message: string;
   reason?: string;
+  errors?: string[];
+  warnings?: string[];
+  details?: Record<string, unknown>;
+}
+
+export interface StructuredValidationResult<T = unknown> {
+  isValid: boolean;
+  code: ValidationErrorCode | 'OK';
+  message: string;
+  reason?: string;
+  errors: string[];
+  warnings: string[];
+  validatedData?: T;
   details?: Record<string, unknown>;
 }
 
@@ -133,6 +155,11 @@ export interface Order {
   tax?: number | null;
   slippage?: number | null;
   reservedCashAmount?: number | null;
+  // Phase 18.3.3 Context Binding Metadata
+  marketDataSnapshotId?: string;
+  recommendationId?: string;
+  strategyVersion?: string;
+  riskPolicyVersion?: string;
 }
 
 export interface TradingCostConfig {

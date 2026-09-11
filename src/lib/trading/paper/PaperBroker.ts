@@ -157,7 +157,7 @@ export class PaperBroker implements BrokerAdapter {
   // ORDER SUBMISSION LIFECYCLE
   // ==========================================
 
-  async submitOrder(request: SubmitOrderRequest | Order): Promise<OrderResult> {
+  submitOrderSync(request: SubmitOrderRequest | Order): OrderResult {
     const timestamp = new Date().toISOString();
     const orderId = request.id || `ORD_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     const symbol = request.symbol ? request.symbol.trim().toUpperCase() : '';
@@ -215,6 +215,10 @@ export class PaperBroker implements BrokerAdapter {
       cancelledAt: null,
       expiresAt: request.expiresAt ?? null,
       reservedCashAmount: 0,
+      marketDataSnapshotId: request.marketDataSnapshotId,
+      recommendationId: request.recommendationId,
+      strategyVersion: request.strategyVersion,
+      riskPolicyVersion: request.riskPolicyVersion,
     };
 
     // 2. Emergency Stop Guard
@@ -393,6 +397,11 @@ export class PaperBroker implements BrokerAdapter {
       success: true,
       order,
     };
+  }
+
+  submitOrder(request: SubmitOrderRequest | Order): OrderResult & Promise<OrderResult> {
+    const res = this.submitOrderSync(request);
+    return Object.assign(Promise.resolve(res), res);
   }
 
   private rejectOrder(order: Order, code: ValidationErrorCode, message: string): OrderResult {
@@ -722,7 +731,7 @@ export class PaperBroker implements BrokerAdapter {
     return [...this.transactions];
   }
 
-  async getAccount(): Promise<BrokerAccount> {
+  getAccountSync(): BrokerAccount {
     let totalMarketValue = 0;
     let totalUnrealizedPnL = 0;
 
@@ -755,7 +764,12 @@ export class PaperBroker implements BrokerAdapter {
 
     const availableCash = Math.max(0, this.cash - this.reservedCash);
     const equity = this.cash + totalMarketValue;
-    const openOrders = await this.getOpenOrders();
+    const openOrders: Order[] = [];
+    for (const order of this.orders.values()) {
+      if (order.status === 'SUBMITTED') {
+        openOrders.push(order);
+      }
+    }
 
     return {
       accountId: this.accountId,
@@ -771,6 +785,11 @@ export class PaperBroker implements BrokerAdapter {
       openOrders,
       updatedAt: new Date().toISOString(),
     };
+  }
+
+  getAccount(): BrokerAccount & Promise<BrokerAccount> {
+    const acc = this.getAccountSync();
+    return Object.assign(Promise.resolve(acc), acc);
   }
 
   // ==========================================
