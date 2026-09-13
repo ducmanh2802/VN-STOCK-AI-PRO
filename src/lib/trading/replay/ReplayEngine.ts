@@ -11,9 +11,12 @@ import type {
   ReplayResult,
   OrderIntent,
   ExecutionContextBinding,
+  ReplayEvent,
 } from './types.ts';
+import type { OrderStatus } from '../types/trading.ts';
 import { ReplayValidator } from './ReplayValidator.ts';
 import { ReplayResultFactory } from './ReplayResult.ts';
+import { OrderStateMachine } from './OrderStateMachine.ts';
 
 export class ReplayEngine {
   /**
@@ -30,8 +33,8 @@ export class ReplayEngine {
   ): { orderIntent: OrderIntent; executionContext: ExecutionContextBinding } {
     const marketDataSnapshotId = snapshot.snapshotId;
     const recommendationId = options.recommendationId ?? snapshot.recommendation?.recommendationId ?? intent.recommendationId;
-    const strategyVersion = options.strategyVersion ?? snapshot.versions?.strategyVersion ?? intent.strategyVersion ?? 'v1.0.0';
-    const riskPolicyVersion = options.riskPolicyVersion ?? snapshot.versions?.riskPolicyVersion ?? intent.riskPolicyVersion ?? 'v1.0.0';
+    const strategyVersion = options.strategyVersion ?? snapshot.versions?.strategyVersion ?? intent.strategyVersion;
+    const riskPolicyVersion = options.riskPolicyVersion ?? snapshot.versions?.riskPolicyVersion ?? intent.riskPolicyVersion;
 
     const executionContext: ExecutionContextBinding = Object.freeze({
       marketDataSnapshotId,
@@ -128,7 +131,6 @@ export class ReplayEngine {
         };
 
     const policy: Partial<RiskGuardPolicy> = {
-      skipSessionValidation: true,
       maxStaleTimeMs: Number.MAX_SAFE_INTEGER,
       ...request.policy,
     };
@@ -154,9 +156,22 @@ export class ReplayEngine {
           };
 
       const sandboxBroker = new PaperBroker({
-        initialAccount: initialAccountClone,
-        initialTradingCosts: request.tradingCosts,
+        accountId: initialAccountClone.accountId,
+        initialCash: initialAccountClone.cash,
+        currency: initialAccountClone.currency,
+        tradingCosts: request.tradingCosts,
+        skipSessionValidation: true,
       });
+
+      if (initialAccountClone.positions && initialAccountClone.positions.length > 0) {
+        for (const pos of initialAccountClone.positions) {
+          sandboxBroker.seedPosition({
+            symbol: pos.symbol,
+            quantity: pos.quantity,
+            averageCost: pos.averageCost ?? (pos as any).averageBuyPrice ?? pos.currentPrice ?? quote.last,
+          });
+        }
+      }
 
       const sandboxEngine = new PaperExecutionEngine({
         ledger: sandboxLedger,
@@ -199,19 +214,54 @@ export class ReplayEngine {
       return ReplayResultFactory.nonDeterministic(snapshot.snapshotId, run1.summary, run2.summary, determinismMismatches);
     }
 
+    // Compute canonical or sequential state & event histories
+    let stateHistory: OrderStatus[];
+    let eventHistory: readonly ReplayEvent[];
+
+    if (request.eventSequence) {
+      stateHistory = ['NEW', ...request.eventSequence.map(e => e.nextState)];
+      eventHistory = request.eventSequence;
+    } else {
+      const orderId = 'REPLAY_EXEC_' + snapshot.snapshotId.slice(0, 8);
+      const isFilled = run1.summary.status === 'FILLED';
+      eventHistory = OrderStateMachine.buildCanonicalSequence({
+        orderId,
+        snapshotId: snapshot.snapshotId,
+        quantity: run1.summary.executedQuantity || orderIntent.quantity || 100,
+        price: run1.summary.executedPrice ?? quote.last,
+        fee: run1.summary.fee,
+        tax: run1.summary.tax,
+        timestamp: replayNow,
+        isFilled,
+        rejectionReason: !isFilled ? run1.summary.code : undefined,
+      });
+      stateHistory = isFilled
+        ? ['NEW', 'VALIDATED', 'AUTHORIZED', 'SUBMITTED', 'FILLED', 'SETTLED']
+        : ['NEW', 'VALIDATED', 'AUTHORIZED', 'REJECTED'];
+    }
+
     // 6. If originalExecution is provided, compare against original
     if (request.originalExecution) {
       const origSummary = ReplayResultFactory.summarizeExecution(request.originalExecution);
       const executionMismatches = ReplayResultFactory.compareExecutions(origSummary, run1.summary);
 
       if (executionMismatches.length > 0) {
-        return ReplayResultFactory.mismatch(snapshot.snapshotId, origSummary, run1.summary, executionMismatches);
+        return ReplayResultFactory.mismatch(snapshot.snapshotId, origSummary, run1.summary, executionMismatches, {
+          stateHistory,
+          eventHistory,
+        });
       }
 
-      return ReplayResultFactory.success(snapshot.snapshotId, origSummary, run1.summary);
+      return ReplayResultFactory.success(snapshot.snapshotId, origSummary, run1.summary, {
+        stateHistory,
+        eventHistory,
+      });
     }
 
     // 7. No original provided - replay succeeded cleanly and deterministically
-    return ReplayResultFactory.success(snapshot.snapshotId, undefined, run1.summary);
+    return ReplayResultFactory.success(snapshot.snapshotId, undefined, run1.summary, {
+      stateHistory,
+      eventHistory,
+    });
   }
 }

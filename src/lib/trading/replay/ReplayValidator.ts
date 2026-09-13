@@ -1,7 +1,9 @@
 import type { MarketSnapshot } from '../snapshot/types.ts';
 import { computeSnapshotHash, computeSnapshotId } from '../snapshot/snapshotHash.ts';
-import { verifySnapshotIntegrity } from '../snapshot/MarketSnapshot.ts';
+import { verifySnapshotIntegrity, extractCanonicalPayload } from '../snapshot/MarketSnapshot.ts';
 import type { ReplayRequest, ReplayValidationResult, ReplayMismatch } from './types.ts';
+import { OrderStateMachine } from './OrderStateMachine.ts';
+import { FinancialConservationValidator } from './FinancialConservationValidator.ts';
 
 export class ReplayValidator {
   /**
@@ -31,7 +33,8 @@ export class ReplayValidator {
 
     // 2. Snapshot Hash and ID verification (anti-tamper)
     try {
-      const calculatedHash = computeSnapshotHash(snapshot);
+      const canonicalPayload = extractCanonicalPayload(snapshot);
+      const calculatedHash = computeSnapshotHash(canonicalPayload);
       if (calculatedHash !== snapshot.hash) {
         mismatches.push({
           code: 'SNAPSHOT_HASH_INVALID',
@@ -42,7 +45,7 @@ export class ReplayValidator {
         });
       }
 
-      const calculatedId = computeSnapshotId(snapshot.hash);
+      const calculatedId = computeSnapshotId(canonicalPayload);
       if (calculatedId !== snapshot.snapshotId) {
         mismatches.push({
           code: 'SNAPSHOT_ID_MISMATCH',
@@ -115,48 +118,66 @@ export class ReplayValidator {
       }
 
       // Strategy version consistency
-      if (
-        snapshot.versions?.strategyVersion &&
-        ctx.strategyVersion &&
-        snapshot.versions.strategyVersion !== ctx.strategyVersion
-      ) {
-        mismatches.push({
-          code: 'STRATEGY_VERSION_MISMATCH',
-          field: 'strategyVersion',
-          expected: snapshot.versions.strategyVersion,
-          actual: ctx.strategyVersion,
-          message: `Strategy version mismatch: snapshot=${snapshot.versions.strategyVersion}, context=${ctx.strategyVersion}`,
-        });
+      if (snapshot.versions?.strategyVersion) {
+        if (!ctx.strategyVersion) {
+          mismatches.push({
+            code: 'STRATEGY_VERSION_MISMATCH',
+            field: 'executionContext.strategyVersion',
+            expected: snapshot.versions.strategyVersion,
+            actual: ctx.strategyVersion,
+            message: `Strategy version is missing in executionContext (expected ${snapshot.versions.strategyVersion})`,
+          });
+        } else if (snapshot.versions.strategyVersion !== ctx.strategyVersion) {
+          mismatches.push({
+            code: 'STRATEGY_VERSION_MISMATCH',
+            field: 'strategyVersion',
+            expected: snapshot.versions.strategyVersion,
+            actual: ctx.strategyVersion,
+            message: `Strategy version mismatch: snapshot=${snapshot.versions.strategyVersion}, context=${ctx.strategyVersion}`,
+          });
+        }
       }
 
       // Risk policy version consistency
-      if (
-        snapshot.versions?.riskPolicyVersion &&
-        ctx.riskPolicyVersion &&
-        snapshot.versions.riskPolicyVersion !== ctx.riskPolicyVersion
-      ) {
-        mismatches.push({
-          code: 'RISK_POLICY_VERSION_MISMATCH',
-          field: 'riskPolicyVersion',
-          expected: snapshot.versions.riskPolicyVersion,
-          actual: ctx.riskPolicyVersion,
-          message: `Risk policy version mismatch: snapshot=${snapshot.versions.riskPolicyVersion}, context=${ctx.riskPolicyVersion}`,
-        });
+      if (snapshot.versions?.riskPolicyVersion) {
+        if (!ctx.riskPolicyVersion) {
+          mismatches.push({
+            code: 'RISK_POLICY_VERSION_MISMATCH',
+            field: 'executionContext.riskPolicyVersion',
+            expected: snapshot.versions.riskPolicyVersion,
+            actual: ctx.riskPolicyVersion,
+            message: `Risk policy version is missing in executionContext (expected ${snapshot.versions.riskPolicyVersion})`,
+          });
+        } else if (snapshot.versions.riskPolicyVersion !== ctx.riskPolicyVersion) {
+          mismatches.push({
+            code: 'RISK_POLICY_VERSION_MISMATCH',
+            field: 'riskPolicyVersion',
+            expected: snapshot.versions.riskPolicyVersion,
+            actual: ctx.riskPolicyVersion,
+            message: `Risk policy version mismatch: snapshot=${snapshot.versions.riskPolicyVersion}, context=${ctx.riskPolicyVersion}`,
+          });
+        }
       }
 
       // Recommendation ID consistency
-      if (
-        snapshot.recommendation?.recommendationId &&
-        ctx.recommendationId &&
-        snapshot.recommendation.recommendationId !== ctx.recommendationId
-      ) {
-        mismatches.push({
-          code: 'RECOMMENDATION_MISMATCH',
-          field: 'recommendationId',
-          expected: snapshot.recommendation.recommendationId,
-          actual: ctx.recommendationId,
-          message: `Recommendation ID mismatch: snapshot=${snapshot.recommendation.recommendationId}, context=${ctx.recommendationId}`,
-        });
+      if (snapshot.recommendation?.recommendationId) {
+        if (!ctx.recommendationId) {
+          mismatches.push({
+            code: 'RECOMMENDATION_MISMATCH',
+            field: 'executionContext.recommendationId',
+            expected: snapshot.recommendation.recommendationId,
+            actual: ctx.recommendationId,
+            message: `Recommendation ID is missing in executionContext (expected ${snapshot.recommendation.recommendationId})`,
+          });
+        } else if (snapshot.recommendation.recommendationId !== ctx.recommendationId) {
+          mismatches.push({
+            code: 'RECOMMENDATION_MISMATCH',
+            field: 'recommendationId',
+            expected: snapshot.recommendation.recommendationId,
+            actual: ctx.recommendationId,
+            message: `Recommendation ID mismatch: snapshot=${snapshot.recommendation.recommendationId}, context=${ctx.recommendationId}`,
+          });
+        }
       }
     }
 
@@ -194,7 +215,7 @@ export class ReplayValidator {
       }
 
       if (
-        intent.marketDataSnapshotId &&
+        intent.marketDataSnapshotId !== undefined &&
         intent.marketDataSnapshotId !== snapshot.snapshotId
       ) {
         mismatches.push({
@@ -208,7 +229,7 @@ export class ReplayValidator {
 
       if (
         request.executionContext?.strategyVersion &&
-        intent.strategyVersion &&
+        intent.strategyVersion !== undefined &&
         request.executionContext.strategyVersion !== intent.strategyVersion
       ) {
         mismatches.push({
@@ -222,7 +243,7 @@ export class ReplayValidator {
 
       if (
         request.executionContext?.riskPolicyVersion &&
-        intent.riskPolicyVersion &&
+        intent.riskPolicyVersion !== undefined &&
         request.executionContext.riskPolicyVersion !== intent.riskPolicyVersion
       ) {
         mismatches.push({
@@ -236,7 +257,7 @@ export class ReplayValidator {
 
       if (
         request.executionContext?.recommendationId &&
-        intent.recommendationId &&
+        intent.recommendationId !== undefined &&
         request.executionContext.recommendationId !== intent.recommendationId
       ) {
         mismatches.push({
@@ -246,6 +267,39 @@ export class ReplayValidator {
           actual: intent.recommendationId,
           message: `OrderIntent recommendationId (${intent.recommendationId}) does not match executionContext (${request.executionContext.recommendationId})`,
         });
+      }
+    }
+
+    // 6. State Machine & Event Sequence Integrity Validation (Phase 18.3.5)
+    if (request.eventSequence !== undefined) {
+      const targetOrderId =
+        request.orderIntent?.recommendationId ||
+        request.originalExecution?.orderId ||
+        request.executionContext?.recommendationId;
+
+      const seqResult = OrderStateMachine.validateSequence(request.eventSequence, {
+        orderId: targetOrderId,
+        snapshotId: request.snapshot?.snapshotId,
+        quantity: request.orderIntent?.quantity,
+      });
+
+      if (!seqResult.isValid) {
+        mismatches.push(...seqResult.mismatches);
+      }
+
+      // 7. Financial Conservation Invariants Validation (Phase 18.3.6)
+      const finResult = FinancialConservationValidator.validateEventSequence(
+        request.eventSequence,
+        request.initialAccount,
+        {
+          tradingCosts: request.tradingCosts,
+          orderedQuantity: request.orderIntent?.quantity,
+          referencePrice: request.snapshot?.quote?.reference ?? request.snapshot?.quote?.last,
+        }
+      );
+
+      if (!finResult.isValid) {
+        mismatches.push(...finResult.mismatches);
       }
     }
 

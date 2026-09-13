@@ -3,7 +3,9 @@ import type {
   ReplayMismatch,
   ReplayResult,
   ReplayStatus,
+  ReplayEvent,
 } from './types.ts';
+import type { OrderStatus } from '../types/trading.ts';
 import type { PaperExecutionResult } from '../paper/PaperExecutionEngine.ts';
 import type { PaperAuditEntry } from '../paper/PaperTradeLedger.ts';
 
@@ -49,7 +51,7 @@ export class ReplayResultFactory {
         code: res.code,
         success: res.success,
         realizedPnL: res.realizedPnL,
-        cashAfter: res.accountAfter?.cash,
+        cashAfter: res.accountAfter?.cash ?? res.auditEntry?.cashAfter,
       };
     }
 
@@ -129,6 +131,10 @@ export class ReplayResultFactory {
     checkField('tax', 0.01);
     checkField('slippage', 0.001);
 
+    if (original.realizedPnL !== undefined || replay.realizedPnL !== undefined) {
+      checkField('realizedPnL', 0.01);
+    }
+
     return mismatches;
   }
 
@@ -138,7 +144,11 @@ export class ReplayResultFactory {
   static invalid(
     marketDataSnapshotId: string,
     mismatches: readonly ReplayMismatch[],
-    error?: string
+    error?: string,
+    options?: {
+      stateHistory?: readonly OrderStatus[];
+      eventHistory?: readonly ReplayEvent[];
+    }
   ): ReplayResult {
     return {
       status: 'REPLAY_INVALID',
@@ -147,6 +157,8 @@ export class ReplayResultFactory {
       deterministic: true,
       error: error || (mismatches.length > 0 ? mismatches[0].message : 'Replay validation failed'),
       replayedAt: new Date().toISOString(),
+      stateHistory: options?.stateHistory,
+      eventHistory: options?.eventHistory,
     };
   }
 
@@ -157,7 +169,11 @@ export class ReplayResultFactory {
     marketDataSnapshotId: string,
     original: ReplayExecutionSummary,
     replay: ReplayExecutionSummary,
-    mismatches: readonly ReplayMismatch[]
+    mismatches: readonly ReplayMismatch[],
+    options?: {
+      stateHistory?: readonly OrderStatus[];
+      eventHistory?: readonly ReplayEvent[];
+    }
   ): ReplayResult {
     return {
       status: 'REPLAY_MISMATCH',
@@ -168,6 +184,8 @@ export class ReplayResultFactory {
       deterministic: true,
       error: mismatches.length > 0 ? mismatches[0].message : 'Execution output did not match original',
       replayedAt: new Date().toISOString(),
+      stateHistory: options?.stateHistory,
+      eventHistory: options?.eventHistory,
     };
   }
 
@@ -177,7 +195,11 @@ export class ReplayResultFactory {
   static success(
     marketDataSnapshotId: string,
     original: ReplayExecutionSummary | undefined,
-    replay: ReplayExecutionSummary
+    replay: ReplayExecutionSummary,
+    options?: {
+      stateHistory?: readonly OrderStatus[];
+      eventHistory?: readonly ReplayEvent[];
+    }
   ): ReplayResult {
     return {
       status: 'REPLAYED',
@@ -187,6 +209,8 @@ export class ReplayResultFactory {
       mismatches: [],
       deterministic: true,
       replayedAt: new Date().toISOString(),
+      stateHistory: options?.stateHistory,
+      eventHistory: options?.eventHistory,
     };
   }
 

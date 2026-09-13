@@ -126,11 +126,15 @@ export type OrderType = 'MARKET' | 'LIMIT';
 export type OrderStatus =
   | 'NEW'
   | 'VALIDATED'
+  | 'AUTHORIZED'
   | 'SUBMITTED'
+  | 'PARTIALLY_FILLED'
   | 'FILLED'
+  | 'SETTLED'
   | 'REJECTED'
   | 'CANCELLED'
-  | 'EXPIRED';
+  | 'EXPIRED'
+  | 'FAILED';
 
 export interface Order {
   id: string;

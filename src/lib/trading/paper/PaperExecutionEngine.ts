@@ -671,7 +671,7 @@ export class PaperExecutionEngine {
       const netProceeds = grossProceeds - fee - tax;
       totalCashChange = netProceeds;
 
-      const avgCost = existingPosition?.averageCost ?? executedPrice;
+      const avgCost = existingPosition?.averageCost ?? (existingPosition as any)?.averageBuyPrice ?? executedPrice;
       const pnlResult = PaperPnL.calculateRealizedPnL({
         sellPrice: executedPrice,
         averageCost: avgCost,

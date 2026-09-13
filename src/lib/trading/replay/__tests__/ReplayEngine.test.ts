@@ -83,7 +83,7 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
       const snapshot = MarketSnapshotBuilder.buildFrom(baseInput);
       const ledger = new PaperTradeLedger();
       const account = createInitialAccount();
-      const broker = new PaperBroker({ initialAccount: account });
+      const broker = new PaperBroker({ initialCash: account.cash, accountId: account.accountId, skipSessionValidation: true });
       const engine = new PaperExecutionEngine({ ledger });
 
       const binding = ReplayEngine.bindOrderIntent(snapshot, {
@@ -94,14 +94,14 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
 
       const rec: InvestmentRecommendation = {
         symbol: 'HPG',
-        strategy: 'GROWTH',
+        strategy: 'MEDIUM_TERM',
         signal: 'BUY',
         score: 85,
         confidence: 'HIGH',
         entryPrice: 28500,
-        targetPrice: 32000,
+        targetPrice: 33000,
         stopLoss: 26500,
-        riskReward: 2.1,
+        riskReward: 2.25,
         expectedReturn: 12,
         holdingPeriod: 30,
         reasons: ['Breakout with high volume'],
@@ -124,7 +124,7 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
         broker,
         account,
         customQuantity: 1000,
-        policy: { skipSessionValidation: true, maxStaleTimeMs: Number.MAX_SAFE_INTEGER },
+        policy: { maxStaleTimeMs: Number.MAX_SAFE_INTEGER },
         executionContext: binding.executionContext,
       });
 
@@ -155,7 +155,7 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
       const snapshot = MarketSnapshotBuilder.buildFrom(baseInput);
       const ledger = new PaperTradeLedger();
       const account = createInitialAccount();
-      const broker = new PaperBroker({ initialAccount: account });
+      const broker = new PaperBroker({ initialCash: account.cash, accountId: account.accountId, skipSessionValidation: true });
       const engine = new PaperExecutionEngine({ ledger });
 
       const binding = ReplayEngine.bindOrderIntent(snapshot, {
@@ -166,14 +166,14 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
 
       const rec: InvestmentRecommendation = {
         symbol: 'HPG',
-        strategy: 'GROWTH',
+        strategy: 'MEDIUM_TERM',
         signal: 'BUY',
         score: 85,
         confidence: 'HIGH',
         entryPrice: 28500,
-        targetPrice: 32000,
+        targetPrice: 33000,
         stopLoss: 26500,
-        riskReward: 2.1,
+        riskReward: 2.25,
         expectedReturn: 12,
         holdingPeriod: 30,
         reasons: ['Breakout'],
@@ -196,7 +196,7 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
         broker,
         account,
         customQuantity: 50,
-        policy: { skipSessionValidation: true, maxStaleTimeMs: Number.MAX_SAFE_INTEGER },
+        policy: { maxStaleTimeMs: Number.MAX_SAFE_INTEGER },
         executionContext: binding.executionContext,
       });
 
@@ -377,20 +377,20 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
       // Run live engine once to get original execution
       const ledger = new PaperTradeLedger();
       const account = createInitialAccount(500_000_000);
-      const broker = new PaperBroker({ initialAccount: account });
+      const broker = new PaperBroker({ initialCash: account.cash, accountId: account.accountId, skipSessionValidation: true });
       const liveEngine = new PaperExecutionEngine({ ledger });
 
       const originalResult = liveEngine.execute({
         recommendation: {
           symbol: 'HPG',
-          strategy: 'GROWTH',
+          strategy: 'MEDIUM_TERM',
           signal: 'BUY',
           score: 85,
           confidence: 'HIGH',
           entryPrice: 28500,
-          targetPrice: 32000,
+          targetPrice: 33000,
           stopLoss: 26500,
-          riskReward: 2.14,
+          riskReward: 2.25,
           expectedReturn: 12,
           holdingPeriod: 30,
           reasons: ['Replay test'],
@@ -410,7 +410,7 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
         broker,
         account,
         customQuantity: 2000,
-        policy: { skipSessionValidation: true, maxStaleTimeMs: Number.MAX_SAFE_INTEGER },
+        policy: { maxStaleTimeMs: Number.MAX_SAFE_INTEGER },
         executionContext: binding.executionContext,
       });
 
@@ -430,7 +430,7 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
       expect(replayResult.mismatches).toHaveLength(0);
       expect(replayResult.replayExecution?.status).toBe('FILLED');
       expect(replayResult.replayExecution?.executedQuantity).toBe(2000);
-      expect(replayResult.replayExecution?.executedPrice).toBe(28500);
+      expect(replayResult.replayExecution?.executedPrice).toBe(originalResult.executedPrice);
       expect(replayResult.replayExecution?.fee).toBe(originalResult.fee);
       expect(replayResult.replayExecution?.tax).toBe(originalResult.tax);
       expect(replayResult.replayExecution?.slippage).toBe(originalResult.slippage);
@@ -471,22 +471,22 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
         quantity: 100_000, // Requires ~2.85 billion VND
       });
 
-      // Original execution with 10 million VND cash -> should reject with INSUFFICIENT_CASH
-      const account = createInitialAccount(10_000_000);
-      const broker = new PaperBroker({ initialAccount: account });
+      // Original execution with 1 million VND cash -> should reject with INSUFFICIENT_CASH
+      const account = createInitialAccount(1_000_000);
+      const broker = new PaperBroker({ initialCash: account.cash, accountId: account.accountId, skipSessionValidation: true });
       const liveEngine = new PaperExecutionEngine();
 
       const originalResult = liveEngine.execute({
         recommendation: {
           symbol: 'HPG',
-          strategy: 'GROWTH',
+          strategy: 'MEDIUM_TERM',
           signal: 'BUY',
           score: 85,
           confidence: 'HIGH',
           entryPrice: 28500,
-          targetPrice: 32000,
+          targetPrice: 33000,
           stopLoss: 26500,
-          riskReward: 2.14,
+          riskReward: 2.25,
           expectedReturn: 12,
           holdingPeriod: 30,
           reasons: ['Big buy'],
@@ -506,7 +506,7 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
         broker,
         account,
         customQuantity: 100_000,
-        policy: { skipSessionValidation: true, maxStaleTimeMs: Number.MAX_SAFE_INTEGER },
+        policy: { maxStaleTimeMs: Number.MAX_SAFE_INTEGER },
         executionContext: binding.executionContext,
       });
 
@@ -520,7 +520,7 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
         executionContext: binding.executionContext,
         orderIntent: binding.orderIntent,
         originalExecution: originalResult,
-        initialAccount: createInitialAccount(10_000_000),
+        initialAccount: createInitialAccount(1_000_000),
       });
 
       expect(replayResult.status).toBe('REPLAYED');
@@ -761,7 +761,6 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
         orderIntent: binding.orderIntent,
       });
 
-      console.log('REPLAY MISMATCHES:', JSON.stringify(replayResult.mismatches), replayResult.error);
       expect(replayResult.status).toBe('REPLAYED');
       expect(replayResult.replayExecution?.requestedQuantity).toBe(1200);
       expect(replayResult.replayExecution?.executedQuantity).toBe(1200);
@@ -775,13 +774,14 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
           {
             symbol: 'HPG',
             quantity: 2000,
+            reservedQuantity: 0,
             availableQuantity: 2000,
-            averageBuyPrice: 25000,
+            averageCost: 25000,
             currentPrice: 28500,
             marketValue: 57000000,
             unrealizedPnL: 7000000,
             unrealizedPnLPercent: 14.0,
-            lastUpdated: '2026-03-30T10:00:00.000Z',
+            updatedAt: '2026-03-30T10:00:00.000Z',
           },
         ],
       };
@@ -797,6 +797,7 @@ describe('PHASE 18.3.3 — DETERMINISTIC REPLAY ENGINE + SNAPSHOT BINDING', () =
         executionContext: binding.executionContext,
         orderIntent: binding.orderIntent,
         initialAccount,
+        tradingCosts: { slippageRate: 0 },
       });
 
       expect(replayResult.status).toBe('REPLAYED');

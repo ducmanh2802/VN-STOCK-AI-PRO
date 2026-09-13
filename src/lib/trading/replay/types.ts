@@ -2,7 +2,8 @@ import type { MarketSnapshot } from '../snapshot/types.ts';
 import type { OrderSide, OrderType, OrderStatus, ValidationErrorCode, TradingCostConfig } from '../types/trading.ts';
 import type { RiskGuardPolicy } from '../types/risk.ts';
 import type { BrokerAccount } from '../execution/BrokerAdapter.ts';
-import type { InvestmentRecommendation, ConfidenceLevel } from '../../../types/recommendation.ts';
+import type { InvestmentRecommendation } from '../../../types/recommendation.ts';
+import type { ConfidenceLevel } from '../../../types/enterpriseIntelligence.ts';
 import type { PaperExecutionResult } from '../paper/PaperExecutionEngine.ts';
 import type { PaperAuditEntry } from '../paper/PaperTradeLedger.ts';
 
@@ -55,7 +56,63 @@ export type ReplayMismatchCode =
   | 'RISK_POLICY_VERSION_MISMATCH'
   | 'EXECUTION_MISMATCH'
   | 'INPUT_INVALID'
-  | 'NON_DETERMINISTIC';
+  | 'NON_DETERMINISTIC'
+  | 'INVALID_STATE_TRANSITION'
+  | 'SEQUENCE_OUT_OF_ORDER'
+  | 'DUPLICATE_EVENT'
+  | 'MISSING_EVENT'
+  | 'SEQUENCE_NUMBER_INVALID'
+  | 'TIMESTAMP_OUT_OF_ORDER'
+  | 'ORDER_BINDING_MISMATCH'
+  | 'OVERFILL_VIOLATION'
+  | 'TERMINAL_STATE_MUTATION'
+  | 'NEGATIVE_EXECUTION_PARAM'
+  | 'CASH_CONSERVATION_FAILED'
+  | 'POSITION_CONSERVATION_FAILED'
+  | 'FEE_CONSERVATION_FAILED'
+  | 'TAX_CONSERVATION_FAILED'
+  | 'TRADE_VALUE_CONSERVATION_FAILED'
+  | 'PNL_CONSERVATION_FAILED'
+  | 'EQUITY_CONSERVATION_FAILED'
+  | 'DOUBLE_COUNT_DETECTED'
+  | 'PARTIAL_FILL_CONSERVATION_FAILED'
+  | 'LOT_SIZE_CONSERVATION_FAILED';
+
+/**
+ * Event type for order execution & state transition replay.
+ */
+export type ReplayEventType =
+  | 'ORDER_CREATED'
+  | 'ORDER_VALIDATED'
+  | 'ORDER_AUTHORIZED'
+  | 'ORDER_SUBMITTED'
+  | 'ORDER_PARTIALLY_FILLED'
+  | 'ORDER_FILLED'
+  | 'ORDER_SETTLED'
+  | 'ORDER_REJECTED'
+  | 'ORDER_CANCELLED'
+  | 'ORDER_EXPIRED'
+  | 'ORDER_FAILED';
+
+/**
+ * Individual lifecycle event in a replay sequence.
+ */
+export interface ReplayEvent {
+  readonly eventId: string;
+  readonly sequenceNumber: number;
+  readonly timestamp: string | number;
+  readonly orderId: string;
+  readonly snapshotId?: string;
+  readonly previousState: OrderStatus;
+  readonly nextState: OrderStatus;
+  readonly eventType: ReplayEventType | string;
+  readonly quantity?: number;
+  readonly price?: number;
+  readonly fee?: number;
+  readonly tax?: number;
+  readonly reason?: string;
+  readonly metadata?: Record<string, unknown>;
+}
 
 /**
  * Granular mismatch detail.
@@ -102,6 +159,7 @@ export interface ReplayRequest {
   readonly policy?: Partial<RiskGuardPolicy>;
   readonly tradingCosts?: Partial<TradingCostConfig>;
   readonly customNow?: number;
+  readonly eventSequence?: readonly ReplayEvent[];
 }
 
 /**
@@ -116,6 +174,8 @@ export interface ReplayResult {
   readonly deterministic: boolean;
   readonly error?: string;
   readonly replayedAt: string;
+  readonly stateHistory?: readonly OrderStatus[];
+  readonly eventHistory?: readonly ReplayEvent[];
 }
 
 /**
