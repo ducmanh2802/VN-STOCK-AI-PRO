@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
       // (vite import moved to top)
@@ -37,16 +38,21 @@ import { cacheStats } from './src/services/market/marketDataCache.ts';
 import { PaperBroker } from './src/lib/trading/paper/PaperBroker.ts';
 import { TradingEngine } from './src/lib/trading/engine/TradingEngine.ts';
 import { createTradingApiRouter } from './src/lib/trading/api/TradingApiRouter.ts';
+import { createMacroApiRouter } from './src/lib/macro/api/macroRouter.ts';
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  const httpServer = http.createServer(app);
 
   app.use(express.json());
 
   // Paper-only process-local runtime. Portfolio/account state stays in PaperBroker.
   const tradingEngine = new TradingEngine({ broker: new PaperBroker() });
   app.use('/api/trading', requireAuth, createTradingApiRouter(tradingEngine));
+
+  // Macroeconomic Intelligence layer (Phase 19.1)
+  app.use('/api/macro', createMacroApiRouter());
 
   // ========================================================
   // API ROUTES (Backend Data Layer over PostgreSQL / Drizzle)
@@ -718,14 +724,22 @@ async function startServer() {
   // VITE MIDDLEWARE / STATIC ASSETS
   // ========================================================
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
+    const vite = await createViteServer({
+      server: {
+        middlewareMode: true,
+        hmr: {
+          server: httpServer,
+        },
+      },
+      appType: 'spa',
+    });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => { res.sendFile(path.join(distPath, 'index.html')); });
   }
-  app.listen(PORT, '0.0.0.0', () => { console.log(`VN STOCK AI Server running on http://0.0.0.0:${PORT}`); });
+  httpServer.listen(PORT, '0.0.0.0', () => { console.log(`VN STOCK AI Server running on http://0.0.0.0:${PORT}`); });
 }
 
 startServer();

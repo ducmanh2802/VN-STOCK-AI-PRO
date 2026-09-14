@@ -1,0 +1,132 @@
+# PHASE 17.8 — STATISTICAL SIGNIFICANCE, MONTE CARLO & REALITY CHECK
+
+## Executive Summary
+
+Phase 17.8 establishes a dedicated, mathematically rigorous statistical validation and reality check subsystem for **VN STOCK AI PRO**.
+
+Continuing from:
+- **Phase 17.6**: Quant Governance Enforcement & Strategy Integrity Audit (**PASS**, 706/706 tests)
+- **Phase 17.7**: Advanced Strategy Validation & Anti-Overfitting (**PASS**, 720/720 tests)
+
+Phase 17.8 addresses the critical quantitative research question:
+> **Does observed strategy performance contain statistically credible evidence of a repeatable trading edge, or could it plausibly be explained by random trade ordering, outlier luck, transaction friction omission, or data mining noise?**
+
+The purpose of Phase 17.8 is explicitly **not** to make strategies appear more profitable. Its objective is to **try to falsify the strategy's apparent edge** using deterministic simulation, bootstrap resampling, trade sequencing perturbation, exceptional trade exclusion, and reality check null hypothesis comparison.
+
+---
+
+## 1. Architectural Boundaries & Isolation
+
+Phase 17.8 is strictly **research and verification infrastructure**.
+
+```
+┌────────────────────────────────────────────────────────┐
+│               PHASE 17.8 RESEARCH LAYER               │
+│   StrategyStatisticalValidator & SeededRandom PRNG     │
+└──────────────────────────┬─────────────────────────────┘
+                           │ Consumes realized BacktestTrade[]
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│             BACKTEST & VALIDATION ENGINE               │
+│         BacktestEngine / StrategyValidationEngine      │
+└────────────────────────────────────────────────────────┘
+                           ║ STRICT ISOLATION BARRIER
+                           ▼ (NO DIRECT ACCESS)
+┌────────────────────────────────────────────────────────┐
+│                 PRODUCTION EXECUTION                   │
+│   PaperBroker | RiskGuard | OrderManager | Ledger      │
+└────────────────────────────────────────────────────────┘
+```
+
+### Invariants:
+1. **Zero Execution Mutation**: Phase 17.8 never modifies `PaperBroker`, `RiskGuard`, `OrderManager`, `Ledger`, or live execution pipelines.
+2. **No Data Snooping / Look-Ahead**: Operates exclusively on already-realized historical trade results output by `TradeSimulator`. Does not shuffle raw market bars or alter historical chronology.
+3. **Deterministic PRNG**: Zero usage of `Math.random()`. All simulations employ `SeededRandom` (Mulberry32 32-bit algorithm). Given the same trades, same seed, and same iteration count, outputs are 100% bit-exact across runs.
+4. **Friction Integrity**: All statistics are evaluated **net of transaction friction** (0.15% entry/exit commission, 0.10% Vietnam sell tax, and 0.10% slippage).
+
+---
+
+## 2. Core Statistical Methodologies
+
+### 2.1 Sample Size & Statistical Power
+Strategies are categorized according to realized trade sample count:
+- **`< 30 trades`**: `INSUFFICIENT_DATA`. Fails closed; statistical inference is prohibited.
+- **`30–49 trades`**: `LOW_STATISTICAL_POWER`. High sampling variance; advisory warnings emitted.
+- **`50–99 trades`**: `MODERATE_STATISTICAL_POWER`. Adequate for initial confidence intervals.
+- **`100+ trades`**: `ADEQUATE_STATISTICAL_POWER`. Large-sample statistical inference valid.
+
+### 2.2 Deterministic Monte Carlo Simulation
+The validator executes dual-mode simulation across $M$ iterations (default: 1,000 runs):
+1. **Trade-Order Permutation**: Evaluates sequence vulnerability. Exact realized trades are shuffled via Fisher-Yates to measure the sensitivity of Maximum Drawdown (MDD) and consecutive loss streaks to execution order.
+2. **Trade Resampling (Bootstrap)**: Samples $N$ trades with replacement from the observed distribution to compute percentiles for final return, ending equity, MDD, loss streaks, negative return frequency ($P(\text{Return} < 0)$), and severe drawdown frequencies ($P(\text{MDD} > 10\%, 20\%, 30\%)$).
+
+### 2.3 Bootstrap Confidence Intervals (95% CI)
+Computes point estimates and 95% confidence intervals via non-parametric bootstrap resampling ($B = 1,000$ iterations) for:
+- Mean Trade Return (%)
+- Win Rate (%)
+- Trade Expectancy (%)
+- Profit Factor
+
+If the lower confidence bound of Mean Return or Expectancy falls $\le 0$, the strategy is flagged for spanning zero (weak evidence).
+
+### 2.4 Edge Consistency & Exceptional Trade Removal
+Evaluates whether strategy profitability is an artifact of a handful of extreme outlier trades:
+1. **Full Trade Set**
+2. **Excluding Best Trade**
+3. **Excluding Top 3 Trades**
+4. **Excluding Worst Trade**
+
+If net profit or trade expectancy turns negative when the top 3 trades are excluded, the validator flags `edgeCollapsesWithoutTopTrades = true`.
+
+### 2.5 Profit Concentration Analysis
+Measures the share of total gross winning profits generated by:
+- Top 1 Trade
+- Top 3 Trades
+- Top 5 Trades
+
+Flags `concentrationRisk = true` if the top 1 trade accounts for $\ge 50\%$ or top 3 trades account for $\ge 80\%$ of total gross profit.
+
+### 2.6 Benchmark Comparison
+Compares strategy performance directly against the underlying stock's Buy-and-Hold trajectory over the identical historical interval:
+- Excess Return (%)
+- Maximum Drawdown Advantage (%)
+- Calmar-like Return-to-Drawdown Ratios
+
+### 2.7 Reality Check Layer (Null Hypothesis Comparison)
+Compares observed return against a simulated zero-expectancy null distribution generated by random trade sign flips ($p = 0.5$ for $+1/-1$).
+- Calculates empirical percentile rank and empirical $p$-value.
+- Classifications: `SIGNIFICANT_EDGE_EVIDENCE` ($\ge 95$th percentile, $p \le 0.05$), `BORDERLINE_EVIDENCE` (80–95th percentile), `INCONCLUSIVE_NOISE` ($< 80$th percentile), or `STATISTICAL_TEST_NOT_APPLICABLE` ($< 30$ trades).
+
+### 2.8 Multiple-Testing Warning
+When prior search iterations or parameter grids are not supplied, the system explicitly marks `MULTIPLE_TESTING_HISTORY_UNAVAILABLE` to alert users to the risk of data-mining bias.
+
+---
+
+## 3. Final Classification State Machine
+
+Every evaluation resolves into one of seven mutually exclusive, conservative verdicts:
+
+| Classification | Criteria |
+| :--- | :--- |
+| **`STATISTICALLY_SUPPORTED`** | Sample $\ge 50$ (ideally $100+$); 95% Bootstrap CI lower bound $> 0$; survives top 3 trade removal; Monte Carlo negative return frequency $< 15\%$; Reality Check empirical $p \le 0.05$; no concentration risk. |
+| **`CONDITIONALLY_SUPPORTED`** | Positive expectancy, but moderate sample ($50-99$ trades), borderline Reality Check (80–95th percentile), or elevated drawdown frequencies. |
+| **`WEAK_EVIDENCE`** | Low sample power ($30-49$ trades); 95% Bootstrap CI spans zero; Reality Check indicates inconclusive noise; or loss frequency $\ge 20\%$. |
+| **`FRAGILE_EDGE`** | Edge collapses when top 3 trades are removed; profit concentration risk flagged; permuted MDD spread $> 15\%$; or worst simulated MDD $\ge 45\%$. |
+| **`INSUFFICIENT_DATA`** | Sample size $< 30$ trades. |
+| **`FAILED`** | Net return $\le 0$ after transaction friction; or Monte Carlo loss frequency $\ge 50\%$. |
+| **`BLOCKED`** | Malformed trades, non-finite values (NaN, Infinity), or corrupted data structures. |
+
+---
+
+## 4. Verification and Test Coverage
+
+The test suite in `src/lib/analysis/backtest/__tests__/StrategyStatisticalValidator.test.ts` validates:
+- Bit-exact deterministic reproducibility of `SeededRandom` and Monte Carlo simulations across multiple executions.
+- Divergence of outputs under varying seeds.
+- Strict fail-closed behavior on NaN, non-finite prices, and empty sets.
+- Monotonic percentile ordering for simulated metrics.
+- Accurate bootstrap confidence bounds spanning point estimates.
+- Accurate benchmark comparison and drawdown advantage.
+- Correct detection of outlier dependence and concentration risk.
+- Faithful accounting of commission, sell tax, and slippage friction.
+- Accurate mapping of all 7 classification states.
