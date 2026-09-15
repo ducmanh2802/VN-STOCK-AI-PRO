@@ -21,6 +21,8 @@ import {
   useTradingPortfolio,
   useTradingPositions,
   useTradingStatus,
+  useTradingRiskMetrics,
+  type RiskMetric,
 } from '../hooks/useMarketQueries';
 import { LoadingState } from '../components/ui/LoadingState';
 
@@ -33,57 +35,50 @@ export const RiskCenterPage: React.FC = () => {
   const portfolioQuery = useTradingPortfolio();
   const positionsQuery = useTradingPositions();
   const statusQuery = useTradingStatus();
+  const riskMetricsQuery = useTradingRiskMetrics();
 
-  const isLoading = portfolioQuery.isLoading || positionsQuery.isLoading;
+  const isLoading = portfolioQuery.isLoading || positionsQuery.isLoading || riskMetricsQuery.isLoading;
   const portfolio = portfolioQuery.data;
   const positions = positionsQuery.data || [];
   const status = statusQuery.data;
+  const riskMetrics = riskMetricsQuery.data;
 
   const totalEquity = portfolio?.equity ?? 0;
   const totalCash = portfolio?.cash ?? 0;
-  const cashRatio = totalEquity > 0 ? (totalCash / totalEquity) * 100 : 0;
-  const stockValue = portfolio?.marketValue ?? 0;
 
-  // Largest single position calculation
-  let maxPosSymbol = 'None';
-  let maxPosWeight = 0;
-  if (positions.length > 0 && totalEquity > 0) {
-    for (const p of positions) {
-      const val = (p.shares || p.quantity || 0) * (p.currentPrice || p.lastPrice || 0);
-      const weight = (val / totalEquity) * 100;
-      if (weight > maxPosWeight) {
-        maxPosWeight = weight;
-        maxPosSymbol = p.symbol;
-      }
-    }
-  }
+  // Server-authoritative risk metrics (never computed on the client).
+  const exposure = riskMetrics?.exposure as RiskMetric | undefined;
+  const concentration = riskMetrics?.concentration as RiskMetric | undefined;
+  const cashUtilization = riskMetrics?.cashUtilization as RiskMetric | undefined;
+  const varMetric = riskMetrics?.var as RiskMetric | undefined;
+  const stressLoss = riskMetrics?.stressLoss as RiskMetric | undefined;
+  const riskApprovedCapital = riskMetrics?.riskApprovedCapital as RiskMetric | undefined;
 
-  // Stress tests scaled to real portfolio equity
-  const scenarioImpacts = {
-    mild: {
-      name: 'Thị trường điều chỉnh nhẹ (-3%)',
-      portfolioLoss: stockValue > 0 ? -((stockValue * 0.03) / totalEquity) * 100 : 0,
-      vnindexLoss: -3.0,
-      varImpact: `${((stockValue * 0.03) / 1000000).toFixed(2)} tr VND`,
-    },
-    moderate: {
-      name: 'Khối ngoại bán ròng & Rung lắc mạnh (-6%)',
-      portfolioLoss: stockValue > 0 ? -((stockValue * 0.06) / totalEquity) * 100 : 0,
-      vnindexLoss: -6.0,
-      varImpact: `${((stockValue * 0.06) / 1000000).toFixed(2)} tr VND`,
-    },
-    severe: {
-      name: 'Thiên nga đen / Khủng hoảng thanh khoản (-10%)',
-      portfolioLoss: stockValue > 0 ? -((stockValue * 0.10) / totalEquity) * 100 : 0,
-      vnindexLoss: -10.0,
-      varImpact: `${((stockValue * 0.10) / 1000000).toFixed(2)} tr VND`,
-    },
+  const fmtVND = (v: number | null | undefined) =>
+    v === null || v === undefined ? '—' : `${(v / 1_000_000).toFixed(2)} tr VND`;
+
+  const metricStatusLabel = (m: RiskMetric | undefined) => {
+    if (!m) return 'LIVE';
+    if (m.status === 'DATA_UNAVAILABLE') return 'DATA_UNAVAILABLE';
+    if (m.status === 'STALE') return 'STALE';
+    if (m.status === 'INSUFFICIENT_DATA') return 'INSUFFICIENT_DATA';
+    return 'OK';
   };
+
+  // Maps server risk-status onto the UI freshness indicator (Dot). 'OK' => LIVE,
+  // and both missing-data states surface as DATA_UNAVAILABLE (never 'safer').
+  const freshnessState = (m: RiskMetric | undefined) =>
+    m?.status === 'STALE'
+      ? 'STALE'
+      : m?.status === 'DATA_UNAVAILABLE' || m?.status === 'INSUFFICIENT_DATA'
+        ? 'DATA_UNAVAILABLE'
+        : 'LIVE';
 
   const handleRefresh = () => {
     portfolioQuery.refetch();
     positionsQuery.refetch();
     statusQuery.refetch();
+    riskMetricsQuery.refetch();
   };
 
   return (
@@ -122,44 +117,56 @@ export const RiskCenterPage: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Top Key Risk Metrics */}
+          {/* Top Key Risk Metrics (server-authoritative) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
-              label="MỨC ĐỘ RỦI RO TỔNG THỂ"
-              value={stockValue === 0 ? 'RẤT THẤP (100% TIỀN)' : maxPosWeight > 20 ? 'TRUNG BÌNH' : 'AN TOÀN'}
-              subValue={`Tỷ trọng cổ phiếu: ${(100 - cashRatio).toFixed(1)}%`}
-              badge={stockValue === 0 ? 'ZERO RISK' : 'CONTROLLED'}
-              badgeVariant="success"
+              label="TỶ TRỌNG CỔ PHIẾU (EXPOSURE)"
+              value={exposure?.value != null ? `${exposure.value.toFixed(1)}%` : (exposure?.status === 'DATA_UNAVAILABLE' ? 'KHÔNG CÓ DỮ LIỆU' : '—')}
+              subValue={exposure?.status === 'OK' ? 'Server: sum(markPrice*qty)/equity' : `Server status: ${metricStatusLabel(exposure)}`}
+              badge={exposure?.value === 0 ? '0% EXPOSURE' : 'EXPOSURE'}
+              badgeVariant={exposure?.value !== null && exposure.value > 0 ? 'warning' : 'success'}
               icon={ShieldCheck}
-              status="LIVE"
+              status={freshnessState(exposure)}
             />
 
             <MetricCard
               label="VALUE AT RISK (VaR 95% 1-DAY)"
-              value={stockValue > 0 ? `-${((stockValue * 0.02) / totalEquity * 100).toFixed(2)}%` : '0.00%'}
-              subValue={`Tổn thất tối đa ước tính: ~${((stockValue * 0.02) / 1000000).toFixed(2)} tr VND`}
-              badge="NORMAL"
-              badgeVariant="indigo"
+              value={varMetric?.value != null ? fmtVND(varMetric.value) : '—'}
+              subValue={
+                varMetric?.status === 'INSUFFICIENT_DATA'
+                  ? 'INSUFFICIENT_DATA: chưa đủ chuỗi lợi nhuận lịch sử (server)'
+                  : varMetric?.status === 'DATA_UNAVAILABLE'
+                    ? 'DATA_UNAVAILABLE (server)'
+                    : varMetric?.value != null
+                      ? `Server ${varMetric.confidence ?? '95% 1-day historical'}`
+                      : 'Chưa có dữ liệu lịch sử để tính VaR'
+              }
+              badge={varMetric?.status === 'OK' ? 'OK' : metricStatusLabel(varMetric)}
+              badgeVariant={varMetric?.status === 'OK' ? 'indigo' : 'danger'}
               icon={TrendingDown}
-              status="LIVE"
+              status={freshnessState(varMetric)}
             />
 
             <MetricCard
-              label="GIỚI HẠN VỊ THẾ TỐI ĐA"
-              value={`${maxPosWeight.toFixed(1)}% / ${maxPositionPct}%`}
-              subValue={maxPosSymbol !== 'None' ? `Mã lớn nhất: ${maxPosSymbol}` : 'Chưa có vị thế cổ phiếu'}
-              badge={maxPosWeight <= maxPositionPct ? 'TUÂN THỦ' : 'VI PHẠM'}
-              badgeVariant={maxPosWeight <= maxPositionPct ? 'success' : 'danger'}
-              status="LIVE"
+              label="GIỚI HẠN VỊ THẾ TỐI ĐA (CONCENTRATION)"
+              value={concentration?.value != null ? `${concentration.value.toFixed(1)}% / ${maxPositionPct}%` : '—'}
+              subValue={
+                concentration?.status === 'OK'
+                  ? `Server: max(positionValue)/equity • ${concentration.details?.positionCount ?? 0} vị thế`
+                  : `Server status: ${metricStatusLabel(concentration)}`
+              }
+              badge={concentration?.value != null ? (concentration.value <= maxPositionPct ? 'TUÂN THỦ' : 'VI PHẠM') : metricStatusLabel(concentration)}
+              badgeVariant={concentration?.value != null ? (concentration.value <= maxPositionPct ? 'success' : 'danger') : 'warning'}
+              status={freshnessState(concentration)}
             />
 
             <MetricCard
-              label="TỶ LỆ TIỀN MẶT BẢO VỆ"
-              value={`${cashRatio.toFixed(1)}%`}
-              subValue={`${(totalCash / 1000000).toFixed(1)} tr VND sẵn sàng giải ngân`}
-              badge={cashRatio >= 20 ? 'OPTIMAL' : 'LOW CASH'}
-              badgeVariant={cashRatio >= 20 ? 'success' : 'warning'}
-              status="LIVE"
+              label="TỶ LỆ TIỀN MẶT (CASH %) "
+              value={cashUtilization?.value != null ? `${cashUtilization.value.toFixed(1)}%` : '—'}
+              subValue={`${totalCash > 0 ? (totalCash / 1000000).toFixed(1) : '0'} tr VND • Server status: ${metricStatusLabel(cashUtilization)}`}
+              badge={cashUtilization?.value != null ? (cashUtilization.value >= 20 ? 'OPTIMAL' : 'LOW CASH') : metricStatusLabel(cashUtilization)}
+              badgeVariant={cashUtilization?.value != null ? (cashUtilization.value >= 20 ? 'success' : 'warning') : 'warning'}
+              status={freshnessState(cashUtilization)}
             />
           </div>
 
@@ -186,8 +193,8 @@ export const RiskCenterPage: React.FC = () => {
                       <div>
                         <h4 className="text-xs font-bold text-slate-200">Giới hạn tỷ trọng cổ phiếu đơn lẻ</h4>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          {maxPosSymbol !== 'None'
-                            ? `Vị thế lớn nhất (${maxPosSymbol}) chiếm ${maxPosWeight.toFixed(1)}% tổng tài sản < ngưỡng tối đa ${maxPositionPct}%.`
+                          {(concentration?.value ?? 0) > 0
+                            ? `Tỷ trọng vị thế lớn nhất chiếm ${(concentration?.value ?? 0).toFixed(1)}% tổng tài sản (server) < ngưỡng tối đa ${maxPositionPct}%.`
                             : `Hiện tại chưa có vị thế cổ phiếu nào (Tỷ trọng 0% < ngưỡng tối đa ${maxPositionPct}%).`}
                         </p>
                       </div>
@@ -244,57 +251,75 @@ export const RiskCenterPage: React.FC = () => {
               <div className="flex items-center justify-between pb-2 border-b border-[#263244]">
                 <span className="text-xs font-bold uppercase tracking-wider font-mono text-slate-200 flex items-center gap-2">
                   <Activity className="w-4 h-4 text-amber-400" />
-                  Mô phỏng Stress Test
+                  Mô phỏng Stress Test (kịch bản)
                 </span>
-                <span className="text-[10px] font-mono text-slate-400">Monte Carlo Simulation</span>
+                <span className="text-[10px] font-mono text-slate-400" title={stressLoss?.formula ?? ''}>
+                  Deterministic Scenario Shock (server)
+                </span>
               </div>
 
               <div className="space-y-2">
-                {(['mild', 'moderate', 'severe'] as const).map((sc) => (
-                  <button
-                    key={sc}
-                    onClick={() => setStressScenario(sc)}
-                    className={`w-full p-3 rounded-lg text-left transition-all border ${
-                      stressScenario === sc
-                        ? 'bg-indigo-600/20 border-indigo-500 text-slate-100'
-                        : 'bg-[#0E1522] border-[#263244] text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center text-xs font-bold font-sans">
-                      <span>{scenarioImpacts[sc].name}</span>
-                      <span className={sc === 'mild' ? 'text-amber-400' : sc === 'moderate' ? 'text-orange-400' : 'text-rose-400'}>
-                        {scenarioImpacts[sc].vnindexLoss}%
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                {(['mild', 'moderate', 'severe'] as const).map((sc) => {
+                  const scName = sc === 'mild' ? 'Điều chỉnh nhẹ (-3%)' : sc === 'moderate' ? 'Rung lắc mạnh (-6%)' : 'Thiên nga đen (-10%)';
+                  return (
+                    <button
+                      key={sc}
+                      onClick={() => setStressScenario(sc)}
+                      className={`w-full p-3 rounded-lg text-left transition-all border ${
+                        stressScenario === sc
+                          ? 'bg-indigo-600/20 border-indigo-500 text-slate-100'
+                          : 'bg-[#0E1522] border-[#263244] text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center text-xs font-bold font-sans">
+                        <span>{scName}</span>
+                        <span className={sc === 'mild' ? 'text-amber-400' : sc === 'moderate' ? 'text-orange-400' : 'text-rose-400'}>
+                          {sc === 'mild' ? '-3' : sc === 'moderate' ? '-6' : '-10'}%
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Simulation Result */}
+              {/* Simulation Result (server-computed scenario losses) */}
               <div className="p-4 bg-[#0E1522] border border-[#263244] rounded-lg space-y-3">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 block">
-                  Ước tính tác động tới NAV hiện tại ({((totalEquity) / 1000000).toFixed(1)} tr VND)
-                </span>
+                {stressLoss?.status === 'DATA_UNAVAILABLE' ? (
+                  <p className="text-[11px] text-slate-400">
+                    DATA_UNAVAILABLE: không đủ dữ liệu để tính stress test theo server.
+                  </p>
+                ) : (
+                  <>
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 block">
+                      Ước tính tác động tới NAV hiện tại ({((totalEquity) / 1000000).toFixed(1)} tr VND)
+                      {stressLoss?.status === 'STALE' ? ' • STALE' : ''}
+                    </span>
 
-                <div className="flex justify-between items-baseline">
-                  <span className="text-xs text-slate-300">Tổn thất dự kiến:</span>
-                  <span className="text-base font-bold font-mono text-rose-400">
-                    {scenarioImpacts[stressScenario].portfolioLoss.toFixed(2)}%
-                  </span>
-                </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-slate-300">Tổn thất dự kiến:</span>
+                      <span className="text-base font-bold font-mono text-rose-400">
+                        {(() => {
+                          const v = (stressLoss?.details?.scenarios as Record<string, number> | undefined)?.[stressScenario];
+                          if (v === undefined) return '—';
+                          return totalEquity > 0 ? `-${((v / totalEquity) * 100).toFixed(2)}%` : '-0.00%';
+                        })()}
+                      </span>
+                    </div>
 
-                <div className="flex justify-between items-baseline">
-                  <span className="text-xs text-slate-300">Giá trị suy giảm:</span>
-                  <span className="text-sm font-bold font-mono text-slate-200">
-                    {scenarioImpacts[stressScenario].varImpact}
-                  </span>
-                </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-slate-300">Giá trị suy giảm:</span>
+                      <span className="text-sm font-bold font-mono text-slate-200">
+                        {fmtVND((stressLoss?.details?.scenarios as Record<string, number> | undefined)?.[stressScenario])}
+                      </span>
+                    </div>
 
-                <p className="text-[10px] text-slate-400 leading-relaxed pt-2 border-t border-[#263244]">
-                  {stockValue === 0
-                    ? 'Do danh mục đang giữ 100% tiền mặt, rủi ro biến động giá cổ phiếu trong kịch bản này là 0 VND.'
-                    : `Với tỷ trọng tiền mặt ${cashRatio.toFixed(1)}%, danh mục giảm thiểu được phần lớn tác động giảm điểm từ thị trường chung.`}
-                </p>
+                    <p className="text-[10px] text-slate-400 leading-relaxed pt-2 border-t border-[#263244]">
+                      {stressLoss?.value === 0
+                        ? 'Do danh mục đang giữ 100% tiền mặt, rủi ro biến động giá cổ phiếu trong kịch bản này là 0 VND (server).'
+                        : `Kịch bản cao nhất: ${fmtVND(stressLoss?.value)} (${stressLoss?.details?.worstScenario ?? 'severe'}). ${stressLoss?.confidence ?? ''}`}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>

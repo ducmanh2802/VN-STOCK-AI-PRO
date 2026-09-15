@@ -3,6 +3,7 @@ import type { OrderType, OrderSide } from '../types/trading.ts';
 import type { TradingEngine } from '../engine/TradingEngine.ts';
 import { getRealtimeQuote, type RealtimeQuote } from '../../../services/market/realMarketDataService.ts';
 import { TradingDataValidator } from '../validation/TradingDataValidator.ts';
+import { PortfolioRiskMetrics } from '../risk/PortfolioRiskMetrics.ts';
 
 interface ApiError {
   code: string;
@@ -290,6 +291,33 @@ export function createTradingApiRouter(
       return fail(res, 409, result.error ?? { code: 'INVALID_ORDER', message: 'Cancellation failed.' });
     }
     return res.json({ success: true, data: result.order });
+  });
+
+  // Server-authoritative risk metrics. The frontend must never compute these.
+  // Missing/insufficient inputs yield value=null + explicit status (fail-closed).
+  router.get('/risk-metrics', async (_req, res) => {
+    try {
+      const account = await engine.getAccount();
+      const report = PortfolioRiskMetrics.compute({
+        account,
+        policy: {
+          maxPositionPercent: 20,
+          maxPortfolioExposurePercent: 80,
+          maxRiskPerTradePercent: 1,
+          dailyLossLimitPercent: 3,
+          minimumCashPercent: 10,
+        },
+        stressShocks: { mild: 0.03, moderate: 0.06, severe: 0.1 },
+        // No historical returns / equity telemetry is wired in the process-local paper runtime:
+        // VaR & drawdown therefore report INSUFFICIENT_DATA (value=null) fail-closed.
+      });
+      return res.json({ success: true, data: report });
+    } catch (err: any) {
+      return fail(res, 500, {
+        code: 'RISK_METRICS_ERROR',
+        message: err.message || 'Failed to compute risk metrics',
+      });
+    }
   });
 
   return router;

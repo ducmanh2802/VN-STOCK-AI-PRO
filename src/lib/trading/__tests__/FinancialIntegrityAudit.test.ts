@@ -31,13 +31,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'HPG',
         price: 30_000,
-        change: 0,
-        changePercent: 0,
         volume: 1_000_000,
         floorPrice: 27_900,
         ceilingPrice: 32_100,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       // BUY 100 HPG @ 30,000
@@ -65,13 +62,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'HPG',
         price: 35_000,
-        change: 5000,
-        changePercent: 16.6,
         volume: 1_200_000,
         floorPrice: 32_000,
         ceilingPrice: 38_000,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       // SELL 100 HPG @ 35,000
@@ -115,13 +109,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'VNM',
         price: 70_000,
-        change: 0,
-        changePercent: 0,
         volume: 500_000,
         floorPrice: 65_100,
         ceilingPrice: 74_900,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       // Submit BUY limit order below market (stays open in SUBMITTED state)
@@ -173,13 +164,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'FPT',
         price: 100_000,
-        change: 0,
-        changePercent: 0,
         volume: 800_000,
         floorPrice: 93_000,
         ceilingPrice: 107_000,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       // Buy 100 FPT @ 100,000
@@ -202,13 +190,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'FPT',
         price: 110_000,
-        change: 10_000,
-        changePercent: 10.0,
         volume: 900_000,
         floorPrice: 95_000,
         ceilingPrice: 115_000,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       acc = broker.getAccountSync();
@@ -226,13 +211,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'MWG',
         price: 50_000,
-        change: 0,
-        changePercent: 0,
         volume: 700_000,
         floorPrice: 46_500,
         ceilingPrice: 53_500,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       // Buy 200 MWG @ 50,000 with 0.15% fee: total cost = 10,015,000 VND -> 50,075 VND/share
@@ -253,13 +235,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'MWG',
         price: 60_000,
-        change: 10_000,
-        changePercent: 20,
         volume: 900_000,
         floorPrice: 55_000,
         ceilingPrice: 65_000,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       // Sell partial 100 MWG @ 60,000
@@ -290,13 +269,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'MWG',
         price: 62_000,
-        change: 2_000,
-        changePercent: 3.33,
         volume: 950_000,
         floorPrice: 57_000,
         ceilingPrice: 66_000,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       const finalSellRes = broker.submitOrderSync({
@@ -333,13 +309,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'VIC',
         price: 45_000,
-        change: 0,
-        changePercent: 0,
         volume: 300_000,
         floorPrice: 41_800,
         ceilingPrice: 48_200,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       const res = broker.submitOrderSync({
@@ -361,13 +334,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'VIC',
         price: 45_000,
-        change: 0,
-        changePercent: 0,
         volume: 300_000,
         floorPrice: 41_800,
         ceilingPrice: 48_200,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       // 50 shares
@@ -405,13 +375,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'VIC',
         price: 45_000,
-        change: 0,
-        changePercent: 0,
         volume: 300_000,
         floorPrice: 41_800,
         ceilingPrice: 48_200,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       // Open sell order above market (reserves 100 shares)
@@ -448,13 +415,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'TCB',
         price: 25_000,
-        change: 0,
-        changePercent: 0,
         volume: 500_000,
         floorPrice: 23_000,
         ceilingPrice: 27_000,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       const first = broker.submitOrderSync({
@@ -490,13 +454,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'TCB',
         price: 25_000,
-        change: 0,
-        changePercent: 0,
         volume: 500_000,
         floorPrice: 23_000,
         ceilingPrice: 27_000,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       const first = broker.submitOrderSync({
@@ -539,13 +500,10 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       broker.processMarketData({
         symbol: 'ACB',
         price: 25_000,
-        change: 0,
-        changePercent: 0,
         volume: 500_000,
         floorPrice: 23_000,
         ceilingPrice: 27_000,
-        tradingSession: 'CONTINUOUS',
-        lastUpdated: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       });
 
       // Submit first order (reserves ~2,503,750)
@@ -653,6 +611,58 @@ describe('PHASE UI-3: Portfolio, Risk & Financial Integrity Audit', () => {
       expect(originalAcc.cash).toBe(accCopy.cash);
       expect(originalAcc.equity).toBe(accCopy.equity);
       expect(ledger.getAllEntries().length).toBe(ledgerEventsCount);
+    });
+  });
+
+  // =========================================================================
+  // CONCURRENT SELL RACE (MARKET fill execution path)
+  // 100 shares; two concurrent SELL 100 orders. Only one may consume the
+  // position; the second must fail safely and the position can never go negative.
+  // =========================================================================
+  describe('Concurrent SELL / Oversell Protection (fill path)', () => {
+    it('fills the first MARKET SELL and rejects the second; position ends at 0 (never negative)', () => {
+      broker.seedPosition({ symbol: 'BIM', quantity: 100, averageCost: 25_000 });
+      broker.processMarketData({
+        symbol: 'BIM',
+        price: 30_000,
+        volume: 800_000,
+        floorPrice: 27_900,
+        ceilingPrice: 32_100,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Concurrent SELL A: consumes the entire 100-share position at market.
+      const sellA = broker.submitOrderSync({
+        id: 'ORD_SELL_RACE_A',
+        symbol: 'BIM',
+        side: 'SELL',
+        type: 'MARKET',
+        quantity: 100,
+      });
+      expect(sellA.success).toBe(true);
+      expect(sellA.order.status).toBe('FILLED');
+
+      // Concurrent SELL B: no shares remain -> fail closed, never short sell.
+      const sellB = broker.submitOrderSync({
+        id: 'ORD_SELL_RACE_B',
+        symbol: 'BIM',
+        side: 'SELL',
+        type: 'MARKET',
+        quantity: 100,
+      });
+      expect(sellB.success).toBe(false);
+      expect(sellB.error?.code).toBe('INSUFFICIENT_POSITION');
+      expect(sellB.order.status).toBe('REJECTED');
+
+      // Position cannot become negative: it is either gone or exactly zero.
+      const pos = broker.getPositionSync('BIM');
+      expect(pos === null || pos.quantity === 0).toBe(true);
+
+      // Cash reflects exactly ONE filled sell (net proceeds); the rejected order adds zilch.
+      const account = broker.getAccountSync();
+      const expectedNet = 100 * 30_000 * (1 - 0.0015 - 0.001);
+      expect(account.cash).toBeCloseTo(initialCash + expectedNet, 2);
+      expect(account.availableCash).toBeGreaterThanOrEqual(0);
     });
   });
 });

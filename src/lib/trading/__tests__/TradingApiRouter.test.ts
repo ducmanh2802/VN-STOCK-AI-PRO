@@ -219,5 +219,69 @@ describe('Trading API Router HTTP Endpoints', () => {
       await harness.close();
     }
   });
+
+  it('GET /risk-metrics returns server-computed, fail-closed risk metrics (fresh account)', async () => {
+    const harness = await createTestApp();
+    try {
+      const res = await fetch(`${harness.baseUrl}/risk-metrics`);
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      const m = json.data;
+      expect(m.accountId).toBe('PAPER_ACCOUNT_1');
+      expect(m.equity).toBe(100_000_000);
+
+      // Genuine zero exposure (empty book), NOT missing data.
+      expect(m.exposure.value).toBe(0);
+      expect(m.exposure.status).toBe('OK');
+      expect(m.concentration.value).toBe(0);
+
+      // Missing/insufficient inputs fail closed with explicit nulls, never zero.
+      expect(m.drawdown.value).toBeNull();
+      expect(m.drawdown.status).toBe('INSUFFICIENT_DATA');
+      expect(m.dailyLoss.value).toBeNull();
+      expect(m.dailyLoss.status).toBe('DATA_UNAVAILABLE');
+      expect(m.stressLoss.value).toBe(0);
+      expect(m.summary).toBeTruthy();
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('GET /risk-metrics reflects realized positions and never fabricates VaR', async () => {
+    const harness = await createTestApp();
+    try {
+      const buy = await fetch(`${harness.baseUrl}/order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: 'HPG', side: 'BUY', quantity: 100, orderType: 'MARKET' }),
+      });
+      expect(buy.status).toBe(201);
+
+      const res = await fetch(`${harness.baseUrl}/risk-metrics`);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      const m = json.data;
+
+      // Server-computed equity must equal the authoritative /portfolio equity.
+      const pRes = await fetch(`${harness.baseUrl}/portfolio`);
+      const pJson = await pRes.json();
+      expect(m.equity).toBe(pJson.data.equity);
+
+      // Real position now contributes exposure.
+      expect(m.exposure.value).toBeGreaterThan(0);
+      expect(m.exposure.status).toBe('OK');
+
+      // No historical return series is wired into the paper runtime => VaR must be
+      // explicitly INSUFFICIENT_DATA (null), never silently zero.
+      expect(m.var.value).toBeNull();
+      expect(m.var.status).toBe('INSUFFICIENT_DATA');
+
+      // Stress loss reflects the real market value of the held position.
+      expect(m.stressLoss.value).toBeGreaterThan(0);
+    } finally {
+      await harness.close();
+    }
+  });
 });
 

@@ -41,7 +41,12 @@ export const PortfolioPage: React.FC = () => {
   const totalMarketValue = portfolio?.marketValue ?? 0;
   const unrealizedPnL = portfolio?.unrealizedPnL ?? 0;
   const realizedPnL = portfolio?.realizedPnL ?? 0;
-  const totalReturnPercent = portfolio?.unrealizedPnLPercent ?? 0;
+  // Display-only unrealized return derived from server fields: PnL / costBasis.
+  // costBasis = marketValue - unrealizedPnL. Falls back to 0% only when undefined or cost basis is 0.
+  const totalReturnPercent =
+    unrealizedPnL !== 0 && (totalMarketValue - unrealizedPnL) !== 0 && portfolio !== null
+      ? (unrealizedPnL / (totalMarketValue - unrealizedPnL)) * 100
+      : 0;
 
   // Sector allocation (derived from actual positions if any)
   const sectorMap = positions.reduce((acc: Record<string, number>, p: any) => {

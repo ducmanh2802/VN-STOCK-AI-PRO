@@ -380,6 +380,7 @@ export const TRADING_KEYS = {
   portfolio: ['trading', 'portfolio'] as const,
   positions: ['trading', 'positions'] as const,
   orders: ['trading', 'orders'] as const,
+  riskMetrics: ['trading', 'risk-metrics'] as const,
 };
 
 export interface TradingAccountData {
@@ -453,6 +454,47 @@ export function useTradingOrders() {
       return json.data || [];
     },
     refetchInterval: 5 * 1000,
+  });
+}
+
+export interface RiskMetric {
+  value: number | null;
+  status: 'OK' | 'STALE' | 'DATA_UNAVAILABLE' | 'INSUFFICIENT_DATA';
+  formula: string;
+  source: string;
+  timestamp: string;
+  window?: string;
+  units: string;
+  confidence?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface TradingRiskMetricsData {
+  computedAt: string;
+  accountId: string;
+  equity: number | null;
+  equityStatus: string;
+  exposure: RiskMetric;
+  concentration: RiskMetric;
+  cashUtilization: RiskMetric;
+  dailyLoss: RiskMetric;
+  drawdown: RiskMetric;
+  var: RiskMetric;
+  stressLoss: RiskMetric;
+  riskApprovedCapital: RiskMetric;
+  summary: string;
+}
+
+export function useTradingRiskMetrics() {
+  return useQuery<TradingRiskMetricsData | null>({
+    queryKey: TRADING_KEYS.riskMetrics,
+    queryFn: async () => {
+      const res = await fetch('/api/trading/risk-metrics');
+      if (!res.ok) throw new Error('Failed to fetch trading risk metrics');
+      const json = await res.json();
+      return json.data;
+    },
+    refetchInterval: 15 * 1000,
   });
 }
 

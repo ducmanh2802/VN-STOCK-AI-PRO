@@ -580,7 +580,7 @@ async function startServer() {
       // 3. Score derivations
       const technicalScore = technicalAnalysis.score;
       const rsi = technicalAnalysis.indicators.rsi14;
-      const momentumScore = rsi ? Math.min(100, Math.max(0, Math.round(rsi * 1.1))) : 50;
+      const momentumScore = rsi ? Math.min(100, Math.max(0, Math.round(rsi * 1.1))) : null;
 
       let fundamentalScore: number | null = null;
       if (roe !== null) {
@@ -598,14 +598,14 @@ async function startServer() {
       const last20 = candles.slice(-20);
       const upVol = last20.filter((c) => c.close >= c.open).reduce((acc, c) => acc + c.volume, 0);
       const totalVol = last20.reduce((acc, c) => acc + c.volume, 0);
-      const moneyFlowScore = totalVol > 0 ? Math.round((upVol / totalVol) * 100) : 50;
+      const moneyFlowScore = totalVol > 0 ? Math.round((upVol / totalVol) * 100) : null;
 
       const riskScore = Math.round(
         Math.min(90, Math.max(15, ((high52Week - low52Week) / currentPrice) * 50))
       );
 
-      const supportPrice = technicalAnalysis.supportResistance.support[0]?.price ?? Math.round(currentPrice * 0.95);
-      const resistancePrice = technicalAnalysis.supportResistance.resistance[0]?.price ?? Math.round(currentPrice * 1.08);
+      const supportPrice = technicalAnalysis.supportResistance.support[0]?.price ?? null;
+      const resistancePrice = technicalAnalysis.supportResistance.resistance[0]?.price ?? null;
 
       // 4. Generate multi-horizon recommendations
       const recommendations = RecommendationEngine.generateMultiHorizon({
@@ -613,7 +613,7 @@ async function startServer() {
         currentPrice,
         supportPrice,
         resistancePrice,
-        fairValuePrice: eps && pe ? Math.round(eps * 15) : Math.round(currentPrice * 1.15),
+        fairValuePrice: (eps !== null && eps > 0 && pe !== null && pe > 0) ? Math.round(eps * 15) : null,
         peRatio: pe,
         pbRatio: pb,
         roe: roe,
@@ -667,25 +667,37 @@ async function startServer() {
 
             const technical = StockAnalysisEngine.analyze({ candles, high52Week, low52Week });
             const rsi = technical.indicators.rsi14;
-            const momentumScore = rsi ? Math.min(100, Math.max(0, Math.round(rsi * 1.1))) : 50;
+            const momentumScore = rsi ? Math.min(100, Math.max(0, Math.round(rsi * 1.1))) : null;
 
             const fundamentals = await getStockFundamentals(sym).catch(() => null);
-            const roe = fundamentals?.roe ?? 18;
-            const pe = fundamentals?.peRatio ?? 14;
-            const eps = fundamentals?.eps ?? 3500;
+            // Fail-closed fundamentals — NEVER substitute a placeholder for a missing
+            // ROE / P/E / EPS. Missing values stay null (see .clinerules/20 no-mock rule).
+            const roe = fundamentals?.roe ?? null;
+            const pe = fundamentals?.peRatio ?? null;
+            const eps = fundamentals?.eps ?? null;
 
-            const fundamentalScore = Math.min(95, Math.max(20, Math.round(roe * 3.5 + 15)));
-            const valuationScore = Math.min(95, Math.max(20, Math.round(110 - pe * 3)));
-            const riskScore = 30;
+            const fundamentalScore = roe !== null ? Math.min(95, Math.max(20, Math.round(roe * 3.5 + 15))) : null;
+            const valuationScore = pe !== null && pe > 0 ? Math.min(95, Math.max(20, Math.round(110 - pe * 3))) : null;
+            // Real 52-week-range risk (same existing formula as the single-symbol endpoint).
+            const riskScore = currentPrice > 0
+              ? Math.round(Math.min(90, Math.max(15, ((high52Week - low52Week) / currentPrice) * 50)))
+              : null;
 
-            const supportPrice = technical.supportResistance.support[0]?.price ?? Math.round(currentPrice * 0.95);
-            const resistancePrice = technical.supportResistance.resistance[0]?.price ?? Math.round(currentPrice * 1.08);
+            // Real technical levels only; never price-multiplier placeholders.
+            const supportPrice = technical.supportResistance.support[0]?.price ?? null;
+            const resistancePrice = technical.supportResistance.resistance[0]?.price ?? null;
+
+            // Money flow from the real last-20 candle volume; null when degenerate.
+            const last20m = candles.slice(-20);
+            const upVol = last20m.filter((c) => c.close >= c.open).reduce((acc, c) => acc + c.volume, 0);
+            const totalVol = last20m.reduce((acc, c) => acc + c.volume, 0);
+            const moneyFlowScore = totalVol > 0 ? Math.round((upVol / totalVol) * 100) : null;
 
             universeData.set(sym, {
               currentPrice,
               supportPrice,
               resistancePrice,
-              fairValuePrice: Math.round(eps * 15),
+              fairValuePrice: eps !== null && eps > 0 && pe !== null && pe > 0 ? Math.round(eps * 15) : null,
               peRatio: pe,
               roe: roe,
               rsi: rsi,
@@ -693,7 +705,7 @@ async function startServer() {
                 technicalScore: technical.score,
                 fundamentalScore,
                 momentumScore,
-                moneyFlowScore: 65,
+                moneyFlowScore,
                 valuationScore,
                 riskScore,
               },
