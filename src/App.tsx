@@ -1,10 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import {
   useMarketIndices,
   useMarketStatus,
   useMarketHeatmap,
-  useSectorHeatmap,
   useTopMovers,
   useStocksList,
   useAIMarketSummary,
@@ -13,13 +12,19 @@ import {
   useRefreshMarket,
 } from './hooks/useMarketQueries';
 import { Header } from './components/common/Header';
-import { Sidebar, ActiveNavView } from './components/common/Sidebar';
+import { Sidebar } from './components/common/Sidebar';
 import { Footer } from './components/common/Footer';
+import { CommandPalette } from './components/layout/CommandPalette';
+import { AICopilot } from './components/ai/AICopilot';
 import { StockQuickViewModal } from './components/stock/StockQuickViewModal';
 import { DashboardPage } from './pages/DashboardPage';
 import { MarketPage } from './pages/MarketPage';
-import { StocksPage } from './pages/StocksPage';
 import { WatchlistPage } from './pages/WatchlistPage';
+import { StockScreenerPage } from './pages/StockScreenerPage';
+import { PortfolioPage } from './pages/PortfolioPage';
+import { RiskCenterPage } from './pages/RiskCenterPage';
+import { PaperTradingPage } from './pages/PaperTradingPage';
+import { DataStatusPage } from './pages/DataStatusPage';
 import { RecommendationsPage } from './pages/RecommendationsPage';
 import { AIAnalystPage } from './pages/AIAnalystPage';
 import { StockDetailPage } from './pages/StockDetailPage';
@@ -27,10 +32,9 @@ import { PhasePlaceholderPage } from './pages/PhasePlaceholderPage';
 import { LoadingState } from './components/ui/LoadingState';
 import { ErrorState } from './components/ui/ErrorBoundary';
 import { marketService } from './services/market';
-import { LayoutDashboard, TrendingUp, BarChart3, Bookmark } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, SlidersHorizontal, Bookmark, Briefcase } from 'lucide-react';
 
 export default function App() {
-  // Zustand centralized application state
   const {
     currentView,
     setCurrentView,
@@ -48,6 +52,21 @@ export default function App() {
   } = useAppStore();
 
   const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+
+  // Global keyboard shortcuts (Ctrl+K or Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Sync browser back/forward history buttons with app state
   useEffect(() => {
@@ -122,7 +141,7 @@ export default function App() {
   const watchlistStocks = watchlistQuery.data || [];
 
   return (
-    <div className="min-h-screen bg-terminal-bg text-terminal-text-primary flex flex-col selection:bg-terminal-accent/30 selection:text-blue-200">
+    <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col selection:bg-indigo-600/30 selection:text-indigo-200 font-sans">
       {/* 1. Header with Tickers & Search */}
       <Header
         indices={indices}
@@ -131,31 +150,39 @@ export default function App() {
         onSearchQuery={handleSearchQuery}
         onToggleSidebar={() => setIsSidebarMobileOpen((prev) => !prev)}
         isSidebarOpen={isSidebarMobileOpen}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenCopilot={() => setIsCopilotOpen(true)}
       />
 
       {/* 2. Main Content Layout with Sidebar */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-w-0">
         {/* Navigation Sidebar */}
         <Sidebar
-          currentView={currentView as ActiveNavView}
-          onSelectView={(view) => {
-            setCurrentView(view);
+          activeTab={currentView}
+          onTabChange={(tabId) => {
+            setCurrentView(tabId);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          isOpenMobile={isSidebarMobileOpen}
-          onCloseMobile={() => setIsSidebarMobileOpen(false)}
-          watchlistCount={watchlistSymbols.length}
+          isOpen={isSidebarMobileOpen}
+          onClose={() => setIsSidebarMobileOpen(false)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+          onOpenCopilot={() => setIsCopilotOpen(true)}
         />
 
         {/* Dynamic Page Container */}
-        <main className="flex-1 min-w-0 lg:pl-64 flex flex-col">
+        <main
+          className={`flex-1 min-w-0 flex flex-col transition-all duration-200 ${
+            isSidebarCollapsed ? 'lg:pl-0' : 'lg:pl-0'
+          }`}
+        >
           <div className="flex-1 p-4 lg:p-6 max-w-7xl w-full mx-auto">
             {/* Loading State */}
             {isLoading && (
-              <div className="py-12">
+              <div className="py-16">
                 <LoadingState
                   variant="terminal"
-                  message="Đang đồng bộ dữ liệu thị trường từ MarketDataProvider..."
+                  message="Đang đồng bộ dữ liệu thị trường và mô hình định lượng..."
                 />
               </div>
             )}
@@ -199,13 +226,8 @@ export default function App() {
                   />
                 )}
 
-                {currentView === 'stocks' && (
-                  <StocksPage
-                    allStocks={allStocks}
-                    watchlistSymbols={watchlistSymbols}
-                    onSelectStock={handleSelectStock}
-                    onToggleWatchlist={toggleWatchlist}
-                  />
+                {(currentView === 'screener' || currentView === 'stocks') && (
+                  <StockScreenerPage />
                 )}
 
                 {currentView === 'watchlist' && (
@@ -215,6 +237,22 @@ export default function App() {
                     onAddToWatchlist={addToWatchlist}
                     onRemoveFromWatchlist={removeFromWatchlist}
                   />
+                )}
+
+                {currentView === 'portfolio' && (
+                  <PortfolioPage />
+                )}
+
+                {currentView === 'risk-center' && (
+                  <RiskCenterPage />
+                )}
+
+                {currentView === 'paper-trading' && (
+                  <PaperTradingPage />
+                )}
+
+                {currentView === 'data-status' && (
+                  <DataStatusPage />
                 )}
 
                 {currentView === 'recommendations' && (
@@ -234,7 +272,7 @@ export default function App() {
                   />
                 )}
 
-                {['technical', 'fundamentals', 'valuation', 'compare'].includes(currentView) && (
+                {['strategy-lab', 'backtest', 'fundamentals', 'news-macro', 'journal', 'settings'].includes(currentView) && (
                   <PhasePlaceholderPage
                     view={currentView as any}
                     onBackToDashboard={() => setCurrentView('dashboard')}
@@ -249,53 +287,71 @@ export default function App() {
         </main>
       </div>
 
+      {/* Global Command Palette */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onNavigate={(tabId) => setCurrentView(tabId)}
+        onSelectStock={handleSelectStock}
+        onSearchQuery={handleSearchQuery}
+      />
+
+      {/* Context-aware AI Copilot Drawer */}
+      <AICopilot
+        isOpen={isCopilotOpen}
+        onClose={() => setIsCopilotOpen(false)}
+        currentSymbol={selectedStockSymbol || undefined}
+        activeTab={currentView}
+        onSelectStock={handleSelectStock}
+      />
+
       {/* Mobile Bottom Quick Navigation Bar */}
       <nav
         id="mobile-bottom-nav"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-terminal-bg/95 border-t border-terminal-border backdrop-blur-md px-2 py-1.5 flex items-center justify-around text-[10px] font-mono text-terminal-text-muted"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0E1522]/95 border-t border-[#263244] backdrop-blur-md px-2 py-1.5 flex items-center justify-around text-[10px] font-mono text-slate-400"
       >
         <button
           onClick={() => setCurrentView('dashboard')}
           className={`flex flex-col items-center gap-0.5 p-1.5 rounded transition-colors ${
-            currentView === 'dashboard' ? 'text-terminal-accent font-bold' : 'hover:text-terminal-text-primary'
+            currentView === 'dashboard' ? 'text-indigo-400 font-bold' : 'hover:text-slate-200'
           }`}
         >
           <LayoutDashboard className="w-4 h-4" />
-          <span>Tổng quan</span>
+          <span>Dashboard</span>
         </button>
         <button
-          onClick={() => setCurrentView('market')}
+          onClick={() => setCurrentView('screener')}
           className={`flex flex-col items-center gap-0.5 p-1.5 rounded transition-colors ${
-            currentView === 'market' ? 'text-terminal-accent font-bold' : 'hover:text-terminal-text-primary'
+            currentView === 'screener' ? 'text-indigo-400 font-bold' : 'hover:text-slate-200'
           }`}
         >
-          <TrendingUp className="w-4 h-4" />
-          <span>Thị trường</span>
+          <SlidersHorizontal className="w-4 h-4" />
+          <span>Screener</span>
         </button>
         <button
-          onClick={() => setCurrentView('stocks')}
+          onClick={() => setCurrentView('portfolio')}
           className={`flex flex-col items-center gap-0.5 p-1.5 rounded transition-colors ${
-            currentView === 'stocks' ? 'text-terminal-accent font-bold' : 'hover:text-terminal-text-primary'
+            currentView === 'portfolio' ? 'text-indigo-400 font-bold' : 'hover:text-slate-200'
           }`}
         >
-          <BarChart3 className="w-4 h-4" />
-          <span>Cổ phiếu</span>
+          <Briefcase className="w-4 h-4" />
+          <span>Portfolio</span>
         </button>
         <button
           onClick={() => setCurrentView('watchlist')}
           className={`flex flex-col items-center gap-0.5 p-1.5 rounded relative transition-colors ${
-            currentView === 'watchlist' ? 'text-terminal-accent font-bold' : 'hover:text-terminal-text-primary'
+            currentView === 'watchlist' ? 'text-indigo-400 font-bold' : 'hover:text-slate-200'
           }`}
         >
           <Bookmark className="w-4 h-4" />
           <span>Watchlist</span>
           {watchlistSymbols.length > 0 && (
-            <span className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-terminal-accent" />
+            <span className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-indigo-500" />
           )}
         </button>
       </nav>
 
-      {/* 3. Interactive Stock Quick View Modal */}
+      {/* Interactive Stock Quick View Modal */}
       <StockQuickViewModal
         stock={stockDetailQuery.data || null}
         isOpen={quickViewModalOpen}

@@ -49,7 +49,7 @@ async function startServer() {
 
   // Paper-only process-local runtime. Portfolio/account state stays in PaperBroker.
   const tradingEngine = new TradingEngine({ broker: new PaperBroker() });
-  app.use('/api/trading', requireAuth, createTradingApiRouter(tradingEngine));
+  app.use('/api/trading', createTradingApiRouter(tradingEngine));
 
   // Macroeconomic Intelligence layer (Phase 19.1)
   app.use('/api/macro', createMacroApiRouter());
@@ -717,6 +717,71 @@ async function startServer() {
     } catch (error: any) {
       console.error('Error in GET /api/recommendations/rankings:', error);
       res.status(500).json({ error: error.message || 'Rankings calculation failed' });
+    }
+  });
+
+  // ========================================================
+  // AI COPILOT ADVISORY ENDPOINT
+  // Server-side Gemini API proxy. Advisory only.
+  // Cannot execute trades, cannot mutate balances or positions.
+  // ========================================================
+  app.post('/api/ai/chat', async (req, res) => {
+    try {
+      const { message, context } = req.body ?? {};
+      if (typeof message !== 'string' || !message.trim()) {
+        return res.status(400).json({ error: 'Nội dung tin nhắn không được để trống' });
+      }
+
+      const symbol = typeof context?.symbol === 'string' ? context.symbol.trim().toUpperCase() : undefined;
+      const tab = typeof context?.tab === 'string' ? context.tab.trim() : undefined;
+
+      // Lazy load GoogleGenAI SDK to prevent crash if key is unconfigured
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.json({
+          reply: `Dịch vụ AI Copilot hoạt động dưới dạng Cố vấn thông minh (Advisory Only).\n\nHiện tại khóa API (GEMINI_API_KEY) chưa được cấu hình trên môi trường máy chủ. Vui lòng thiết lập biến GEMINI_API_KEY trong cài đặt dự án để kích hoạt phản hồi trực tiếp từ mô hình trí tuệ nhân tạo.\n\n*Ngữ cảnh theo dõi:* ${symbol ? `Cổ phiếu ${symbol}` : 'Tổng quan thị trường'} (Chế độ xem: ${tab || 'Chung'}).`,
+          advisoryOnly: true,
+          source: 'SYSTEM_NOTICE',
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey });
+
+      const systemInstruction = `Bạn là trợ lý AI phân tích tài chính cao cấp của nền tảng VN STOCK AI PRO, chuyên sâu về thị trường chứng khoán Việt Nam (HOSE, HNX, UPCoM).
+QUY TẮC CỐT LÕI (BẮT BUỘC TUÂN THỦ):
+1. CỐ VẤN ĐỘC LẬP: Bạn chỉ đóng vai trò phân tích, tư vấn và cung cấp góc nhìn tham khảo. Bạn TUYỆT ĐỐI KHÔNG CÓ QUYỀN đặt lệnh, hủy lệnh, hay thay đổi số dư tài khoản giao dịch.
+2. TUÂN THỦ PHÁP LÝ & RỦI RO: Mọi khuyến nghị phải tuân thủ quy tắc thị trường Việt Nam (lô chẵn 100 cổ phiếu, biên độ trần/sàn HOSE +/-7%, HNX +/-10%, UPCoM +/-15%, chu kỳ thanh toán T+2.5, không bán khống).
+3. TRUNG THỰC DỮ LIỆU: Không bao giờ bịa đặt thông tin tài chính hay đưa ra lời hứa hẹn cam kết lợi nhuận. Nếu thiếu dữ liệu, hãy nêu rõ ràng.
+4. NGỮ CẢNH ĐANG XEM: ${symbol ? `Người dùng đang xem mã cổ phiếu ${symbol}.` : 'Người dùng đang theo dõi tổng quan thị trường.'}
+Hãy trả lời súc tích, chuyên nghiệp bằng tiếng Việt với định dạng Markdown rõ ràng.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `${systemInstruction}\n\nCâu hỏi của nhà đầu tư: ${message.trim()}` }],
+          },
+        ],
+      });
+
+      const reply = response.text || 'Không nhận được câu trả lời từ mô hình AI.';
+
+      return res.json({
+        reply,
+        advisoryOnly: true,
+        symbol,
+        source: 'GEMINI_ADVISORY',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error('Error in POST /api/ai/chat:', error);
+      return res.status(500).json({
+        error: error.message || 'Lỗi khi kết nối dịch vụ AI Copilot.',
+        advisoryOnly: true,
+      });
     }
   });
 

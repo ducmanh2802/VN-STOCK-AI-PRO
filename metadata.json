@@ -1,6 +1,6 @@
 {
-  "name": "VN STOCK AI",
-  "description": "Nền tảng phân tích chứng khoán Việt Nam (HOSE, HNX, UPCOM) chuyên nghiệp cho nhà đầu tư cá nhân",
+  "name": "VN STOCK AI PRO",
+  "description": "AI-Powered Vietnamese Stock Intelligence & Quant Research Platform",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

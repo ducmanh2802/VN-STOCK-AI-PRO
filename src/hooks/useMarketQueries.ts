@@ -373,3 +373,127 @@ export function useRefreshMarket() {
     return queryClient.invalidateQueries({ queryKey: MARKET_KEYS.all });
   };
 }
+
+export const TRADING_KEYS = {
+  all: ['trading'] as const,
+  status: ['trading', 'status'] as const,
+  portfolio: ['trading', 'portfolio'] as const,
+  positions: ['trading', 'positions'] as const,
+  orders: ['trading', 'orders'] as const,
+};
+
+export interface TradingAccountData {
+  accountId: string;
+  currency: string;
+  cash: number;
+  reservedCash: number;
+  availableCash: number;
+  marketValue: number;
+  equity: number;
+  realizedPnL: number;
+  unrealizedPnL: number;
+  positions: any[];
+  openOrders: any[];
+  updatedAt: string;
+}
+
+export interface TradingStatusData {
+  tradingEnabled: boolean;
+  emergencyStop: boolean;
+  brokerMode: string;
+  session: string;
+}
+
+export function useTradingStatus() {
+  return useQuery<TradingStatusData | null>({
+    queryKey: TRADING_KEYS.status,
+    queryFn: async () => {
+      const res = await fetch('/api/trading/status');
+      if (!res.ok) throw new Error('Failed to fetch trading status');
+      const json = await res.json();
+      return json.data;
+    },
+    refetchInterval: 10 * 1000,
+  });
+}
+
+export function useTradingPortfolio() {
+  return useQuery<TradingAccountData | null>({
+    queryKey: TRADING_KEYS.portfolio,
+    queryFn: async () => {
+      const res = await fetch('/api/trading/portfolio');
+      if (!res.ok) throw new Error('Failed to fetch trading portfolio');
+      const json = await res.json();
+      return json.data;
+    },
+    refetchInterval: 10 * 1000,
+  });
+}
+
+export function useTradingPositions() {
+  return useQuery<any[]>({
+    queryKey: TRADING_KEYS.positions,
+    queryFn: async () => {
+      const res = await fetch('/api/trading/positions');
+      if (!res.ok) throw new Error('Failed to fetch trading positions');
+      const json = await res.json();
+      return json.data || [];
+    },
+    refetchInterval: 10 * 1000,
+  });
+}
+
+export function useTradingOrders() {
+  return useQuery<any[]>({
+    queryKey: TRADING_KEYS.orders,
+    queryFn: async () => {
+      const res = await fetch('/api/trading/orders');
+      if (!res.ok) throw new Error('Failed to fetch trading orders');
+      const json = await res.json();
+      return json.data || [];
+    },
+    refetchInterval: 5 * 1000,
+  });
+}
+
+export function usePlaceTradingOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { symbol: string; side: 'BUY' | 'SELL'; quantity: number; orderType: 'MARKET' | 'LIMIT' }) => {
+      const res = await fetch('/api/trading/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || data.error?.code || 'Order placement failed');
+      }
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRADING_KEYS.all });
+    },
+  });
+}
+
+export function useCancelTradingOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const res = await fetch('/api/trading/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || data.error?.code || 'Order cancellation failed');
+      }
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRADING_KEYS.all });
+    },
+  });
+}

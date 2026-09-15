@@ -641,7 +641,9 @@ export class PaperReconciliationEngine {
       });
     }
 
-    const expectedEquity = expectedCash + expectedReservedCash + expectedMarketValue;
+    // Equity Invariant: totalEquity = availableCash + reservedCash + marketValueOfOpenPositions
+    // In our accounting model, expectedCash represents total cash (expectedAvailableCash + expectedReservedCash).
+    const expectedEquity = expectedCash + expectedMarketValue;
     const actualEquity = account.equity;
     const diffEquity = Math.abs(expectedEquity - actualEquity);
     const equityMatched = diffEquity <= tolerance.moneyToleranceVND;

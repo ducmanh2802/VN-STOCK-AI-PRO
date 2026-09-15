@@ -58,6 +58,7 @@ export class PaperBroker implements BrokerAdapter {
 
   private positions: Map<string, BrokerPosition> = new Map();
   private orders: Map<string, Order> = new Map();
+  private ordersByClientOrderId: Map<string, Order> = new Map();
   private transactions: BrokerTransaction[] = [];
   private latestQuotes: Map<string, TradingMarketData> = new Map();
   private listeners: Set<PaperBrokerEventListener> = new Set();
@@ -162,16 +163,24 @@ export class PaperBroker implements BrokerAdapter {
     const orderId = request.id || `ORD_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     const symbol = request.symbol ? request.symbol.trim().toUpperCase() : '';
 
-    // 1. Idempotency Check: prevent duplicate submission
-    const existingOrder = this.orders.get(orderId);
+    // 1. Idempotency Check: prevent duplicate submission by orderId or clientOrderId
+    const rawClientOrderId = request.clientOrderId ? String(request.clientOrderId).trim() : null;
+    let existingOrder: Order | undefined;
+    if (request.id) {
+      existingOrder = this.orders.get(request.id);
+    }
+    if (!existingOrder && rawClientOrderId) {
+      existingOrder = this.ordersByClientOrderId.get(rawClientOrderId);
+    }
     if (existingOrder) {
+      const existingId = existingOrder.id;
       if (existingOrder.status === 'FILLED') {
         return {
           success: false,
           order: existingOrder,
           error: {
             code: 'ORDER_ALREADY_FILLED',
-            message: `Order ${orderId} has already been filled`,
+            message: `Order ${existingId}${existingOrder.clientOrderId ? ` (clientOrderId: ${existingOrder.clientOrderId})` : ''} has already been filled`,
           },
         };
       }
@@ -181,7 +190,7 @@ export class PaperBroker implements BrokerAdapter {
           order: existingOrder,
           error: {
             code: 'ORDER_ALREADY_CANCELLED',
-            message: `Order ${orderId} has already been cancelled`,
+            message: `Order ${existingId}${existingOrder.clientOrderId ? ` (clientOrderId: ${existingOrder.clientOrderId})` : ''} has already been cancelled`,
           },
         };
       }
@@ -190,7 +199,7 @@ export class PaperBroker implements BrokerAdapter {
         order: existingOrder,
         error: {
           code: 'DUPLICATE_ORDER',
-          message: `Order ${orderId} already exists`,
+          message: `Order ${existingId}${existingOrder.clientOrderId ? ` (clientOrderId: ${existingOrder.clientOrderId})` : ''} already exists`,
         },
       };
     }
@@ -371,6 +380,9 @@ export class PaperBroker implements BrokerAdapter {
     order.status = 'SUBMITTED';
     order.submittedAt = new Date().toISOString();
     this.orders.set(order.id, order);
+    if (order.clientOrderId) {
+      this.ordersByClientOrderId.set(order.clientOrderId, order);
+    }
 
     this.emitEvent({
       type: 'ORDER_SUBMITTED',
@@ -409,6 +421,9 @@ export class PaperBroker implements BrokerAdapter {
     order.rejectedReason = message;
     order.rejectionCode = code;
     this.orders.set(order.id, order);
+    if (order.clientOrderId) {
+      this.ordersByClientOrderId.set(order.clientOrderId, order);
+    }
 
     this.emitEvent({
       type: 'ORDER_REJECTED',
@@ -576,7 +591,7 @@ export class PaperBroker implements BrokerAdapter {
   // ==========================================
 
   async cancelOrder(orderId: string): Promise<CancelOrderResult> {
-    const order = this.orders.get(orderId);
+    const order = this.orders.get(orderId) || this.ordersByClientOrderId.get(orderId);
     if (!order) {
       return {
         success: false,
@@ -693,7 +708,11 @@ export class PaperBroker implements BrokerAdapter {
   // ==========================================
 
   async getOrder(orderId: string): Promise<Order | null> {
-    return this.orders.get(orderId) ?? null;
+    return this.orders.get(orderId) ?? this.ordersByClientOrderId.get(orderId) ?? null;
+  }
+
+  async getOrderByClientOrderId(clientOrderId: string): Promise<Order | null> {
+    return this.ordersByClientOrderId.get(clientOrderId) ?? null;
   }
 
   async getOpenOrders(symbol?: string): Promise<Order[]> {
@@ -719,11 +738,19 @@ export class PaperBroker implements BrokerAdapter {
   }
 
   async getPosition(symbol: string): Promise<BrokerPosition | null> {
+    return this.getPositionSync(symbol);
+  }
+
+  getPositionSync(symbol: string): BrokerPosition | null {
     const pos = this.positions.get(symbol.toUpperCase());
     return pos ? { ...pos } : null;
   }
 
   async getPositions(): Promise<BrokerPosition[]> {
+    return this.getPositionsSync();
+  }
+
+  getPositionsSync(): BrokerPosition[] {
     return Array.from(this.positions.values()).map(p => ({ ...p }));
   }
 
@@ -824,6 +851,7 @@ export class PaperBroker implements BrokerAdapter {
     this.realizedPnL = 0;
     this.positions.clear();
     this.orders.clear();
+    this.ordersByClientOrderId.clear();
     this.transactions = [];
     this.latestQuotes.clear();
     this.emergencyStop = false;

@@ -1,212 +1,282 @@
-import { LayoutDashboard, TrendingUp, BarChart3, LineChart, PieChart, Calculator, Scale, Bookmark, Brain, Sparkles, ChevronRight } from 'lucide-react';
+import React from 'react';
+import {
+  LayoutDashboard,
+  TrendingUp,
+  Bookmark,
+  Sparkles,
+  SlidersHorizontal,
+  FileText,
+  Globe,
+  FlaskConical,
+  PlayCircle,
+  Activity,
+  Briefcase,
+  ShieldAlert,
+  BookOpen,
+  Database,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Sparkle,
+} from 'lucide-react';
+import { useAppStore } from '../../store/useAppStore';
 
-export type ActiveNavView =
-  | 'dashboard'
-  | 'market'
-  | 'stocks'
-  | 'watchlist'
-  | 'recommendations'
-  | 'technical'
-  | 'fundamentals'
-  | 'valuation'
-  | 'compare'
-  | 'ai-analyst'
-  | 'stock-detail';
+export type ActiveNavView = string;
+
+export interface NavItem {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: string;
+  badgeVariant?: 'accent' | 'success' | 'warning' | 'muted';
+}
+
+
+export interface NavGroup {
+  groupName: string;
+  items: NavItem[];
+}
 
 interface SidebarProps {
-  currentView: ActiveNavView;
-  onSelectView: (view: ActiveNavView) => void;
-  isOpenMobile: boolean;
-  onCloseMobile: () => void;
-  watchlistCount: number;
+  activeTab: string;
+  onTabChange: (tabId: string) => void;
+  isOpen: boolean;
+  onClose?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+  onOpenCopilot?: () => void;
 }
 
-interface NavItem {
-  id: ActiveNavView;
-  label: string;
-  icon: typeof LayoutDashboard;
-  badge?: string;
-  phase: number;
-  isPhase1: boolean;
-}
-
-const NAV_ITEMS: NavItem[] = [
+export const navigationStructure: NavGroup[] = [
   {
-    id: 'dashboard',
-    label: 'Dashboard Tổng quan',
-    icon: LayoutDashboard,
-    phase: 1,
-    isPhase1: true,
+    groupName: 'OVERVIEW',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'market', label: 'Market Overview', icon: TrendingUp },
+      { id: 'watchlist', label: 'Watchlist', icon: Bookmark },
+    ],
   },
   {
-    id: 'market',
-    label: 'Thị trường & Ngành',
-    icon: TrendingUp,
-    phase: 1,
-    isPhase1: true,
+    groupName: 'RESEARCH',
+    items: [
+      { id: 'ai-analyst', label: 'AI Research', icon: Sparkles, badge: 'PRO', badgeVariant: 'accent' },
+      { id: 'screener', label: 'Stock Screener', icon: SlidersHorizontal },
+      { id: 'fundamentals', label: 'Fundamentals', icon: FileText },
+      { id: 'news-macro', label: 'News & Macro', icon: Globe },
+    ],
   },
   {
-    id: 'stocks',
-    label: 'Mã Cổ phiếu (Stocks)',
-    icon: BarChart3,
-    phase: 1,
-    isPhase1: true,
+    groupName: 'QUANT LAB',
+    items: [
+      { id: 'strategy-lab', label: 'Strategy Lab', icon: FlaskConical },
+      { id: 'backtest', label: 'Backtesting', icon: PlayCircle },
+      { id: 'paper-trading', label: 'Paper Trading', icon: Activity, badge: 'DEMO', badgeVariant: 'warning' },
+    ],
   },
   {
-    id: 'watchlist',
-    label: 'Danh mục Theo dõi',
-    icon: Bookmark,
-    phase: 1,
-    isPhase1: true,
+    groupName: 'PORTFOLIO',
+    items: [
+      { id: 'portfolio', label: 'Portfolio', icon: Briefcase },
+      { id: 'risk-center', label: 'Risk Center', icon: ShieldAlert, badge: 'SECURE', badgeVariant: 'success' },
+      { id: 'journal', label: 'Trade Journal', icon: BookOpen },
+    ],
   },
   {
-    id: 'recommendations',
-    label: 'Khuyến nghị AI',
-    icon: Sparkles,
-    badge: 'Phase 17',
-    phase: 17,
-    isPhase1: true,
-  },
-  {
-    id: 'technical',
-    label: 'Phân tích Kỹ thuật',
-    icon: LineChart,
-    badge: 'Phase 3',
-    phase: 3,
-    isPhase1: false,
-  },
-  {
-    id: 'fundamentals',
-    label: 'Báo cáo Tài chính',
-    icon: PieChart,
-    badge: 'Phase 4',
-    phase: 4,
-    isPhase1: false,
-  },
-  {
-    id: 'valuation',
-    label: 'Mô hình Định giá',
-    icon: Calculator,
-    badge: 'Phase 5',
-    phase: 5,
-    isPhase1: false,
-  },
-  {
-    id: 'compare',
-    label: 'So sánh Ngành/Peers',
-    icon: Scale,
-    badge: 'Phase 8',
-    phase: 8,
-    isPhase1: false,
-  },
-  {
-    id: 'ai-analyst',
-    label: 'AI Market Analyst',
-    icon: Brain,
-    badge: 'AI DEMO',
-    phase: 1,
-    isPhase1: true,
+    groupName: 'SYSTEM',
+    items: [
+      { id: 'data-status', label: 'Data Status', icon: Database },
+      { id: 'settings', label: 'Settings', icon: Settings },
+    ],
   },
 ];
 
-export function Sidebar({
-  currentView,
-  onSelectView,
-  isOpenMobile,
-  onCloseMobile,
-  watchlistCount,
-}: SidebarProps) {
-  const handleItemClick = (id: ActiveNavView) => {
-    onSelectView(id);
-    onCloseMobile();
+export const Sidebar: React.FC<SidebarProps> = ({
+  activeTab,
+  onTabChange,
+  isOpen,
+  onClose,
+  isCollapsed = false,
+  onToggleCollapse,
+  onOpenCopilot,
+}) => {
+  const watchlistCount = useAppStore((state) => state.watchlistSymbols.length);
+
+
+  const getBadgeStyle = (variant?: string) => {
+    switch (variant) {
+      case 'accent':
+        return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+      case 'success':
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'warning':
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      default:
+        return 'bg-slate-800 text-slate-400 border-slate-700';
+    }
   };
 
   return (
     <>
       {/* Mobile Backdrop */}
-      {isOpenMobile && (
+      {isOpen && (
         <div
-          id="sidebar-mobile-backdrop"
-          className="fixed inset-0 bg-terminal-bg/70 backdrop-blur-xs z-40 lg:hidden"
-          onClick={onCloseMobile}
+          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden animate-in fade-in"
+          onClick={onClose}
         />
       )}
 
-      {/* Sidebar Container */}
       <aside
         id="main-app-sidebar"
-        className={`fixed top-16 bottom-0 left-0 z-40 w-64 bg-terminal-bg border-r border-terminal-border flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
-          isOpenMobile ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed lg:sticky top-0 left-0 z-40 h-screen bg-[#0E1522] border-r border-[#263244] flex flex-col justify-between transition-all duration-200 select-none ${
+          isCollapsed ? 'w-16' : 'w-64'
+        } ${
+          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        {/* Navigation Section */}
-        <div className="flex-1 px-3 py-4 overflow-y-auto space-y-1">
-          <div className="px-3 pb-2 text-[11px] font-mono font-semibold tracking-wider text-terminal-text-muted uppercase">
-            Hệ thống phân tích
+        {/* Top Branding Section */}
+        <div>
+          <div className="h-16 flex items-center justify-between px-4 border-b border-[#263244] bg-[#111827]">
+            {!isCollapsed ? (
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-600/30">
+                  <TrendingUp className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-sm text-slate-100 font-mono tracking-tight">
+                      VN AI <span className="text-indigo-400">PRO</span>
+                    </span>
+                    <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
+                      v2.5
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-mono truncate">
+                    VIETNAM QUANT INTEL
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="mx-auto w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-600/30">
+                <TrendingUp className="w-4 h-4 text-white" />
+              </div>
+            )}
+
+            {/* Desktop Collapse Button */}
+            {onToggleCollapse && (
+              <button
+                onClick={onToggleCollapse}
+                className="hidden lg:flex p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#182231] rounded-lg transition-colors"
+                title={isCollapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="w-4 h-4" />
+                ) : (
+                  <ChevronLeft className="w-4 h-4" />
+                )}
+              </button>
+            )}
           </div>
 
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentView === item.id;
+          {/* Navigation Groups */}
+          <div className="p-3 space-y-6 overflow-y-auto max-h-[calc(100vh-140px)] scrollbar-none">
+            {navigationStructure.map((group) => (
+              <div key={group.groupName} className="space-y-1">
+                {!isCollapsed && (
+                  <div className="px-2 pb-1 text-[10px] font-semibold font-mono text-slate-500 tracking-wider">
+                    {group.groupName}
+                  </div>
+                )}
 
-            return (
-              <button
-                key={item.id}
-                id={`nav-item-${item.id}`}
-                onClick={() => handleItemClick(item.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all group ${
-                  isActive
-                    ? 'bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/30 font-semibold'
-                    : 'text-terminal-text-muted hover:text-terminal-text-primary hover:bg-terminal-surface border border-transparent'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon
-                    className={`w-4 h-4 ${
-                      isActive ? 'text-terminal-accent' : 'text-terminal-text-muted group-hover:text-terminal-text-secondary'
-                    }`}
-                  />
-                  <span>{item.label}</span>
-                </div>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  const badgeText = item.id === 'watchlist' && watchlistCount > 0 ? `${watchlistCount}` : item.badge;
 
-                <div className="flex items-center gap-1.5">
-                  {item.id === 'watchlist' && watchlistCount > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-terminal-surface text-terminal-accent border border-terminal-border">
-                      {watchlistCount}
-                    </span>
-                  )}
-
-                  {item.badge && (
-                    <span
-                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                        item.isPhase1
-                          ? 'bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/30'
-                          : 'bg-terminal-surface-subtle text-terminal-text-muted border border-terminal-border'
-                      }`}
+                  return (
+                    <button
+                      key={item.id}
+                      id={`nav-item-${item.id}`}
+                      onClick={() => {
+                        onTabChange(item.id);
+                        if (onClose) onClose();
+                      }}
+                      title={isCollapsed ? item.label : undefined}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 relative group ${
+                        isActive
+                          ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 font-semibold shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-[#182231] border border-transparent'
+                      } ${isCollapsed ? 'justify-center px-0' : ''}`}
                     >
-                      {item.badge}
-                    </span>
-                  )}
-                  {isActive && <ChevronRight className="w-3.5 h-3.5 text-terminal-accent" />}
-                </div>
-              </button>
-            );
-          })}
+                      <Icon
+                        className={`w-4 h-4 shrink-0 transition-colors ${
+                          isActive
+                            ? 'text-indigo-400'
+                            : 'text-slate-400 group-hover:text-slate-200'
+                        }`}
+                      />
+
+                      {!isCollapsed && (
+                        <div className="flex-1 flex items-center justify-between text-left">
+                          <span className="truncate">{item.label}</span>
+                          {badgeText && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${getBadgeStyle(
+                                item.badgeVariant
+                              )}`}
+                            >
+                              {badgeText}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Tooltip for collapsed view */}
+                      {isCollapsed && (
+                        <div className="absolute left-full ml-2 px-2.5 py-1 bg-[#182231] border border-[#263244] text-slate-200 text-xs rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                          {item.label}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Phase 1 Specification Note */}
-        <div className="p-3 border-t border-terminal-border bg-terminal-surface-subtle/50">
-          <div className="p-3 rounded-lg border border-terminal-border bg-terminal-bg text-xs">
-            <div className="flex items-center justify-between font-mono mb-1">
-              <span className="text-terminal-text-muted font-semibold">GIAI ĐOẠN 1</span>
-              <span className="text-terminal-up font-bold">READY</span>
-            </div>
-            <p className="text-terminal-text-muted text-[11px] leading-relaxed">
-              Kiến trúc Foundation hoàn chỉnh với TanStack Query, Zustand, Zod & Design Tokens.
-            </p>
-          </div>
+        {/* Bottom AI Assistant CTA Banner */}
+        <div className="p-3 border-t border-[#263244] bg-[#111827]">
+          {!isCollapsed ? (
+            <button
+              onClick={onOpenCopilot}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-indigo-900/30 to-violet-900/30 border border-indigo-500/30 hover:border-indigo-500/60 transition-all group"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-indigo-600/30 flex items-center justify-center text-indigo-300">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-semibold text-slate-200 group-hover:text-indigo-300">
+                    AI Copilot
+                  </div>
+                  <div className="text-[10px] text-slate-400">Contextual Agent</div>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/20 px-1.5 py-0.5 rounded">
+                Ctrl+K
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenCopilot}
+              className="w-full flex items-center justify-center p-2 rounded-lg text-indigo-400 hover:bg-indigo-600/20 transition-colors"
+              title="Mở AI Copilot"
+            >
+              <Sparkles className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </aside>
     </>
   );
-}
+};

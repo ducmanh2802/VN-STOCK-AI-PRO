@@ -1,22 +1,47 @@
 @import "tailwindcss";
 
 @theme {
-  --color-terminal-bg: #0B0E14;
-  --color-terminal-bg-subtle: #080A0F;
-  --color-terminal-surface: #111622;
-  --color-terminal-surface-hover: #171E2E;
+  --color-background: #0B0F17;
+  --color-surface: #111827;
+  --color-surface-elevated: #182231;
+  --color-surface-hover: #1E293B;
+  --color-border: #263244;
+  --color-border-subtle: #1C2636;
+  --color-border-bright: #334155;
+
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #64748B;
+
+  --color-accent: #6366F1;
+  --color-accent-hover: #4F46E5;
+  --color-accent-blue: #38BDF8;
+  --color-accent-violet: #8B5CF6;
+
+  --color-positive: #22C55E;
+  --color-warning: #F59E0B;
+  --color-negative: #EF4444;
+  --color-ceiling: #C084FC;
+  --color-floor: #22D3EE;
+  --color-ref: #EAB308;
+
+  /* Backward-compatible terminal color aliases */
+  --color-terminal-bg: #0B0F17;
+  --color-terminal-bg-subtle: #070A10;
+  --color-terminal-surface: #111827;
+  --color-terminal-surface-hover: #1E293B;
   --color-terminal-surface-active: #1C2538;
   --color-terminal-surface-subtle: #0E131D;
-  --color-terminal-surface-elevated: #161D2C;
-  --color-terminal-border: #1E293B;
-  --color-terminal-border-subtle: #151D2A;
+  --color-terminal-surface-elevated: #182231;
+  --color-terminal-border: #263244;
+  --color-terminal-border-subtle: #1C2636;
   --color-terminal-border-bright: #334155;
   --color-terminal-text-primary: #F8FAFC;
   --color-terminal-text-secondary: #94A3B8;
   --color-terminal-text-muted: #64748B;
-  --color-terminal-accent: #2563EB;
-  --color-terminal-accent-hover: #1D4ED8;
-  --color-terminal-up: #10B981;
+  --color-terminal-accent: #6366F1;
+  --color-terminal-accent-hover: #4F46E5;
+  --color-terminal-up: #22C55E;
   --color-terminal-down: #EF4444;
   --color-terminal-ref: #EAB308;
   --color-terminal-ceiling: #C084FC;
@@ -27,19 +52,30 @@
 }
 
 :root {
-  --bg-default: #0B0E14;
-  --surface-default: #111622;
-  --border-default: #1E293B;
+  --background: #0B0F17;
+  --surface: #111827;
+  --surface-elevated: #182231;
+  --surface-hover: #1E293B;
+  --border: #263244;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --accent: #6366F1;
+  --accent-blue: #38BDF8;
+  --accent-violet: #8B5CF6;
+  --positive: #22C55E;
+  --warning: #F59E0B;
+  --negative: #EF4444;
 }
 
 @layer base {
   body {
     font-family: var(--font-sans);
-    background-color: #0B0E14;
+    background-color: #0B0F17;
     color: #94A3B8;
   }
 
-  code, pre, .font-mono {
+  code, pre, .font-mono, [data-mono="true"] {
     font-family: var(--font-mono);
     font-feature-settings: 'tnum' on, 'zero' on;
   }
@@ -47,15 +83,15 @@
 
 /* Institutional Terminal Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #0B0E14;
+  background: #0B0F17;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1E293B;
-  border-radius: 3px;
+  background: #263244;
+  border-radius: 2.5px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #334155;
@@ -66,5 +102,16 @@
   transition: background-color 120ms ease;
 }
 .data-grid-row:hover {
-  background-color: rgba(23, 30, 46, 0.7);
+  background-color: rgba(30, 41, 59, 0.7);
+}
+
+/* Subtle glowing and glass elements */
+.glow-accent {
+  box-shadow: 0 0 20px -5px rgba(99, 102, 241, 0.25);
+}
+.glow-positive {
+  box-shadow: 0 0 20px -5px rgba(34, 197, 94, 0.25);
+}
+.glow-negative {
+  box-shadow: 0 0 20px -5px rgba(239, 68, 68, 0.25);
 }

@@ -1,10 +1,21 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { IndexData, MarketStatus } from '../../types/market';
 import { StockSummary } from '../../types/stock';
-import { DemoBadge } from './DemoBadge';
-import { Badge } from '../ui/Badge';
+import {
+  Search,
+  Activity,
+  Menu,
+  X,
+  ChevronRight,
+  TrendingUp,
+  Sparkles,
+  Command,
+  Bell,
+  Sliders,
+  User,
+} from 'lucide-react';
 import { formatPercent, getPriceChangeColor } from '../../utils/formatters';
-import { Search, Activity, Menu, X, ChevronRight, TrendingUp } from 'lucide-react';
+import { Button } from '../ui/Button';
 
 interface HeaderProps {
   indices: IndexData[];
@@ -13,23 +24,26 @@ interface HeaderProps {
   onSearchQuery: (query: string) => Promise<StockSummary[]>;
   onToggleSidebar: () => void;
   isSidebarOpen: boolean;
+  onOpenCommandPalette: () => void;
+  onOpenCopilot: () => void;
 }
 
-export function Header({
+export const Header: React.FC<HeaderProps> = ({
   indices,
   marketStatus,
   onSelectStock,
   onSearchQuery,
   onToggleSidebar,
   isSidebarOpen,
-}: HeaderProps) {
+  onOpenCommandPalette,
+  onOpenCopilot,
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<StockSummary[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Close search dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -44,10 +58,15 @@ export function Header({
     setSearchTerm(val);
     if (val.trim().length > 0) {
       setIsSearching(true);
-      const results = await onSearchQuery(val);
-      setSearchResults(results);
-      setIsSearching(false);
-      setIsDropdownOpen(true);
+      try {
+        const results = await onSearchQuery(val);
+        setSearchResults(results || []);
+        setIsDropdownOpen(true);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
     } else {
       setSearchResults([]);
       setIsDropdownOpen(false);
@@ -63,43 +82,26 @@ export function Header({
   return (
     <header
       id="main-app-header"
-      className="sticky top-0 z-40 w-full bg-terminal-bg/95 border-b border-terminal-border backdrop-blur-md"
+      className="sticky top-0 z-30 w-full bg-[#0B0F17]/95 border-b border-[#263244] backdrop-blur-md"
     >
-      {/* Top Bar: Brand, Search, Status, Demo Badge */}
+      {/* Top Bar */}
       <div className="flex items-center justify-between px-4 lg:px-6 h-16 gap-3">
-        {/* Left: Mobile Menu Toggle & Brand Logo */}
+        {/* Left: Mobile Toggle & Search trigger */}
         <div className="flex items-center gap-3">
           <button
             id="btn-sidebar-toggle"
             onClick={onToggleSidebar}
-            className="p-2 text-terminal-text-muted hover:text-terminal-text-primary rounded-lg hover:bg-terminal-surface-hover lg:hidden transition-colors"
-            aria-label="Chuyển đổi menu điều hướng"
+            className="p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-[#182231] lg:hidden transition-colors"
+            aria-label="Toggle navigation menu"
           >
             {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
-
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-terminal-accent flex items-center justify-center shadow-lg shadow-blue-950/40">
-              <TrendingUp className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold tracking-tight text-lg text-terminal-text-primary font-mono">
-                  VN STOCK <span className="text-terminal-accent">AI</span>
-                </span>
-                <DemoBadge size="sm" />
-              </div>
-              <p className="text-[10px] text-terminal-text-muted hidden sm:block font-mono">
-                TERMINAL · HOSE · HNX · UPCOM
-              </p>
-            </div>
-          </div>
         </div>
 
-        {/* Center: Search Box */}
-        <div ref={searchRef} className="relative flex-1 max-w-md mx-2">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-terminal-text-muted">
+        {/* Center: Search & Command Palette Trigger */}
+        <div ref={searchRef} className="relative flex-1 max-w-xl mx-2">
+          <div className="relative flex items-center">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
               <Search className="w-4 h-4" />
             </div>
             <input
@@ -110,49 +112,59 @@ export function Header({
               onFocus={() => {
                 if (searchTerm.trim().length > 0) setIsDropdownOpen(true);
               }}
-              placeholder="Tìm mã cổ phiếu (HPG, FPT, VCB, MBB, SSI...)"
-              className="w-full pl-9 pr-4 py-2 bg-terminal-surface border border-terminal-border rounded-lg text-sm text-terminal-text-primary placeholder-terminal-text-muted focus:outline-none focus:border-terminal-accent focus:ring-1 focus:ring-terminal-accent/40 transition-all font-mono"
+              placeholder="Search stocks, symbols, fundamentals (HPG, FPT, VCB...)"
+              className="w-full pl-9 pr-20 py-2 bg-[#111827] border border-[#263244] hover:border-[#334155] focus:border-indigo-500 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-all font-sans"
             />
-            {searchTerm && (
+            <div className="absolute right-2.5 flex items-center gap-1.5">
               <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setIsDropdownOpen(false);
-                }}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs text-terminal-text-muted hover:text-terminal-text-primary"
+                type="button"
+                onClick={onOpenCommandPalette}
+                className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#182231] border border-[#263244] text-[10px] font-mono text-slate-400 hover:text-slate-200"
+                title="Open Command Palette"
               >
-                Xóa
+                <Command className="w-3 h-3" /> K
               </button>
-            )}
+              {searchTerm && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setIsDropdownOpen(false);
+                  }}
+                  className="text-xs text-slate-400 hover:text-slate-200"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Autocomplete Dropdown */}
           {isDropdownOpen && (
             <div
               id="dropdown-search-results"
-              className="absolute left-0 right-0 mt-1.5 bg-terminal-surface border border-terminal-border rounded-xl shadow-2xl overflow-hidden z-50 max-h-80 overflow-y-auto"
+              className="absolute left-0 right-0 mt-1.5 bg-[#111827] border border-[#263244] rounded-xl shadow-2xl overflow-hidden z-50 max-h-80 overflow-y-auto"
             >
-              <div className="px-3 py-1.5 bg-terminal-bg text-[11px] font-mono text-terminal-text-muted border-b border-terminal-border flex justify-between items-center">
-                <span>KẾT QUẢ TÌM KIẾM</span>
-                <span className="text-terminal-ref text-[10px]">DEMO DATA</span>
+              <div className="px-3 py-1.5 bg-[#0E1522] text-[11px] font-mono text-slate-400 border-b border-[#263244] flex justify-between items-center">
+                <span>STOCK INTELLIGENCE SEARCH</span>
+                <span className="text-indigo-400 text-[10px]">VIETNAM MARKETS</span>
               </div>
               {searchResults.length > 0 ? (
-                <div className="divide-y divide-terminal-border">
+                <div className="divide-y divide-[#263244]">
                   {searchResults.map((stk) => (
                     <button
                       key={stk.symbol}
                       id={`search-item-${stk.symbol}`}
                       onClick={() => handleSelectResult(stk.symbol)}
-                      className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-terminal-surface-hover transition-colors group"
+                      className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-[#182231] transition-colors group"
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="font-mono font-bold text-sm text-terminal-text-primary group-hover:text-terminal-accent">
+                        <span className="font-mono font-bold text-sm text-slate-100 group-hover:text-indigo-400">
                           {stk.symbol}
                         </span>
-                        <Badge variant="subtle" size="xs">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-[#1E293B] text-slate-400 border border-[#263244]">
                           {stk.exchange}
-                        </Badge>
-                        <span className="text-xs text-terminal-text-muted truncate max-w-[160px] sm:max-w-xs">
+                        </span>
+                        <span className="text-xs text-slate-400 truncate max-w-[180px] sm:max-w-xs">
                           {stk.companyName}
                         </span>
                       </div>
@@ -160,60 +172,87 @@ export function Header({
                         <span className={`text-xs font-mono font-semibold ${getPriceChangeColor(stk.change)}`}>
                           {new Intl.NumberFormat('vi-VN').format(stk.price)}
                         </span>
-                        <Badge variant={stk.change >= 0 ? 'up' : 'down'} size="xs">
-                          {formatPercent(stk.changePercent)}
-                        </Badge>
-                        <ChevronRight className="w-3.5 h-3.5 text-terminal-text-muted group-hover:text-terminal-text-secondary" />
+                        <span
+                          className={`text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded ${
+                            stk.change >= 0
+                              ? 'bg-emerald-500/10 text-emerald-400'
+                              : 'bg-rose-500/10 text-rose-400'
+                          }`}
+                        >
+                          {stk.change >= 0 ? '+' : ''}{formatPercent(stk.changePercent)}
+                        </span>
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300" />
                       </div>
                     </button>
                   ))}
                 </div>
               ) : (
-                <div className="px-4 py-6 text-center text-xs text-terminal-text-muted">
+                <div className="px-4 py-6 text-center text-xs text-slate-400">
                   {isSearching
-                    ? 'Đang tìm kiếm mã cổ phiếu...'
-                    : `Không tìm thấy mã "${searchTerm}". Thử gõ: HPG, FPT, VCB, MBB, SSI...`}
+                    ? 'Searching market database...'
+                    : `No results for "${searchTerm}". Try: HPG, FPT, VCB, MBB, SSI, MWG...`}
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Right: Market State Indicator */}
-        <div className="flex items-center gap-3">
+        {/* Right Controls */}
+        <div className="flex items-center gap-2.5">
+          {/* Market Status Badge */}
           <div
             id="badge-market-state"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-terminal-border bg-terminal-surface text-xs text-terminal-text-primary select-none"
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#263244] bg-[#111827] text-xs text-slate-200 select-none"
             title={marketStatus.sessionName}
           >
             <span
               className={`w-2 h-2 rounded-full ${
                 marketStatus.state === 'TRADING'
-                  ? 'bg-terminal-up animate-pulse'
-                  : 'bg-terminal-text-muted'
+                  ? 'bg-emerald-400 animate-pulse'
+                  : 'bg-slate-500'
               }`}
             />
-            <span className="font-medium font-mono text-[11px] sm:text-xs">
+            <span className="font-semibold font-mono text-[11px]">
               {marketStatus.stateLabel}
             </span>
-            <span className="text-terminal-text-muted text-[10px] hidden md:inline font-mono">
+            <span className="text-slate-500 text-[10px] hidden md:inline font-mono">
               ({marketStatus.sessionName})
             </span>
           </div>
+
+          {/* AI Copilot Trigger Button */}
+          <Button
+            variant="accent-glow"
+            size="sm"
+            onClick={onOpenCopilot}
+            leftIcon={Sparkles}
+            className="shadow-sm"
+          >
+            <span className="hidden md:inline">AI Copilot</span>
+          </Button>
+
+          {/* Quick Notification & Profile */}
+          <button
+            onClick={onOpenCommandPalette}
+            className="p-2 text-slate-400 hover:text-slate-200 hover:bg-[#182231] rounded-xl border border-[#263244] transition-colors"
+            title="Command Palette (Ctrl+K)"
+          >
+            <Sliders className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Sub-header Bar: Live Market Ticker Chips */}
+      {/* Market Ribbon */}
       <div
         id="bar-indices-tickers"
-        className="px-4 lg:px-6 py-2 bg-terminal-bg/80 border-t border-terminal-border flex items-center gap-4 sm:gap-6 overflow-x-auto scrollbar-none text-xs"
+        className="px-4 lg:px-6 py-2 bg-[#0E1522] border-t border-[#263244] flex items-center gap-4 sm:gap-6 overflow-x-auto scrollbar-none text-xs"
       >
-        <div className="flex items-center gap-1.5 text-terminal-text-muted font-mono text-[11px] whitespace-nowrap">
-          <Activity className="w-3.5 h-3.5 text-terminal-accent" />
-          <span>THỊ TRƯỜNG:</span>
+        <div className="flex items-center gap-1.5 text-slate-400 font-mono text-[11px] whitespace-nowrap shrink-0">
+          <Activity className="w-3.5 h-3.5 text-indigo-400" />
+          <span className="font-semibold">VIETNAM INDICES:</span>
         </div>
 
-        <div className="flex items-center gap-4 sm:gap-6">
+        <div className="flex items-center gap-5 sm:gap-8">
           {indices.map((idx) => {
             const isUp = idx.change >= 0;
             return (
@@ -222,17 +261,17 @@ export function Header({
                 id={`ticker-${idx.symbol}`}
                 className="flex items-center gap-2 whitespace-nowrap font-mono"
               >
-                <span className="text-terminal-text-muted font-bold">{idx.displayName}:</span>
+                <span className="text-slate-400 font-bold">{idx.displayName}:</span>
                 <span
                   className={`font-semibold ${
-                    isUp ? 'text-terminal-up' : 'text-terminal-down'
+                    isUp ? 'text-emerald-400' : 'text-rose-400'
                   }`}
                 >
                   {idx.value.toFixed(2)}
                 </span>
                 <span
                   className={`text-[11px] font-medium ${
-                    isUp ? 'text-terminal-up' : 'text-terminal-down'
+                    isUp ? 'text-emerald-400' : 'text-rose-400'
                   }`}
                 >
                   {isUp ? `+${idx.change.toFixed(2)}` : idx.change.toFixed(2)} (
@@ -243,11 +282,11 @@ export function Header({
           })}
         </div>
 
-        <div className="ml-auto flex items-center gap-2 text-[10px] font-mono text-terminal-text-muted whitespace-nowrap">
-          <span className="w-1.5 h-1.5 rounded-full bg-terminal-ref" />
-          <span>Phase 1 Foundation · Terminal Architecture</span>
+        <div className="ml-auto hidden md:flex items-center gap-2 text-[11px] font-mono text-slate-400 whitespace-nowrap">
+          <span className="w-2 h-2 rounded-full bg-indigo-400" />
+          <span>Real-time Quant Feed</span>
         </div>
       </div>
     </header>
   );
-}
+};
