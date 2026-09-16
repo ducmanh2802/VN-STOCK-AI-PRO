@@ -11,15 +11,27 @@ export function calculateRSI(
   data: (CandlePoint | { time: string | number; close: number })[],
   period: number = 14
 ): LinePoint[] {
-  if (!data || data.length <= period || period <= 0) {
+  if (!Array.isArray(data) || data.length <= period || period <= 0 || !Number.isInteger(period)) {
+    return [];
+  }
+
+  // Filter out any invalid, null, non-finite, or non-positive close values
+  const validData: { time: string | number; close: number }[] = [];
+  for (const item of data) {
+    if (item && typeof item.close === 'number' && Number.isFinite(item.close) && item.close > 0) {
+      validData.push({ time: item.time, close: item.close });
+    }
+  }
+
+  if (validData.length <= period) {
     return [];
   }
 
   const result: LinePoint[] = [];
   const changes: number[] = [];
 
-  for (let i = 1; i < data.length; i++) {
-    changes.push(data[i].close - data[i - 1].close);
+  for (let i = 1; i < validData.length; i++) {
+    changes.push(validData[i].close - validData[i - 1].close);
   }
 
   // Calculate initial average gain and loss over first `period` changes
@@ -42,7 +54,7 @@ export function calculateRSI(
   let rsi = avgLoss === 0 ? 100 : 100 - 100 / (1 + rs);
 
   result.push({
-    time: data[period].time,
+    time: validData[period].time,
     value: Number(Math.min(100, Math.max(0, rsi)).toFixed(2)),
   });
 
@@ -59,7 +71,7 @@ export function calculateRSI(
     rsi = avgLoss === 0 ? 100 : 100 - 100 / (1 + rs);
 
     result.push({
-      time: data[i + 1].time,
+      time: validData[i + 1].time,
       value: Number(Math.min(100, Math.max(0, rsi)).toFixed(2)),
     });
   }

@@ -285,11 +285,16 @@ export function useRealFundamentals(symbol: string | null) {
 /**
  * Hook to retrieve watchlist stock summaries
  */
-export function useWatchlistData(symbols: string[]) {
+export function useWatchlistData(
+  symbols: string[],
+  options?: { refetchInterval?: number | false; staleTime?: number }
+) {
   return useQuery({
     queryKey: MARKET_KEYS.watchlist(symbols),
     queryFn: () => marketService.getWatchlist(symbols),
     enabled: symbols.length > 0,
+    refetchInterval: options?.refetchInterval !== undefined ? options.refetchInterval : 30000,
+    staleTime: options?.staleTime !== undefined ? options.staleTime : 5000,
   });
 }
 

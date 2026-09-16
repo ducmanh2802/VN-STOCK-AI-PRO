@@ -3,6 +3,7 @@ import { realMarketDataProvider } from './RealMarketDataProvider';
 import { vpsMarketDataProvider } from './providers/VPSMarketDataProvider';
 import { KbsHistoricalProvider } from './providers/kbs/KbsHistoricalProvider';
 import { VIETNAM_STOCKS_UNIVERSE } from './stockUniverse';
+import { calculateRSI } from '../../lib/indicators/rsi';
 
 /**
  * Calculates Simple Moving Average from daily closing prices
@@ -15,22 +16,17 @@ function calculateSMA(closes: number[], period: number): number | null {
 }
 
 /**
- * Calculates Relative Strength Index (RSI 14)
+ * Derives canonical RSI(14) using standard Wilder's smoothing from closes
  */
-function calculateRSI14(closes: number[]): number {
-  if (closes.length < 15) return 50;
-  let gains = 0;
-  let losses = 0;
-  for (let i = closes.length - 14; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff >= 0) gains += diff;
-    else losses += Math.abs(diff);
-  }
-  const avgGain = gains / 14;
-  const avgLoss = losses / 14;
-  if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return Number((100 - 100 / (1 + rs)).toFixed(1));
+function computeCanonicalRSI(closes: number[], dates?: string[]): number {
+  if (!closes || closes.length < 15) return 50;
+  const data = closes.map((c, i) => ({
+    time: dates && dates[i] ? dates[i] : i,
+    close: c,
+  }));
+  const rsiSeries = calculateRSI(data, 14);
+  if (rsiSeries.length === 0) return 50;
+  return rsiSeries[rsiSeries.length - 1].value;
 }
 
 /**
@@ -125,7 +121,7 @@ export async function getFullStockDetail(symbol: string): Promise<FullStockDetai
       ma20 = calculateSMA(closes, 20) ?? ma20;
       ma50 = calculateSMA(closes, 50) ?? ma50;
       ma200 = calculateSMA(closes, 200) ?? ma200;
-      rsi = calculateRSI14(closes);
+      rsi = computeCanonicalRSI(closes, bars.map((b) => b.date));
 
       const lastBar = bars[bars.length - 1];
       pivotHigh = lastBar.high;

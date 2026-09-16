@@ -373,7 +373,7 @@ export class RealMarketDataProvider implements MarketDataProvider {
     let targetSymbols: string[];
 
     if (symbols && symbols.length > 0) {
-      targetSymbols = symbols.map((s) => s.toUpperCase());
+      targetSymbols = symbols.map((s) => s.toUpperCase().trim()).filter(Boolean);
     } else {
       // Read saved watchlist from localStorage if available in browser
       let saved: string[] | null = null;
@@ -389,7 +389,30 @@ export class RealMarketDataProvider implements MarketDataProvider {
     }
 
     const set = new Set(targetSymbols.map((s) => s.toUpperCase()));
-    return all.filter((s) => set.has(s.symbol.toUpperCase()));
+    const matched = all.filter((s) => set.has(s.symbol.toUpperCase()));
+
+    // Check if any symbols in targetSymbols were not found in standard universe
+    const matchedSet = new Set(matched.map((s) => s.symbol.toUpperCase()));
+    const missingSymbols = targetSymbols.filter((s) => !matchedSet.has(s));
+
+    if (missingSymbols.length > 0) {
+      const extraResults = await Promise.allSettled(
+        missingSymbols.map((sym) => this.getStockDetail(sym))
+      );
+      for (const res of extraResults) {
+        if (res.status === 'fulfilled' && res.value) {
+          matched.push(res.value);
+        }
+      }
+    }
+
+    // Preserve the user-specified order of symbols
+    const orderMap = new Map(targetSymbols.map((sym, idx) => [sym, idx]));
+    return matched.sort((a, b) => {
+      const idxA = orderMap.get(a.symbol.toUpperCase()) ?? 9999;
+      const idxB = orderMap.get(b.symbol.toUpperCase()) ?? 9999;
+      return idxA - idxB;
+    });
   }
 
   async addToWatchlist(symbol: string): Promise<boolean> {

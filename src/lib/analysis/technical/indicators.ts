@@ -41,8 +41,14 @@ export function validateCandles(candles: CandleInput[]): CandleInput[] {
       isValidNumber(c.high) &&
       isValidNumber(c.low) &&
       isValidNumber(c.volume) &&
+      c.close > 0 &&
+      c.open > 0 &&
+      c.high > 0 &&
+      c.low > 0 &&
       c.volume >= 0 &&
-      c.high >= c.low
+      c.high >= c.low &&
+      c.high >= Math.max(c.open, c.close) &&
+      c.low <= Math.min(c.open, c.close)
   );
 }
 

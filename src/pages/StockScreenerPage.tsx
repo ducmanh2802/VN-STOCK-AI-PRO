@@ -50,6 +50,22 @@ interface FilterState {
   volSpikeOnly: boolean;
 }
 
+/**
+ * Fail-closed AI Score validation predicate.
+ *
+ * When minAiScore is active (> 0), only finite numeric scores >= minAiScore pass.
+ * Null, undefined, NaN, Infinity, and non-numeric values are strictly rejected.
+ */
+export function passesAiScoreMinimum(score: unknown, minAiScore?: number | null): boolean {
+  if (minAiScore == null || minAiScore <= 0) {
+    return true; // Filter is inactive
+  }
+  if (typeof score !== 'number' || !Number.isFinite(score)) {
+    return false; // Fail-closed: missing, null, undefined, NaN, Infinity, or non-numeric
+  }
+  return score >= minAiScore;
+}
+
 const initialFilters: FilterState = {
   search: '',
   exchange: 'ALL',
@@ -148,7 +164,7 @@ export const StockScreenerPage: React.FC = () => {
       if (filters.exchange !== 'ALL' && s.exchange !== filters.exchange) return false;
       if (filters.sector !== 'ALL' && s.sector && !s.sector.includes(filters.sector.replace('Ngân hàng', 'Tài chính'))) return false;
       if (s.price < filters.minPrice || s.price > filters.maxPrice) return false;
-      if (s.aiScore && s.aiScore < filters.minAiScore) return false;
+      if (!passesAiScoreMinimum(s.aiScore, filters.minAiScore)) return false;
       return true;
     }).sort((a, b) => {
       const aVal = (a as any)[sortBy] ?? 0;
@@ -374,7 +390,14 @@ export const StockScreenerPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#263244]">
-                {filteredStocks.map((stk) => {
+                {filteredStocks.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="py-12 text-center text-slate-500 font-mono text-xs">
+                      Không tìm thấy cổ phiếu nào phù hợp với bộ lọc hiện tại.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStocks.map((stk) => {
                   const isUp = stk.change > 0;
                   const isDown = stk.change < 0;
                   const inWatchlist = isWatchlisted(stk.symbol);
@@ -468,7 +491,7 @@ export const StockScreenerPage: React.FC = () => {
                       </td>
                     </tr>
                   );
-                })}
+                }))}
               </tbody>
             </table>
           </div>

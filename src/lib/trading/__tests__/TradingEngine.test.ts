@@ -270,7 +270,7 @@ describe('TradingEngine — Phase 18.4 Verification', () => {
         skipSessionValidation: false, // enforce real session rules
         // Isolate the session check: a wide staleness tolerance ensures the Sunday
         // timestamp below is judged on session state only, not on age.
-        riskConfig: { maxStaleTimeMs: 10 * 24 * 60 * 60 * 1000 }, // 10 days
+        riskConfig: { maxStaleTimeMs: 365 * 24 * 60 * 60 * 1000 }, // 365 days for session test isolation
       });
 
       // Pass a Sunday timestamp (Sunday is always closed)

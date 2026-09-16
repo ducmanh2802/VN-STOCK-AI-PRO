@@ -112,8 +112,8 @@ describe('Technical Indicators Suite', () => {
     it('calculates SMA accurately', () => {
       const fixedCandles: CandleInput[] = [
         { open: 10, high: 12, low: 9, close: 10, volume: 100 },
-        { open: 10, high: 12, low: 9, close: 20, volume: 100 },
-        { open: 10, high: 12, low: 9, close: 30, volume: 100 },
+        { open: 15, high: 22, low: 14, close: 20, volume: 100 },
+        { open: 25, high: 32, low: 24, close: 30, volume: 100 },
       ];
       const sma = calculateSMA(fixedCandles, 3);
       expect(sma.length).toBe(1);
