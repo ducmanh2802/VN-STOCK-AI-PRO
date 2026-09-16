@@ -23,6 +23,12 @@ import { WatchlistTable } from '../components/watchlist/WatchlistTable';
 import { WatchlistCardGrid } from '../components/watchlist/WatchlistCardGrid';
 import { WatchlistEmptyState } from '../components/watchlist/WatchlistEmptyState';
 import { AddStockModal } from '../components/watchlist/AddStockModal';
+import {
+  computeUpsidePercent,
+  computeWatchlistStats,
+  makeWatchlistSorter,
+  matchesSignalFilter,
+} from '../components/watchlist/metrics';
 import { VIETNAM_STOCKS_UNIVERSE } from '../services/market/stockUniverse';
 import { formatPercent, formatVND } from '../utils/formatters';
 import { Bookmark, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -157,77 +163,8 @@ export function WatchlistPage({
     }
   };
 
-  // 1. Compute Key Statistics
-  const stats: WatchlistStats = useMemo(() => {
-    if (rawWatchlist.length === 0) {
-      return {
-        totalCount: 0,
-        advances: 0,
-        declines: 0,
-        unchanged: 0,
-        ceilings: 0,
-        floors: 0,
-        avgChangePercent: 0,
-        avgAiScore: 0,
-        avgUpsidePercent: 0,
-        totalTradingValue: 0,
-        totalVolume: 0,
-        topGainer: null,
-        topLoser: null,
-      };
-    }
-
-    let advances = 0;
-    let declines = 0;
-    let unchanged = 0;
-    let ceilings = 0;
-    let floors = 0;
-    let sumChange = 0;
-    let sumAi = 0;
-    let sumUpside = 0;
-    let totalVal = 0;
-    let totalVol = 0;
-
-    let topGainer: StockSummary | null = null;
-    let topLoser: StockSummary | null = null;
-
-    rawWatchlist.forEach((s) => {
-      if (s.change > 0) advances++;
-      else if (s.change < 0) declines++;
-      else unchanged++;
-
-      if (s.ceilingPrice > 0 && s.price >= s.ceilingPrice) ceilings++;
-      if (s.floorPrice > 0 && s.price <= s.floorPrice) floors++;
-
-      sumChange += s.changePercent;
-      sumAi += s.aiScore;
-
-      const upside = s.price > 0 ? ((s.fairValue - s.price) / s.price) * 100 : 0;
-      sumUpside += upside;
-
-      totalVal += s.tradingValue;
-      totalVol += s.volume;
-
-      if (!topGainer || s.changePercent > topGainer.changePercent) topGainer = s;
-      if (!topLoser || s.changePercent < topLoser.changePercent) topLoser = s;
-    });
-
-    return {
-      totalCount: rawWatchlist.length,
-      advances,
-      declines,
-      unchanged,
-      ceilings,
-      floors,
-      avgChangePercent: Number((sumChange / rawWatchlist.length).toFixed(2)),
-      avgAiScore: Number((sumAi / rawWatchlist.length).toFixed(1)),
-      avgUpsidePercent: Number((sumUpside / rawWatchlist.length).toFixed(1)),
-      totalTradingValue: Number(totalVal.toFixed(1)),
-      totalVolume: totalVol,
-      topGainer,
-      topLoser,
-    };
-  }, [rawWatchlist]);
+  // 1. Compute Key Statistics (fail-closed: see computeWatchlistStats)
+  const stats: WatchlistStats = useMemo(() => computeWatchlistStats(rawWatchlist), [rawWatchlist]);
 
   // 2. Filter & Search Logic
   const filteredStocks = useMemo(() => {
@@ -257,13 +194,9 @@ export function WatchlistPage({
         return false;
       }
 
-      // AI Signal Filter
-      if (signalFilter !== 'ALL') {
-        const ai = stock.aiScore;
-        const isUp = stock.trend === 'UPTREND';
-        if (signalFilter === 'BULLISH' && !(ai >= 60 || isUp)) return false;
-        if (signalFilter === 'BEARISH' && !(ai <= 40 || stock.trend === 'DOWNTREND')) return false;
-        if (signalFilter === 'NEUTRAL' && (ai >= 60 || ai <= 40)) return false;
+      // AI Signal Filter (fail-closed: unavailable AI cannot satisfy the AI arm)
+      if (!matchesSignalFilter(stock, signalFilter)) {
+        return false;
       }
 
       // Trend Filter
@@ -275,75 +208,10 @@ export function WatchlistPage({
     });
   }, [rawWatchlist, searchQuery, selectedGroup, exchangeFilter, signalFilter, trendFilter]);
 
-  // 3. Sorting Comparator
+  // 3. Sorting Comparator (fail-closed: unavailable keys sort after valid values)
   const sortedStocks = useMemo(() => {
     if (sortDirection === 'none') return filteredStocks;
-
-    return [...filteredStocks].sort((a, b) => {
-      let valA: any = 0;
-      let valB: any = 0;
-
-      switch (sortColumn) {
-        case 'symbol':
-          valA = a.symbol;
-          valB = b.symbol;
-          return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-        case 'price':
-          valA = a.price;
-          valB = b.price;
-          break;
-        case 'changePercent':
-          valA = a.changePercent;
-          valB = b.changePercent;
-          break;
-        case 'volume':
-          valA = a.volume;
-          valB = b.volume;
-          break;
-        case 'tradingValue':
-          valA = a.tradingValue;
-          valB = b.tradingValue;
-          break;
-        case 'rsi':
-          valA = a.rsi;
-          valB = b.rsi;
-          break;
-        case 'pe':
-          valA = a.pe || 0;
-          valB = b.pe || 0;
-          break;
-        case 'roe':
-          valA = a.roe || 0;
-          valB = b.roe || 0;
-          break;
-        case 'fairValue':
-          valA = a.fairValue;
-          valB = b.fairValue;
-          break;
-        case 'upside':
-          valA = a.price > 0 ? ((a.fairValue - a.price) / a.price) * 100 : 0;
-          valB = b.price > 0 ? ((b.fairValue - b.price) / b.price) * 100 : 0;
-          break;
-        case 'aiScore':
-          valA = a.aiScore;
-          valB = b.aiScore;
-          break;
-        case 'trend':
-          valA = a.trend === 'UPTREND' ? 3 : a.trend === 'SIDEWAY' ? 2 : 1;
-          valB = b.trend === 'UPTREND' ? 3 : b.trend === 'SIDEWAY' ? 2 : 1;
-          break;
-        case 'signal':
-          valA = a.aiScore;
-          valB = b.aiScore;
-          break;
-        default:
-          return 0;
-      }
-
-      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
+    return [...filteredStocks].sort(makeWatchlistSorter(sortColumn, sortDirection));
   }, [filteredStocks, sortColumn, sortDirection]);
 
   // Export CSV
@@ -386,7 +254,7 @@ export function WatchlistPage({
       s.pe || '',
       s.roe || '',
       s.fairValue,
-      s.price > 0 ? (((s.fairValue - s.price) / s.price) * 100).toFixed(2) : 0,
+      computeUpsidePercent(s.price, s.fairValue)?.toFixed(2) ?? '',
       s.aiScore,
       s.trend,
     ]);
@@ -424,9 +292,9 @@ export function WatchlistPage({
     const summaryText = `📊 VN STOCK AI PRO — TÓM TẮT WATCHLIST (${new Date().toLocaleDateString('vi-VN')})
 --------------------------------------------------
 • Tổng số mã theo dõi: ${stats.totalCount} mã (Tăng: ${stats.advances} | Giảm: ${stats.declines} | TC: ${stats.unchanged})
-• Hiệu suất TB: ${formatPercent(stats.avgChangePercent)}
-• AI Quant Score TB: ${stats.avgAiScore}/100
-• Upside tiềm năng TB: +${stats.avgUpsidePercent}%
+• Hiệu suất TB: ${stats.avgChangePercent != null ? formatPercent(stats.avgChangePercent) : '--'}
+• AI Quant Score TB: ${stats.avgAiScore != null ? stats.avgAiScore.toFixed(1) : '--'}/100
+• Upside tiềm năng TB: ${stats.avgUpsidePercent != null ? `+${stats.avgUpsidePercent.toFixed(1)}%` : '--'}
 • Tổng thanh khoản: ${stats.totalTradingValue} tỷ VND (${(stats.totalVolume / 1e6).toFixed(2)}M cổ phiếu)
 --------------------------------------------------
 Top cổ phiếu nổi bật:

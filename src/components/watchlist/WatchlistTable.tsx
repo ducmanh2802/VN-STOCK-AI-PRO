@@ -1,6 +1,7 @@
 import React from 'react';
 import { StockSummary } from '../../types/stock';
 import { SortColumn, SortDirection } from './types';
+import { computeUpsidePercent, isFiniteNumber } from './metrics';
 import { Badge } from '../ui/Badge';
 import {
   formatVND,
@@ -80,6 +81,11 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
   };
 
   const getPriceStyle = (stock: StockSummary) => {
+    // A non-positive/non-finite price (e.g. the upstream missing-quote mapping
+    // price=0) must never read as "at ceiling/floor" — those are trading signals.
+    if (!isFiniteNumber(stock.price) || stock.price <= 0) {
+      return 'text-terminal-text-primary font-bold';
+    }
     if (stock.price >= stock.ceilingPrice && stock.ceilingPrice > 0) {
       return 'text-purple-400 font-bold'; // Ceiling
     }
@@ -160,13 +166,14 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
           {stocks.map((stock) => {
             const isUp = stock.change > 0;
             const isDown = stock.change < 0;
-            const upside = stock.price > 0 ? ((stock.fairValue - stock.price) / stock.price) * 100 : 0;
-            const isUpsidePositive = upside >= 0;
+            const upside = computeUpsidePercent(stock.price, stock.fairValue);
             const signal = getSignalBadge(stock);
 
-            // Day range calculation (relative to low and high)
-            const rangeSpan = Math.max(stock.high - stock.low, 1);
-            const currentPct = Math.min(100, Math.max(0, ((stock.price - stock.low) / rangeSpan) * 100));
+            // Day range calculation (relative to low and high); unavailable inputs → 0 width
+            const currentPct =
+              isFiniteNumber(stock.price) && isFiniteNumber(stock.high) && isFiniteNumber(stock.low)
+                ? Math.min(100, Math.max(0, ((stock.price - stock.low) / Math.max(stock.high - stock.low, 1)) * 100))
+                : 0;
 
             return (
               <tr
@@ -247,27 +254,31 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
 
                 {/* 7. RSI */}
                 <td className="py-2.5 px-3 text-center font-bold">
-                  <span
-                    className={
-                      stock.rsi >= 70
-                        ? 'text-rose-400 font-bold'
-                        : stock.rsi <= 35
-                        ? 'text-cyan-400 font-bold'
-                        : 'text-terminal-text-secondary'
-                    }
-                  >
-                    {stock.rsi}
-                  </span>
+                  {isFiniteNumber(stock.rsi) ? (
+                    <span
+                      className={
+                        stock.rsi >= 70
+                          ? 'text-rose-400 font-bold'
+                          : stock.rsi <= 35
+                          ? 'text-cyan-400 font-bold'
+                          : 'text-terminal-text-secondary'
+                      }
+                    >
+                      {stock.rsi}
+                    </span>
+                  ) : (
+                    <span className="text-terminal-text-muted">--</span>
+                  )}
                 </td>
 
                 {/* 8. P/E */}
                 <td className="py-2.5 px-3 text-center text-terminal-text-secondary">
-                  {stock.pe ? `${stock.pe.toFixed(1)}x` : '-'}
+                  {stock.pe && isFiniteNumber(stock.pe) ? `${stock.pe.toFixed(1)}x` : '-'}
                 </td>
 
                 {/* 9. ROE */}
                 <td className="py-2.5 px-3 text-center font-semibold text-emerald-400">
-                  {stock.roe ? `${stock.roe.toFixed(1)}%` : '-'}
+                  {stock.roe && isFiniteNumber(stock.roe) ? `${stock.roe.toFixed(1)}%` : '-'}
                 </td>
 
                 {/* 10. Fair Value */}
@@ -282,14 +293,14 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
 
                 {/* 11. Upside % */}
                 <td className="py-2.5 px-3 text-right font-bold">
-                  <span
-                    className={`text-xs ${
-                      isUpsidePositive ? 'text-emerald-400' : 'text-rose-400'
-                    }`}
-                  >
-                    {isUpsidePositive ? '+' : ''}
-                    {upside.toFixed(1)}%
-                  </span>
+                  {upside !== null ? (
+                    <span className={`text-xs ${upside >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {upside >= 0 ? '+' : ''}
+                      {upside.toFixed(1)}%
+                    </span>
+                  ) : (
+                    <span className="text-terminal-text-muted">--</span>
+                  )}
                 </td>
 
                 {/* 12. AI Score */}
@@ -297,7 +308,7 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                   <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-terminal-surface border border-terminal-border">
                     <Sparkles className="w-3 h-3 text-indigo-400" />
                     <span className="font-bold text-terminal-text-primary text-xs">
-                      {stock.aiScore}
+                      {isFiniteNumber(stock.aiScore) ? stock.aiScore : '--'}
                     </span>
                   </div>
                 </td>

@@ -1,8 +1,21 @@
+/**
+ * Single authoritative validity semantic for formatted quantitative output:
+ * a non-finite input (null/undefined/NaN/±Infinity) is UNAVAILABLE and must
+ * never be rendered as a fabricated numeric value ("NaN", "Infinity", "0").
+ */
+function isFiniteValue(value: number): boolean {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+const UNAVAILABLE = '--';
+
 export function formatVND(value: number): string {
+  if (!isFiniteValue(value)) return UNAVAILABLE;
   return new Intl.NumberFormat('vi-VN').format(Math.round(value));
 }
 
 export function formatNumber(value: number, decimals?: number): string {
+  if (!isFiniteValue(value)) return UNAVAILABLE;
   if (decimals !== undefined) {
     return new Intl.NumberFormat('vi-VN', {
       minimumFractionDigits: decimals,
@@ -13,6 +26,7 @@ export function formatNumber(value: number, decimals?: number): string {
 }
 
 export function formatIndexPoint(value: number): string {
+  if (!isFiniteValue(value)) return UNAVAILABLE;
   return new Intl.NumberFormat('vi-VN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -20,16 +34,19 @@ export function formatIndexPoint(value: number): string {
 }
 
 export function formatPercent(value: number, includeSign = true): string {
+  if (!isFiniteValue(value)) return UNAVAILABLE;
   const sign = value > 0 && includeSign ? '+' : '';
   return `${sign}${value.toFixed(2)}%`;
 }
 
 export function formatPointChange(value: number, includeSign = true): string {
+  if (!isFiniteValue(value)) return UNAVAILABLE;
   const sign = value > 0 && includeSign ? '+' : '';
   return `${sign}${value.toFixed(2)}`;
 }
 
 export function formatVolume(val: number): string {
+  if (!isFiniteValue(val)) return UNAVAILABLE;
   if (val >= 1_000_000_000) {
     return `${(val / 1_000_000_000).toFixed(2)}B`;
   }
@@ -43,6 +60,7 @@ export function formatVolume(val: number): string {
 }
 
 export function formatBillionVND(val: number): string {
+  if (!isFiniteValue(val)) return UNAVAILABLE;
   return `${new Intl.NumberFormat('vi-VN', {
     maximumFractionDigits: 1,
   }).format(val)} tỷ`;

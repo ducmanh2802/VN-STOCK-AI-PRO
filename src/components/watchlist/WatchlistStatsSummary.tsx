@@ -35,8 +35,13 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
 }) => {
   if (watchlist.length === 0) return null;
 
-  const isAvgPositive = stats.avgChangePercent > 0;
-  const isAvgNegative = stats.avgChangePercent < 0;
+  // Unavailable averages (no valid samples) render '--' with neutral styling —
+  // never as 0 / "NaN" and never as a positive or negative signal.
+  const avgChange = stats.avgChangePercent;
+  const avgAi = stats.avgAiScore;
+  const avgUpside = stats.avgUpsidePercent;
+  const isAvgPositive = avgChange != null && avgChange > 0;
+  const isAvgNegative = avgChange != null && avgChange < 0;
 
   return (
     <div className="space-y-3">
@@ -128,7 +133,7 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
                 isAvgPositive ? 'text-emerald-400' : isAvgNegative ? 'text-rose-400' : 'text-amber-400'
               }`}
             >
-              {formatPercent(stats.avgChangePercent)}
+              {avgChange != null ? formatPercent(avgChange) : '--'}
             </span>
           </div>
           <div className="text-[10px] text-terminal-text-muted font-mono truncate">
@@ -143,16 +148,22 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-bold font-mono text-indigo-300">{stats.avgAiScore.toFixed(1)}</span>
+            <span className="text-xl font-bold font-mono text-indigo-300">
+              {avgAi != null ? avgAi.toFixed(1) : '--'}
+            </span>
             <span className="text-xs text-terminal-text-muted font-mono">/100</span>
           </div>
           <div className="text-[10px] font-mono">
-            {stats.avgAiScore >= 70 ? (
-              <span className="text-emerald-400 font-semibold">Tín hiệu Tích Cực</span>
-            ) : stats.avgAiScore >= 50 ? (
-              <span className="text-amber-400 font-semibold">Tín hiệu Trung Tính</span>
+            {avgAi != null ? (
+              avgAi >= 70 ? (
+                <span className="text-emerald-400 font-semibold">Tín hiệu Tích Cực</span>
+              ) : avgAi >= 50 ? (
+                <span className="text-amber-400 font-semibold">Tín hiệu Trung Tính</span>
+              ) : (
+                <span className="text-rose-400 font-semibold">Thận trọng rủi ro</span>
+              )
             ) : (
-              <span className="text-rose-400 font-semibold">Thận trọng rủi ro</span>
+              <span className="text-terminal-text-muted">Đang phân tích</span>
             )}
           </div>
         </div>
@@ -166,11 +177,10 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
           <div className="flex items-baseline gap-1.5">
             <span
               className={`text-xl font-bold font-mono ${
-                stats.avgUpsidePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                avgUpside != null && avgUpside >= 0 ? 'text-emerald-400' : avgUpside != null ? 'text-rose-400' : 'text-terminal-text-muted'
               }`}
             >
-              {stats.avgUpsidePercent >= 0 ? '+' : ''}
-              {stats.avgUpsidePercent.toFixed(1)}%
+              {avgUpside != null ? `${avgUpside >= 0 ? '+' : ''}${avgUpside.toFixed(1)}%` : '--'}
             </span>
           </div>
           <div className="text-[10px] text-terminal-text-muted font-mono">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { StockSummary } from '../../types/stock';
 import { Badge } from '../ui/Badge';
+import { computeUpsidePercent, isFiniteNumber } from './metrics';
 import {
   formatVND,
   formatPercent,
@@ -40,8 +41,7 @@ export const WatchlistCardGrid: React.FC<WatchlistCardGridProps> = ({
       {stocks.map((stock) => {
         const isUp = stock.change > 0;
         const isDown = stock.change < 0;
-        const upside = stock.price > 0 ? ((stock.fairValue - stock.price) / stock.price) * 100 : 0;
-        const isUpsidePositive = upside >= 0;
+        const upside = computeUpsidePercent(stock.price, stock.fairValue);
 
         return (
           <div
@@ -130,26 +130,32 @@ export const WatchlistCardGrid: React.FC<WatchlistCardGridProps> = ({
                 <span className="text-terminal-text-muted text-[10px] block">AI SCORE</span>
                 <span className="font-bold text-indigo-300 flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-indigo-400" />
-                  {stock.aiScore}
+                  {isFiniteNumber(stock.aiScore) ? stock.aiScore : '--'}
                 </span>
               </div>
               <div>
                 <span className="text-terminal-text-muted text-[10px] block">RSI (14)</span>
-                <span
-                  className={
-                    stock.rsi >= 70
-                      ? 'text-rose-400 font-bold'
-                      : stock.rsi <= 35
-                      ? 'text-cyan-400 font-bold'
-                      : 'text-terminal-text-secondary font-semibold'
-                  }
-                >
-                  {stock.rsi}
-                </span>
+                {isFiniteNumber(stock.rsi) ? (
+                  <span
+                    className={
+                      stock.rsi >= 70
+                        ? 'text-rose-400 font-bold'
+                        : stock.rsi <= 35
+                        ? 'text-cyan-400 font-bold'
+                        : 'text-terminal-text-secondary font-semibold'
+                    }
+                  >
+                    {stock.rsi}
+                  </span>
+                ) : (
+                  <span className="text-terminal-text-muted">--</span>
+                )}
               </div>
               <div>
                 <span className="text-terminal-text-muted text-[10px] block">P/E</span>
-                <span className="text-terminal-text-secondary font-semibold">{stock.pe ? `${stock.pe}x` : '-'}</span>
+                <span className="text-terminal-text-secondary font-semibold">
+                  {stock.pe && isFiniteNumber(stock.pe) ? `${stock.pe}x` : '-'}
+                </span>
               </div>
             </div>
 
@@ -160,10 +166,14 @@ export const WatchlistCardGrid: React.FC<WatchlistCardGridProps> = ({
                 <span>Fair Value:</span>
                 <span className="text-terminal-text-primary font-semibold">{formatVND(stock.fairValue)}</span>
               </div>
-              <span className={`font-bold ${isUpsidePositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {isUpsidePositive ? '+' : ''}
-                {upside.toFixed(1)}%
-              </span>
+              {upside !== null ? (
+                <span className={`font-bold ${upside >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {upside >= 0 ? '+' : ''}
+                  {upside.toFixed(1)}%
+                </span>
+              ) : (
+                <span className="font-bold text-terminal-text-muted">--</span>
+              )}
             </div>
 
             {/* Card Action Buttons */}

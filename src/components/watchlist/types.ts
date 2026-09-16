@@ -52,9 +52,12 @@ export interface WatchlistStats {
   unchanged: number;
   ceilings: number;
   floors: number;
-  avgChangePercent: number;
-  avgAiScore: number;
-  avgUpsidePercent: number;
+  /** null = no valid samples (UNAVAILABLE) — never fabricated as 0 */
+  avgChangePercent: number | null;
+  /** null = no valid samples (UNAVAILABLE) — never fabricated as 0 */
+  avgAiScore: number | null;
+  /** null = no valid samples (UNAVAILABLE) — never fabricated as 0 */
+  avgUpsidePercent: number | null;
   totalTradingValue: number;
   totalVolume: number;
   topGainer: StockSummary | null;

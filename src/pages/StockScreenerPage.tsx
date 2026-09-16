@@ -15,7 +15,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { formatPercent } from '../utils/formatters';
 
-interface ScreenerStock {
+export interface ScreenerStock {
   symbol: string;
   companyName: string;
   exchange: string;
@@ -34,7 +34,7 @@ interface ScreenerStock {
 }
 
 
-interface FilterState {
+export interface FilterState {
   search: string;
   exchange: string;
   sector: string;
@@ -64,6 +64,69 @@ export function passesAiScoreMinimum(score: unknown, minAiScore?: number | null)
     return false; // Fail-closed: missing, null, undefined, NaN, Infinity, or non-numeric
   }
   return score >= minAiScore;
+}
+
+/**
+ * Fail-closed price bounds predicate.
+ *
+ * Only a finite numeric price within [minPrice, maxPrice] (inclusive, matching
+ * the pre-existing `price < min || price > max` contract) passes. Missing,
+ * null, undefined, NaN, Infinite, or non-numeric prices are strictly excluded —
+ * never coerced to a number and never treated as zero.
+ */
+export function passesPriceBounds(price: unknown, minPrice: number, maxPrice: number): boolean {
+  if (typeof price !== 'number' || !Number.isFinite(price)) {
+    return false; // Fail-closed: missing, null, undefined, NaN, Infinity, or non-numeric
+  }
+  return price >= minPrice && price <= maxPrice;
+}
+
+/**
+ * Single authoritative filter predicate for the screener.
+ *
+ * All active filters combine with AND semantics: a stock is included only when
+ * every active predicate passes. An active quantitative filter combined with an
+ * invalid metric always excludes the stock.
+ */
+export function passesScreenerFilters(
+  stock: ScreenerStock,
+  filters: Pick<FilterState, 'search' | 'exchange' | 'sector' | 'minPrice' | 'maxPrice' | 'minAiScore'>
+): boolean {
+  const query = filters.search.toLowerCase();
+  if (query && !stock.symbol.toLowerCase().includes(query) && !stock.companyName.toLowerCase().includes(query)) {
+    return false;
+  }
+  if (filters.exchange !== 'ALL' && stock.exchange !== filters.exchange) return false;
+  if (filters.sector !== 'ALL' && (!stock.sector || !stock.sector.includes(filters.sector.replace('Ngân hàng', 'Tài chính')))) return false;
+  if (!passesPriceBounds(stock.price, filters.minPrice, filters.maxPrice)) return false;
+  if (!passesAiScoreMinimum(stock.aiScore, filters.minAiScore)) return false;
+  return true;
+}
+
+/**
+ * Deterministic sort comparator. Quantitative sort keys must be finite numbers
+ * to be ordered numerically; missing/invalid metrics sort after all valid
+ * values instead of being coerced to 0 (which would fabricate an ordering
+ * position for unavailable data). String keys (e.g. symbol) keep the original
+ * lexicographic behavior. Ties return 0 to keep the comparator consistent.
+ */
+export function makeScreenerSorter(sortBy: string, sortOrder: 'asc' | 'desc') {
+  return (a: ScreenerStock, b: ScreenerStock): number => {
+    const aVal = (a as any)[sortBy];
+    const bVal = (b as any)[sortBy];
+    const aValid = typeof aVal === 'number' && Number.isFinite(aVal);
+    const bValid = typeof bVal === 'number' && Number.isFinite(bVal);
+    if (aValid && bValid) {
+      return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
+    }
+    if (aValid !== bValid) {
+      return aValid ? -1 : 1; // Unavailable metrics never masquerade as 0
+    }
+    if (typeof aVal === 'string' && typeof bVal === 'string' && aVal !== bVal) {
+      return sortOrder === 'desc' ? (bVal > aVal ? 1 : -1) : (aVal > bVal ? 1 : -1);
+    }
+    return 0;
+  };
 }
 
 const initialFilters: FilterState = {
@@ -111,7 +174,7 @@ export const StockScreenerPage: React.FC = () => {
   const rankingsQuery = useRecommendationRankings('SHORT_TERM');
 
   const rankingMap = useMemo(() => {
-    const map = new Map<string, { rank: number; score: number; signal: 'BUY' | 'HOLD' | 'WATCH' | 'SELL' }>();
+    const map = new Map<string, { rank: number; score: number | null; signal: 'BUY' | 'HOLD' | 'WATCH' | 'SELL' }>();
     if (rankingsQuery.data?.rankings) {
       for (const r of rankingsQuery.data.rankings) {
         map.set(r.symbol, {
@@ -157,20 +220,9 @@ export const StockScreenerPage: React.FC = () => {
 
   // Filter and Sort Logic
   const filteredStocks = useMemo(() => {
-    return rawStocks.filter((s) => {
-      if (filters.search && !s.symbol.toLowerCase().includes(filters.search.toLowerCase()) && !s.companyName.toLowerCase().includes(filters.search.toLowerCase())) {
-        return false;
-      }
-      if (filters.exchange !== 'ALL' && s.exchange !== filters.exchange) return false;
-      if (filters.sector !== 'ALL' && s.sector && !s.sector.includes(filters.sector.replace('Ngân hàng', 'Tài chính'))) return false;
-      if (s.price < filters.minPrice || s.price > filters.maxPrice) return false;
-      if (!passesAiScoreMinimum(s.aiScore, filters.minAiScore)) return false;
-      return true;
-    }).sort((a, b) => {
-      const aVal = (a as any)[sortBy] ?? 0;
-      const bVal = (b as any)[sortBy] ?? 0;
-      return sortOrder === 'desc' ? (bVal > aVal ? 1 : -1) : (aVal > bVal ? 1 : -1);
-    });
+    return rawStocks
+      .filter((s) => passesScreenerFilters(s, filters))
+      .sort(makeScreenerSorter(sortBy, sortOrder));
   }, [rawStocks, filters, sortBy, sortOrder]);
 
   const handleSort = (field: string) => {
@@ -427,7 +479,7 @@ export const StockScreenerPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-2.5 px-3 font-mono">
-                        {stk.aiScore !== null ? (
+                        {typeof stk.aiScore === 'number' && Number.isFinite(stk.aiScore) ? (
                           <div className="flex items-center gap-1.5">
                             <span className={`font-bold ${stk.aiScore >= 75 ? 'text-emerald-400' : stk.aiScore >= 60 ? 'text-indigo-400' : 'text-amber-400'}`}>
                               {stk.aiScore}
@@ -444,7 +496,7 @@ export const StockScreenerPage: React.FC = () => {
                         )}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-slate-300">
-                        {stk.technicalScore !== null ? `${stk.technicalScore}/100` : '--'}
+                        {typeof stk.technicalScore === 'number' && Number.isFinite(stk.technicalScore) ? `${stk.technicalScore}/100` : '--'}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-slate-300">
                         {stk.pe !== null ? `${stk.pe}x` : '--'}
