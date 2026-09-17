@@ -120,3 +120,11 @@ export const SECTOR_MAP: Record<string, { name: string; id: string }> = {
   industrials: { name: 'Công nghiệp & Thiết bị điện', id: 'industrials' },
   infrastructure: { name: 'Hạ tầng giao thông & Xây lắp', id: 'infrastructure' },
 };
+
+/**
+ * Retrieves stock metadata (company name, exchange, sector) for a given symbol.
+ */
+export function getStockMetadata(symbol: string): StockMetadata | undefined {
+  const clean = (symbol || '').trim().toUpperCase();
+  return VIETNAM_STOCKS_UNIVERSE.find((s) => s.symbol === clean);
+}

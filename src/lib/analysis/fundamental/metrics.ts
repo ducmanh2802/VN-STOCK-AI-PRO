@@ -366,6 +366,7 @@ export function calculateNetMargin(
 
 /**
  * 13. Free Cash Flow (FCF = Operating Cash Flow - CapEx)
+ * Strict fail-closed: Both OCF and CapEx MUST be verified numbers. Never defaults to OCF when CapEx is missing.
  */
 export function calculateFreeCashFlow(
   operatingCashFlow?: number | null,
@@ -374,19 +375,22 @@ export function calculateFreeCashFlow(
   const ocf = sanitizeNumber(operatingCashFlow);
   const capex = sanitizeNumber(capitalExpenditure);
 
-  if (ocf === null) {
+  if (ocf === null || capex === null) {
     return {
       value: null,
-      explanation: 'Thiếu dữ liệu lưu chuyển tiền thuần từ hoạt động kinh doanh (OCF).',
+      explanation:
+        ocf === null && capex === null
+          ? 'Thiếu dữ liệu dòng tiền hoạt động (OCF) và chi phí vốn (CapEx).'
+          : ocf === null
+          ? 'Thiếu dữ liệu lưu chuyển tiền thuần từ hoạt động kinh doanh (OCF).'
+          : 'Thiếu dữ liệu chi phí vốn (CapEx).',
     };
   }
 
-  // If CapEx is not explicitly supplied or 0, FCF defaults to OCF
-  const actualCapex = capex !== null ? Math.abs(capex) : 0;
+  const actualCapex = Math.abs(capex);
   const fcf = ocf - actualCapex;
 
   return {
     value: Number(fcf.toFixed(2)),
-    explanation: capex === null ? 'CapEx không có sẵn, FCF tính tạm bằng OCF.' : undefined,
   };
 }

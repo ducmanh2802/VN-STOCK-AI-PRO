@@ -3,6 +3,7 @@ import { IndexData, MarketSentiment, MarketBreadth, AITopSignal, AIMarketSummary
 import { StockSummary, TopMover, SectorHeatmapItem } from '../types/stock';
 import {
   useMarketIndices,
+  useMarketIntelligence,
   useMarketSentiment,
   useMarketBreadth,
   useTopMovers,
@@ -13,6 +14,7 @@ import {
   useRefreshMarket,
 } from '../hooks/useMarketQueries';
 import { useAppStore } from '../store/useAppStore';
+import { MarketIntelligenceWidget } from '../components/dashboard/MarketIntelligenceWidget';
 import { MarketIndexRibbon } from '../components/dashboard/MarketIndexRibbon';
 import { MarketSentimentWidget } from '../components/dashboard/MarketSentimentWidget';
 import { MarketBreadthWidget } from '../components/dashboard/MarketBreadthWidget';
@@ -67,6 +69,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const handleRemoveFromWatchlist = propsOnRemoveFromWatchlist || removeFromWatchlist;
 
   // Query Hooks with granular state management
+  const intelligenceQuery = useMarketIntelligence();
   const indicesQuery = useMarketIndices();
   const sentimentQuery = useMarketSentiment();
   const breadthQuery = useMarketBreadth();
@@ -127,6 +130,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </button>
         </div>
       </div>
+
+      {/* SECTION 0: Market Intelligence (Phase 20 Step 1) */}
+      <MarketIntelligenceWidget
+        intelligence={intelligenceQuery.data}
+        indices={indices}
+        isLoading={intelligenceQuery.isLoading}
+        isError={intelligenceQuery.isError}
+        error={intelligenceQuery.error}
+        onRetry={() => {
+          intelligenceQuery.refetch();
+          indicesQuery.refetch();
+        }}
+      />
 
       {/* SECTION 1: Market Index Ribbon */}
       <MarketIndexRibbon

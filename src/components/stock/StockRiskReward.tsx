@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { RiskRewardData } from '../../types/stockDetail';
 import { formatVND } from '../../utils/formatters';
-import { ShieldAlert, Target, Calculator, ArrowUpRight, ArrowDownRight, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, Target, Calculator, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { isFiniteNumber, isPositiveFiniteNumber } from './metrics';
 
 export interface StockRiskRewardProps {
   riskReward: RiskRewardData;
@@ -13,12 +14,34 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
   const [totalCapital, setTotalCapital] = useState<number>(100000000); // 100 million VND default
   const [riskPercent, setRiskPercent] = useState<number>(2); // 2% risk rule
 
-  const riskPerShare = Math.max(100, currentPrice - riskReward.stopLossPrice);
+  const hasValidCurrentPrice = isPositiveFiniteNumber(currentPrice);
+  const hasValidEntry = isPositiveFiniteNumber(riskReward.entryPrice);
+  const hasValidStopLoss = isPositiveFiniteNumber(riskReward.stopLossPrice);
+  const hasValidTarget1 = isPositiveFiniteNumber(riskReward.targetPrice1);
+  const hasValidTarget2 = isPositiveFiniteNumber(riskReward.targetPrice2);
+  const hasValidMaxRiskPct = isFiniteNumber(riskReward.maxRiskPercent);
+  const hasValidGainPct = isFiniteNumber(riskReward.potentialGainPercent);
+  const hasValidRiskAmount = isPositiveFiniteNumber(riskReward.riskAmount);
+  const hasValidRewardAmount = isPositiveFiniteNumber(riskReward.rewardAmount);
+
+  // Stop loss must be strictly below currentPrice for long riskPerShare
+  const canCalculatePosition =
+    hasValidCurrentPrice &&
+    hasValidStopLoss &&
+    currentPrice > riskReward.stopLossPrice &&
+    totalCapital > 0 &&
+    riskPercent > 0;
+
+  const riskPerShare = canCalculatePosition ? currentPrice - riskReward.stopLossPrice : null;
   const maxAllowableRiskAmount = (totalCapital * riskPercent) / 100;
-  const calculatedShares = Math.floor(maxAllowableRiskAmount / riskPerShare);
-  // Round to nearest 100 shares (standard lot on HOSE/HNX)
+  const calculatedShares = riskPerShare && riskPerShare > 0 ? Math.floor(maxAllowableRiskAmount / riskPerShare) : 0;
   const lotShares = Math.floor(calculatedShares / 100) * 100;
-  const totalInvestment = lotShares * currentPrice;
+  const totalInvestment = canCalculatePosition ? lotShares * currentPrice : 0;
+
+  const target2GainPct =
+    hasValidTarget2 && hasValidCurrentPrice && currentPrice > 0
+      ? ((riskReward.targetPrice2 - currentPrice) / currentPrice) * 100
+      : null;
 
   return (
     <div
@@ -36,7 +59,7 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
           </h3>
         </div>
         <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-terminal-accent/10 border border-terminal-accent/30 text-terminal-accent font-mono text-xs font-bold">
-          <span>R:R = {riskReward.riskRewardRatio}</span>
+          <span>R:R = {riskReward.riskRewardRatio || '--'}</span>
         </div>
       </div>
 
@@ -46,7 +69,7 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
         <div className="p-2.5 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-0.5">Vùng mua (Entry)</div>
           <div className="font-mono font-bold text-terminal-text-primary text-base">
-            {formatVND(riskReward.entryPrice)}
+            {hasValidEntry ? formatVND(riskReward.entryPrice) : '--'}
           </div>
           <div className="text-[10px] text-terminal-text-muted mt-0.5">Thị giá hiện tại</div>
         </div>
@@ -57,10 +80,10 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
             <ArrowDownRight className="w-3 h-3" /> Cắt lỗ (Stop Loss)
           </div>
           <div className="font-mono font-bold text-terminal-down text-base">
-            {formatVND(riskReward.stopLossPrice)}
+            {hasValidStopLoss ? formatVND(riskReward.stopLossPrice) : '--'}
           </div>
           <div className="text-[10px] text-terminal-down mt-0.5 font-mono">
-            {riskReward.maxRiskPercent}% rủi ro
+            {hasValidMaxRiskPct ? `${riskReward.maxRiskPercent}% rủi ro` : '--'}
           </div>
         </div>
 
@@ -70,10 +93,10 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
             <ArrowUpRight className="w-3 h-3" /> Mục tiêu 1 (TP1)
           </div>
           <div className="font-mono font-bold text-terminal-up text-base">
-            {formatVND(riskReward.targetPrice1)}
+            {hasValidTarget1 ? formatVND(riskReward.targetPrice1) : '--'}
           </div>
           <div className="text-[10px] text-terminal-up mt-0.5 font-mono">
-            +{riskReward.potentialGainPercent}% tiềm năng
+            {hasValidGainPct ? `+${riskReward.potentialGainPercent}% tiềm năng` : '--'}
           </div>
         </div>
 
@@ -83,10 +106,10 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
             <Target className="w-3 h-3" /> Mục tiêu 2 (TP2)
           </div>
           <div className="font-mono font-bold text-terminal-up text-base">
-            {formatVND(riskReward.targetPrice2)}
+            {hasValidTarget2 ? formatVND(riskReward.targetPrice2) : '--'}
           </div>
           <div className="text-[10px] text-terminal-up mt-0.5 font-mono">
-            +{(( (riskReward.targetPrice2 - currentPrice) / currentPrice ) * 100).toFixed(1)}% kỳ vọng
+            {isFiniteNumber(target2GainPct) ? `+${target2GainPct.toFixed(1)}% kỳ vọng` : '--'}
           </div>
         </div>
       </div>
@@ -95,26 +118,36 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
       <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
         <div className="flex items-center justify-between text-xs font-mono">
           <span className="text-terminal-down">
-            Rủi ro tối đa: {formatVND(riskReward.riskAmount)}/CP ({riskReward.maxRiskPercent}%)
+            Rủi ro tối đa:{' '}
+            {hasValidRiskAmount ? `${formatVND(riskReward.riskAmount)}/CP` : '--'}{' '}
+            {hasValidMaxRiskPct ? `(${riskReward.maxRiskPercent}%)` : ''}
           </span>
           <span className="text-terminal-up">
-            Lợi nhuận kỳ vọng: +{formatVND(riskReward.rewardAmount)}/CP (+{riskReward.potentialGainPercent}%)
+            Lợi nhuận kỳ vọng:{' '}
+            {hasValidRewardAmount ? `+${formatVND(riskReward.rewardAmount)}/CP` : '--'}{' '}
+            {hasValidGainPct ? `(+${riskReward.potentialGainPercent}%)` : ''}
           </span>
         </div>
 
-        <div className="w-full h-3 rounded-full overflow-hidden flex bg-terminal-surface-subtle">
-          <div
-            className="bg-terminal-down h-full"
-            style={{ width: `${Math.min(40, Math.abs(riskReward.maxRiskPercent) * 4)}%` }}
-            title={`Rủi ro: ${riskReward.maxRiskPercent}%`}
-          />
-          <div className="w-1 bg-terminal-border h-full" />
-          <div
-            className="bg-terminal-up h-full"
-            style={{ width: `${Math.min(90, riskReward.potentialGainPercent * 3)}%` }}
-            title={`Lợi nhuận: +${riskReward.potentialGainPercent}%`}
-          />
-        </div>
+        {hasValidMaxRiskPct && hasValidGainPct ? (
+          <div className="w-full h-3 rounded-full overflow-hidden flex bg-terminal-surface-subtle">
+            <div
+              className="bg-terminal-down h-full"
+              style={{ width: `${Math.min(40, Math.abs(riskReward.maxRiskPercent) * 4)}%` }}
+              title={`Rủi ro: ${riskReward.maxRiskPercent}%`}
+            />
+            <div className="w-1 bg-terminal-border h-full" />
+            <div
+              className="bg-terminal-up h-full"
+              style={{ width: `${Math.min(90, riskReward.potentialGainPercent * 3)}%` }}
+              title={`Lợi nhuận: +${riskReward.potentialGainPercent}%`}
+            />
+          </div>
+        ) : (
+          <div className="py-1 text-center text-xs text-terminal-text-muted font-mono">
+            Chưa có thông số R:R đầy đủ để vẽ tỷ lệ thanh.
+          </div>
+        )}
       </div>
 
       {/* Interactive Position Sizing Calculator */}
@@ -167,34 +200,43 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
         </div>
 
         {/* Output */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2.5 rounded bg-terminal-surface/60 border border-terminal-border/60 text-xs font-mono">
-          <div>
-            <span className="text-terminal-text-muted text-[11px] block">Số cổ phiếu khuyến nghị:</span>
-            <strong className="text-base text-terminal-accent">{lotShares.toLocaleString()} CP</strong>
-            <span className="text-[10px] text-terminal-text-muted block">(Lô chẵn 100)</span>
-          </div>
+        {canCalculatePosition && lotShares > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2.5 rounded bg-terminal-surface/60 border border-terminal-border/60 text-xs font-mono">
+            <div>
+              <span className="text-terminal-text-muted text-[11px] block">Số cổ phiếu khuyến nghị:</span>
+              <strong className="text-base text-terminal-accent">{lotShares.toLocaleString()} CP</strong>
+              <span className="text-[10px] text-terminal-text-muted block">(Lô chẵn 100)</span>
+            </div>
 
-          <div>
-            <span className="text-terminal-text-muted text-[11px] block">Tổng giá trị giải ngân:</span>
-            <strong className="text-sm text-terminal-text-primary">
-              {formatVND(totalInvestment)}
-            </strong>
-            <span className="text-[10px] text-terminal-text-muted block">
-              ({((totalInvestment / totalCapital) * 100).toFixed(1)}% tài khoản)
-            </span>
-          </div>
+            <div>
+              <span className="text-terminal-text-muted text-[11px] block">Tổng giá trị giải ngân:</span>
+              <strong className="text-sm text-terminal-text-primary">
+                {formatVND(totalInvestment)}
+              </strong>
+              <span className="text-[10px] text-terminal-text-muted block">
+                {totalCapital > 0 ? `(${((totalInvestment / totalCapital) * 100).toFixed(1)}% tài khoản)` : ''}
+              </span>
+            </div>
 
-          <div>
-            <span className="text-terminal-text-muted text-[11px] block">Rủi ro tối đa nếu cắt lỗ:</span>
-            <strong className="text-sm text-terminal-down">
-              -{formatVND(lotShares * riskPerShare)}
-            </strong>
-            <span className="text-[10px] text-terminal-down block">
-              (Đúng {riskPercent}% tổng vốn)
-            </span>
+            <div>
+              <span className="text-terminal-text-muted text-[11px] block">Rủi ro tối đa nếu cắt lỗ:</span>
+              <strong className="text-sm text-terminal-down">
+                -{formatVND(lotShares * (riskPerShare ?? 0))}
+              </strong>
+              <span className="text-[10px] text-terminal-down block">
+                (Đúng {riskPercent}% tổng vốn)
+              </span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="p-2.5 rounded bg-terminal-surface/60 border border-terminal-border/60 text-xs text-terminal-text-muted font-mono text-center">
+            {canCalculatePosition
+              ? 'Vốn hoặc tỷ lệ rủi ro chưa đủ để mua tối thiểu 1 lô (100 CP).'
+              : 'Chưa đủ điều kiện tính quy mô vị thế (cần giá hiện tại và ngưỡng cắt lỗ hợp lệ).'}
+          </div>
+        )}
       </div>
     </div>
   );
 };
+

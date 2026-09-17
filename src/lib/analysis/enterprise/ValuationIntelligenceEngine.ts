@@ -134,7 +134,8 @@ export class ValuationIntelligenceEngine {
     }
     const terminalValue = (cf * (1 + g)) / (wacc - g);
     const ev = pvFCF + terminalValue / Math.pow(1 + wacc, input.config.dcfYears);
-    const netDebt = this.netDebt(current) ?? 0;
+    const netDebt = this.netDebt(current);
+    if (netDebt === null) return null; // Fail-closed: Net debt must be verified when net debt adjustment is used
     const equityValue = ev - netDebt;
     if (equityValue <= 0) return null;
     return round2(equityValue / shares);

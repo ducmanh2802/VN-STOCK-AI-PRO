@@ -71,7 +71,6 @@ export function calculateDCFValuation(params: {
   const g1 = sanitizeNumber(params.growthRate5Y) ?? 0.10;
   const g2 = sanitizeNumber(params.terminalGrowthRate) ?? 0.03;
   const wacc = sanitizeNumber(params.discountRateWACC) ?? 0.105;
-  const netDebt = sanitizeNumber(params.netDebt) ?? 0;
 
   if (fcf === null || shares === null) {
     return { value: null, reason: 'Thiếu dòng tiền tự do (FCF) hoặc số lượng cổ phiếu lưu hành.' };
@@ -84,6 +83,13 @@ export function calculateDCFValuation(params: {
   }
   if (wacc <= g2) {
     return { value: null, reason: 'Lãi suất chiết khấu (WACC) phải lớn hơn tốc độ tăng trưởng dài hạn.' };
+  }
+  if (params.netDebt === null || params.netDebt === undefined) {
+    return { value: null, reason: 'Thiếu dữ liệu nợ thuần (Net Debt) đã xác minh, không thể khấu trừ nợ.' };
+  }
+  const netDebt = sanitizeNumber(params.netDebt);
+  if (netDebt === null) {
+    return { value: null, reason: 'Giá trị nợ thuần (Net Debt) không hợp lệ.' };
   }
 
   // Stage 1: 5-year projections

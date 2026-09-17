@@ -1,7 +1,8 @@
 import React from 'react';
 import { SupportResistanceLevels } from '../../types/stockDetail';
 import { formatVND } from '../../utils/formatters';
-import { Target, Shield, ArrowUp, ArrowDown, Activity } from 'lucide-react';
+import { Target, Shield } from 'lucide-react';
+import { isFiniteNumber, isPositiveFiniteNumber } from './metrics';
 
 export interface StockSupportResistanceProps {
   levels: SupportResistanceLevels;
@@ -12,6 +13,24 @@ export const StockSupportResistance: React.FC<StockSupportResistanceProps> = ({
   levels,
   currentPrice,
 }) => {
+  const hasValidPrice = isPositiveFiniteNumber(currentPrice);
+  const hasNearestSupport = isPositiveFiniteNumber(levels.nearestSupport);
+  const hasNearestResistance = isPositiveFiniteNumber(levels.nearestResistance);
+  const hasSupportDist = isFiniteNumber(levels.supportDistancePercent);
+  const hasResistanceDist = isFiniteNumber(levels.resistanceDistancePercent);
+
+  const hasR3 = isPositiveFiniteNumber(levels.r3);
+  const hasR2 = isPositiveFiniteNumber(levels.r2);
+  const hasR1 = isPositiveFiniteNumber(levels.r1);
+  const hasPivot = isPositiveFiniteNumber(levels.pivot);
+  const hasS1 = isPositiveFiniteNumber(levels.s1);
+  const hasS2 = isPositiveFiniteNumber(levels.s2);
+  const hasS3 = isPositiveFiniteNumber(levels.s3);
+
+  const hasMA20 = isPositiveFiniteNumber(levels.ma20Level);
+  const hasMA50 = isPositiveFiniteNumber(levels.ma50Level);
+  const hasMA200 = isPositiveFiniteNumber(levels.ma200Level);
+
   return (
     <div
       id="stock-support-resistance"
@@ -42,10 +61,10 @@ export const StockSupportResistance: React.FC<StockSupportResistanceProps> = ({
           </div>
           <div className="flex items-baseline justify-between font-mono">
             <span className="text-lg font-bold text-terminal-up">
-              {formatVND(levels.nearestSupport)}
+              {hasNearestSupport ? formatVND(levels.nearestSupport) : '--'}
             </span>
             <span className="text-xs text-terminal-text-muted">
-              Cách: -{levels.supportDistancePercent}%
+              {hasSupportDist ? `Cách: -${levels.supportDistancePercent}%` : '--'}
             </span>
           </div>
         </div>
@@ -58,10 +77,10 @@ export const StockSupportResistance: React.FC<StockSupportResistanceProps> = ({
           </div>
           <div className="flex items-baseline justify-between font-mono">
             <span className="text-lg font-bold text-terminal-down">
-              {formatVND(levels.nearestResistance)}
+              {hasNearestResistance ? formatVND(levels.nearestResistance) : '--'}
             </span>
             <span className="text-xs text-terminal-text-muted">
-              Cách: +{levels.resistanceDistancePercent}%
+              {hasResistanceDist ? `Cách: +${levels.resistanceDistancePercent}%` : '--'}
             </span>
           </div>
         </div>
@@ -76,15 +95,15 @@ export const StockSupportResistance: React.FC<StockSupportResistanceProps> = ({
         {/* Resistance Levels */}
         <div className="flex items-center justify-between p-1.5 rounded bg-terminal-down/5 text-terminal-down">
           <span>Kháng cự R3 (Mục tiêu cực đại):</span>
-          <strong className="font-bold">{formatVND(levels.r3)}</strong>
+          <strong className="font-bold">{hasR3 ? formatVND(levels.r3) : '--'}</strong>
         </div>
         <div className="flex items-center justify-between p-1.5 rounded bg-terminal-down/5 text-terminal-down">
           <span>Kháng cự R2 (Cản mạnh):</span>
-          <strong className="font-bold">{formatVND(levels.r2)}</strong>
+          <strong className="font-bold">{hasR2 ? formatVND(levels.r2) : '--'}</strong>
         </div>
         <div className="flex items-center justify-between p-1.5 rounded bg-terminal-down/10 text-terminal-down border-l-2 border-terminal-down">
           <span>Kháng cự R1 (Ngắn hạn):</span>
-          <strong className="font-bold">{formatVND(levels.r1)}</strong>
+          <strong className="font-bold">{hasR1 ? formatVND(levels.r1) : '--'}</strong>
         </div>
 
         {/* CURRENT PRICE HIGHLIGHT */}
@@ -96,28 +115,28 @@ export const StockSupportResistance: React.FC<StockSupportResistanceProps> = ({
             </span>
           </div>
           <strong className="text-base font-extrabold text-terminal-text-primary">
-            {formatVND(currentPrice)}
+            {hasValidPrice ? formatVND(currentPrice) : '--'}
           </strong>
         </div>
 
         {/* Pivot Point */}
         <div className="flex items-center justify-between p-1.5 rounded bg-terminal-ref/10 text-terminal-ref border-l-2 border-terminal-ref">
           <span>Điểm xoay Pivot (P):</span>
-          <strong className="font-bold">{formatVND(levels.pivot)}</strong>
+          <strong className="font-bold">{hasPivot ? formatVND(levels.pivot) : '--'}</strong>
         </div>
 
         {/* Support Levels */}
         <div className="flex items-center justify-between p-1.5 rounded bg-terminal-up/10 text-terminal-up border-l-2 border-terminal-up">
           <span>Hỗ trợ S1 (Ngắn hạn):</span>
-          <strong className="font-bold">{formatVND(levels.s1)}</strong>
+          <strong className="font-bold">{hasS1 ? formatVND(levels.s1) : '--'}</strong>
         </div>
         <div className="flex items-center justify-between p-1.5 rounded bg-terminal-up/5 text-terminal-up">
           <span>Hỗ trợ S2 (Mạnh):</span>
-          <strong className="font-bold">{formatVND(levels.s2)}</strong>
+          <strong className="font-bold">{hasS2 ? formatVND(levels.s2) : '--'}</strong>
         </div>
         <div className="flex items-center justify-between p-1.5 rounded bg-terminal-up/5 text-terminal-up">
           <span>Hỗ trợ S3 (Cực đại):</span>
-          <strong className="font-bold">{formatVND(levels.s3)}</strong>
+          <strong className="font-bold">{hasS3 ? formatVND(levels.s3) : '--'}</strong>
         </div>
       </div>
 
@@ -125,17 +144,18 @@ export const StockSupportResistance: React.FC<StockSupportResistanceProps> = ({
       <div className="grid grid-cols-3 gap-2 text-xs font-mono">
         <div className="p-2 rounded bg-terminal-bg border border-terminal-border/80 text-center">
           <div className="text-[10px] text-terminal-text-muted">Cản động MA20</div>
-          <div className="font-bold text-amber-400 mt-0.5">{formatVND(levels.ma20Level)}</div>
+          <div className="font-bold text-amber-400 mt-0.5">{hasMA20 ? formatVND(levels.ma20Level) : '--'}</div>
         </div>
         <div className="p-2 rounded bg-terminal-bg border border-terminal-border/80 text-center">
           <div className="text-[10px] text-terminal-text-muted">Hỗ trợ MA50</div>
-          <div className="font-bold text-blue-400 mt-0.5">{formatVND(levels.ma50Level)}</div>
+          <div className="font-bold text-blue-400 mt-0.5">{hasMA50 ? formatVND(levels.ma50Level) : '--'}</div>
         </div>
         <div className="p-2 rounded bg-terminal-bg border border-terminal-border/80 text-center">
           <div className="text-[10px] text-terminal-text-muted">Hỗ trợ MA200</div>
-          <div className="font-bold text-purple-400 mt-0.5">{formatVND(levels.ma200Level)}</div>
+          <div className="font-bold text-purple-400 mt-0.5">{hasMA200 ? formatVND(levels.ma200Level) : '--'}</div>
         </div>
       </div>
     </div>
   );
 };
+

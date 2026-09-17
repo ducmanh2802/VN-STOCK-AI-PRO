@@ -151,6 +151,8 @@ export interface StatementInput {
   totalEquity?: number | null;
   operatingCashFlow?: number | null;
   investingCashFlow?: number | null;
+  capex?: number | null;
+  cashDividendPaid?: number | null;
 }
 
 /**
@@ -182,7 +184,8 @@ export function mergeStatementRows(rows: StatementInput[], outstandingShares?: n
       return null as T;
     };
 
-    const capexRaw = pick((r) => n(r.investingCashFlow), 'CF');
+    const explicitCapex = pick((r) => n(r.capex), 'CF');
+    const capexRaw = explicitCapex !== null ? explicitCapex : pick((r) => n(r.investingCashFlow), 'CF');
     const capex = capexRaw !== null ? Math.abs(capexRaw) : null;
 
     const fact: AnnualFinancialFact = {

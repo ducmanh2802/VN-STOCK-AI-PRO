@@ -13,9 +13,11 @@ import type {
   InvestmentRecommendation,
   RankingResult,
 } from '../types/recommendation';
+import type { MarketIntelligenceSnapshot } from '../lib/analysis/market/types';
 
 export const MARKET_KEYS = {
   all: ['market'] as const,
+  intelligence: ['market', 'intelligence'] as const,
   status: ['market', 'status'] as const,
   indices: ['market', 'indices'] as const,
   sentiment: ['market', 'sentiment'] as const,
@@ -37,6 +39,24 @@ export const MARKET_KEYS = {
   recommendations: (symbol: string) => ['market', 'recommendations', symbol.toUpperCase()] as const,
   rankings: (strategy: string) => ['market', 'rankings', strategy] as const,
 };
+
+/**
+ * Hook to retrieve canonical Phase 20 Market Intelligence Snapshot
+ * (Regime, S/R, Breakdown Risk, Recovery Strength, Breadth, Sectors)
+ */
+export function useMarketIntelligence(options?: { refresh?: boolean; refetchInterval?: number }) {
+  return useQuery<MarketIntelligenceSnapshot>({
+    queryKey: [...MARKET_KEYS.intelligence, options?.refresh ? 'refresh' : 'default'],
+    queryFn: async () => {
+      const res = await fetch(`/api/market-intelligence${options?.refresh ? '?refresh=true' : ''}`);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch market intelligence: HTTP ${res.status}`);
+      }
+      return res.json();
+    },
+    refetchInterval: options?.refetchInterval ?? 30 * 1000,
+  });
+}
 
 /**
  * Hook to retrieve live market indices (VN-INDEX, VN30, HNX, UPCOM)

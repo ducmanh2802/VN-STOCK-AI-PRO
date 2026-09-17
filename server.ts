@@ -39,6 +39,7 @@ import { PaperBroker } from './src/lib/trading/paper/PaperBroker.ts';
 import { TradingEngine } from './src/lib/trading/engine/TradingEngine.ts';
 import { createTradingApiRouter } from './src/lib/trading/api/TradingApiRouter.ts';
 import { createMacroApiRouter } from './src/lib/macro/api/macroRouter.ts';
+import { MarketIntelligenceService } from './src/services/market/MarketIntelligenceService.ts';
 
 async function startServer() {
   const app = express();
@@ -454,6 +455,19 @@ async function startServer() {
     } catch (error: any) {
       console.error(`Error in GET /api/market-data/quote/${req.params.symbol}:`, error);
       res.status(500).json({ error: error.message || 'Lỗi khi tải giá realtime thật' });
+    }
+  });
+
+  // Market Intelligence Foundation (Phase 20)
+  // Deterministic multi-factor snapshot (Regime, Breadth, Sectors, RS, Volume/Flow)
+  app.get('/api/market-intelligence', async (req, res) => {
+    try {
+      const forceRefresh = req.query.refresh === 'true';
+      const snapshot = await MarketIntelligenceService.getSnapshot({ forceRefresh });
+      res.json(snapshot);
+    } catch (error: any) {
+      console.error('Error in GET /api/market-intelligence:', error);
+      res.status(500).json({ error: error.message || 'Market intelligence evaluation failed' });
     }
   });
 

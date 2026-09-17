@@ -9,9 +9,8 @@ import { AnnualFinancialFact, FinancialFactSet, latestFacts } from './financialF
 import { pctChange, trailingCagr, round2 } from './helpers.ts';
 
 export function freeCashFlowOf(fact: AnnualFinancialFact | null): number | null {
-  if (!fact || fact.cfo === null) return null;
-  if (fact.capex === null) return fact.cfo; // CapEx unavailable → CFO as FCF proxy (documented)
-  return fact.cfo - fact.capex;
+  if (!fact || fact.cfo === null || fact.capex === null) return null;
+  return fact.cfo - Math.abs(fact.capex);
 }
 
 export function metricSeries(

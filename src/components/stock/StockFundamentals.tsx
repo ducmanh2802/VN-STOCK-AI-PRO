@@ -1,13 +1,28 @@
 import React from 'react';
 import { FundamentalMetrics } from '../../types/stockDetail';
 import { formatVND, formatBillionVND } from '../../utils/formatters';
-import { Building2, PieChart, TrendingUp, DollarSign, Award, Shield } from 'lucide-react';
+import { Building2 } from 'lucide-react';
+import { isFiniteNumber, isPositiveFiniteNumber } from './metrics';
 
 export interface StockFundamentalsProps {
   fundamentals: FundamentalMetrics;
 }
 
 export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamentals }) => {
+  const hasPe = isPositiveFiniteNumber(fundamentals.pe);
+  const hasPb = isPositiveFiniteNumber(fundamentals.pb);
+  const hasEps = isFiniteNumber(fundamentals.eps);
+  const hasRoe = isFiniteNumber(fundamentals.roe);
+  const hasRoa = isFiniteNumber(fundamentals.roa);
+  const hasDivYield = isFiniteNumber(fundamentals.dividendYield) && fundamentals.dividendYield >= 0;
+  const hasRevGrowth = isFiniteNumber(fundamentals.revenueGrowthYoY);
+  const hasProfitGrowth = isFiniteNumber(fundamentals.profitGrowthYoY);
+  const hasDebtToEquity = isFiniteNumber(fundamentals.debtToEquity) && fundamentals.debtToEquity >= 0;
+  const hasNetMargin = isFiniteNumber(fundamentals.netMargin);
+  const hasGrossMargin = isFiniteNumber(fundamentals.grossMargin);
+  const hasShares = isPositiveFiniteNumber(fundamentals.sharesOutstanding);
+  const hasMarketCap = isPositiveFiniteNumber(fundamentals.marketCapBillion);
+
   return (
     <div
       id="stock-fundamentals"
@@ -34,7 +49,7 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">P/E (Hệ số Giá/LN)</div>
           <div className="text-xl font-bold font-mono text-terminal-text-primary">
-            {fundamentals.pe}x
+            {hasPe ? `${fundamentals.pe}x` : '--'}
           </div>
           <div className="text-[10px] text-terminal-text-muted mt-1">
             Trung bình ngành: ~14.2x
@@ -45,7 +60,7 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">P/B (Giá/Giá trị sổ sách)</div>
           <div className="text-xl font-bold font-mono text-terminal-text-primary">
-            {fundamentals.pb}x
+            {hasPb ? `${fundamentals.pb}x` : '--'}
           </div>
           <div className="text-[10px] text-terminal-text-muted mt-1">
             Trung bình ngành: ~1.8x
@@ -56,7 +71,7 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">EPS 4 quý (VND/CP)</div>
           <div className="text-xl font-bold font-mono text-terminal-up">
-            {formatVND(fundamentals.eps)}
+            {hasEps ? formatVND(fundamentals.eps) : '--'}
           </div>
           <div className="text-[10px] text-terminal-text-muted mt-1">
             Lợi nhuận trên mỗi cổ phiếu
@@ -67,10 +82,10 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">ROE (Lợi nhuận / VCSH)</div>
           <div className="text-xl font-bold font-mono text-emerald-400">
-            {fundamentals.roe}%
+            {hasRoe ? `${fundamentals.roe}%` : '--'}
           </div>
           <div className="text-[10px] text-terminal-up mt-1">
-            {fundamentals.roe >= 15 ? 'Vượt trội (>15%)' : 'Đạt chuẩn'}
+            {hasRoe ? (fundamentals.roe >= 15 ? 'Vượt trội (>15%)' : 'Đạt chuẩn') : 'Chưa có dữ liệu'}
           </div>
         </div>
 
@@ -78,7 +93,7 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">ROA (Lợi nhuận / Tài sản)</div>
           <div className="text-xl font-bold font-mono text-terminal-text-primary">
-            {fundamentals.roa}%
+            {hasRoa ? `${fundamentals.roa}%` : '--'}
           </div>
           <div className="text-[10px] text-terminal-text-muted mt-1">
             Hiệu quả sử dụng tổng tài sản
@@ -89,7 +104,7 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">Tỷ suất cổ tức (Yield)</div>
           <div className="text-xl font-bold font-mono text-amber-400">
-            {fundamentals.dividendYield}%
+            {hasDivYield ? `${fundamentals.dividendYield}%` : '--'}
           </div>
           <div className="text-[10px] text-terminal-text-muted mt-1">
             Cổ tức tiền mặt & cổ phiếu
@@ -100,7 +115,7 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">Tăng trưởng DT (YoY)</div>
           <div className="text-xl font-bold font-mono text-terminal-up">
-            +{fundamentals.revenueGrowthYoY}%
+            {hasRevGrowth ? `${fundamentals.revenueGrowthYoY > 0 ? '+' : ''}${fundamentals.revenueGrowthYoY}%` : '--'}
           </div>
           <div className="text-[10px] text-terminal-up mt-1">
             Tăng trưởng so với cùng kỳ
@@ -111,7 +126,7 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">Tăng trưởng LN (YoY)</div>
           <div className="text-xl font-bold font-mono text-terminal-up">
-            +{fundamentals.profitGrowthYoY}%
+            {hasProfitGrowth ? `${fundamentals.profitGrowthYoY > 0 ? '+' : ''}${fundamentals.profitGrowthYoY}%` : '--'}
           </div>
           <div className="text-[10px] text-terminal-up mt-1">
             Lợi nhuận sau thuế phục hồi mạnh
@@ -122,7 +137,7 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">Nợ vay / VCSH (D/E)</div>
           <div className="text-xl font-bold font-mono text-terminal-text-primary">
-            {fundamentals.debtToEquity}x
+            {hasDebtToEquity ? `${fundamentals.debtToEquity}x` : '--'}
           </div>
           <div className="text-[10px] text-emerald-400 mt-1">
             An toàn đòn bẩy tài chính
@@ -133,10 +148,10 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">Biên lợi nhuận ròng</div>
           <div className="text-xl font-bold font-mono text-cyan-400">
-            {fundamentals.netMargin}%
+            {hasNetMargin ? `${fundamentals.netMargin}%` : '--'}
           </div>
           <div className="text-[10px] text-terminal-text-muted mt-1">
-            Biên gộp: {fundamentals.grossMargin}%
+            Biên gộp: {hasGrossMargin ? `${fundamentals.grossMargin}%` : '--'}
           </div>
         </div>
 
@@ -144,7 +159,7 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">Cổ phiếu lưu hành</div>
           <div className="text-xl font-bold font-mono text-terminal-text-primary">
-            {fundamentals.sharesOutstanding.toLocaleString()} tr
+            {hasShares ? `${fundamentals.sharesOutstanding.toLocaleString()} tr` : '--'}
           </div>
           <div className="text-[10px] text-terminal-text-muted mt-1">
             Số lượng cổ phiếu niêm yết
@@ -155,7 +170,7 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-1">Vốn hóa thị trường</div>
           <div className="text-xl font-bold font-mono text-terminal-accent">
-            {formatBillionVND(fundamentals.marketCapBillion)}
+            {hasMarketCap ? formatBillionVND(fundamentals.marketCapBillion) : '--'}
           </div>
           <div className="text-[10px] text-terminal-text-muted mt-1">
             Quy mô vốn hóa thị trường
@@ -165,3 +180,4 @@ export const StockFundamentals: React.FC<StockFundamentalsProps> = ({ fundamenta
     </div>
   );
 };
+

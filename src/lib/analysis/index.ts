@@ -6,3 +6,5 @@ export * from './moneyFlow/index.ts';
 export * from './strategy/index.ts';
 export * from './capitalAllocation/index.ts';
 export * from './backtest/index.ts';
+export * from './market/index.ts';
+export type { MarketRegimeType } from './market/index.ts';

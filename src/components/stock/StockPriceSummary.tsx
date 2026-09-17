@@ -1,6 +1,7 @@
 import React from 'react';
-import { formatVND, formatVolume, formatBillionVND } from '../../utils/formatters';
-import { TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { formatVND, formatVolume } from '../../utils/formatters';
+import { Minus, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { isFiniteNumber, isPositiveFiniteNumber } from './metrics';
 
 export interface StockPriceSummaryProps {
   price: number;
@@ -40,13 +41,12 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
   high52Week,
   low52Week,
   avgVolume20D,
-  foreignOwnershipPercent,
   realtimeUnavailableReason,
   dataSourceLabel,
 }) => {
   // PHASE 8.5C STEP 8: if the realtime source failed, NEVER fall back to mock
   // numbers — render an explicit unavailable state.
-  if (realtimeUnavailableReason) {
+  if (realtimeUnavailableReason || !isPositiveFiniteNumber(price)) {
     return (
       <div
         id="stock-price-summary"
@@ -59,7 +59,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
           <span className="text-[10px] font-mono text-red-400">✕ VPS không khả dụng</span>
         </div>
         <div className="text-xs text-terminal-text-muted font-mono">
-          Không hiển thị giá giả. Lý do: {realtimeUnavailableReason}
+          Không hiển thị giá giả. Lý do: {realtimeUnavailableReason || 'Dữ liệu thị giá chưa sẵn sàng'}
         </div>
         <div className="text-[10px] text-terminal-text-muted font-mono">
           Lịch sử giá & phân tích kỹ thuật vẫn dùng dữ liệu thật từ KBS.
@@ -67,10 +67,12 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
       </div>
     );
   }
-  const isUp = change > 0;
-  const isDown = change < 0;
-  const isCeiling = ceilingPrice !== undefined && price >= ceilingPrice;
-  const isFloor = floorPrice !== undefined && price <= floorPrice;
+  const hasChange = isFiniteNumber(change);
+  const hasChangePercent = isFiniteNumber(changePercent);
+  const isUp = hasChange && change > 0;
+  const isDown = hasChange && change < 0;
+  const isCeiling = isPositiveFiniteNumber(ceilingPrice) && price >= ceilingPrice;
+  const isFloor = isPositiveFiniteNumber(floorPrice) && price <= floorPrice;
 
   const priceColorClass = isCeiling
     ? 'text-terminal-ceil'
@@ -93,9 +95,14 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
     : 'bg-terminal-ref/15 border-terminal-ref/30 text-terminal-ref';
 
   // Calculate 52-week position percentage
-  const range52 = (high52Week || price * 1.2) - (low52Week || price * 0.8);
+  const hasHigh52 = isPositiveFiniteNumber(high52Week);
+  const hasLow52 = isPositiveFiniteNumber(low52Week);
+  const has52Range = hasHigh52 && hasLow52 && high52Week > low52Week;
+  const range52 = has52Range ? high52Week - low52Week : 0;
   const position52 =
-    range52 > 0 ? Math.min(100, Math.max(0, (((price - (low52Week || price * 0.8)) / range52) * 100))) : 50;
+    has52Range && range52 > 0
+      ? Math.min(100, Math.max(0, (((price - low52Week) / range52) * 100)))
+      : null;
 
   return (
     <div
@@ -126,10 +133,10 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
               <Minus className="w-4 h-4" />
             )}
             <span>
-              {change > 0 ? `+${formatVND(change)}` : formatVND(change)}
+              {hasChange ? (change > 0 ? `+${formatVND(change)}` : formatVND(change)) : '--'}
             </span>
             <span>
-              ({changePercent > 0 ? `+${changePercent.toFixed(2)}` : changePercent.toFixed(2)}%)
+              ({hasChangePercent ? (changePercent > 0 ? `+${changePercent.toFixed(2)}` : changePercent.toFixed(2)) : '--'}%)
             </span>
             {isCeiling && <span className="font-extrabold uppercase ml-1">TRẦN</span>}
             {isFloor && <span className="font-extrabold uppercase ml-1">SÀN</span>}
@@ -140,17 +147,17 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
         <div className="flex items-center gap-3 font-mono text-xs">
           <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-terminal-ceil/10 border border-terminal-ceil/25 text-terminal-ceil">
             <span className="text-[10px] text-terminal-text-muted">TRẦN:</span>
-            <span className="font-bold">{ceilingPrice !== undefined ? formatVND(ceilingPrice) : '—'}</span>
+            <span className="font-bold">{isPositiveFiniteNumber(ceilingPrice) ? formatVND(ceilingPrice) : '—'}</span>
           </div>
 
           <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-terminal-ref/10 border border-terminal-ref/25 text-terminal-ref">
             <span className="text-[10px] text-terminal-text-muted">TC:</span>
-            <span className="font-bold">{refPrice !== undefined ? formatVND(refPrice) : '—'}</span>
+            <span className="font-bold">{isPositiveFiniteNumber(refPrice) ? formatVND(refPrice) : '—'}</span>
           </div>
 
           <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-terminal-floor/10 border border-terminal-floor/25 text-terminal-floor">
             <span className="text-[10px] text-terminal-text-muted">SÀN:</span>
-            <span className="font-bold">{floorPrice !== undefined ? formatVND(floorPrice) : '—'}</span>
+            <span className="font-bold">{isPositiveFiniteNumber(floorPrice) ? formatVND(floorPrice) : '—'}</span>
           </div>
         </div>
       </div>
@@ -161,7 +168,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
         <div className="p-2.5 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-0.5">Mở cửa</div>
           <div className="font-mono font-semibold text-terminal-text-primary">
-            {open !== undefined ? formatVND(open) : '—'}
+            {isPositiveFiniteNumber(open) ? formatVND(open) : '—'}
           </div>
         </div>
 
@@ -169,7 +176,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
         <div className="p-2.5 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-0.5">Cao nhất phiên</div>
           <div className="font-mono font-semibold text-terminal-up">
-            {high !== undefined ? formatVND(high) : '—'}
+            {isPositiveFiniteNumber(high) ? formatVND(high) : '—'}
           </div>
         </div>
 
@@ -177,7 +184,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
         <div className="p-2.5 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-0.5">Thấp nhất phiên</div>
           <div className="font-mono font-semibold text-terminal-down">
-            {low !== undefined ? formatVND(low) : '—'}
+            {isPositiveFiniteNumber(low) ? formatVND(low) : '—'}
           </div>
         </div>
 
@@ -185,7 +192,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
         <div className="p-2.5 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-0.5">Khối lượng (CP)</div>
           <div className="font-mono font-semibold text-terminal-text-primary">
-            {formatVolume(volume)}
+            {isFiniteNumber(volume) && volume >= 0 ? formatVolume(volume) : '—'}
           </div>
         </div>
 
@@ -193,7 +200,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
         <div className="p-2.5 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-0.5">Giá trị khớp lệnh</div>
           <div className="font-mono font-semibold text-terminal-accent">
-            {tradingValue.toFixed(1)} tỷ VND
+            {isFiniteNumber(tradingValue) && tradingValue >= 0 ? `${tradingValue.toFixed(1)} tỷ VND` : '—'}
           </div>
         </div>
 
@@ -201,18 +208,18 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
         <div className="p-2.5 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-0.5">KL trung bình 20P</div>
           <div className="font-mono font-semibold text-terminal-text-secondary">
-            {formatVolume(avgVolume20D || volume)}
+            {isPositiveFiniteNumber(avgVolume20D) ? formatVolume(avgVolume20D) : '—'}
           </div>
         </div>
       </div>
 
       {/* 52-Week Range Bar */}
-      {high52Week && low52Week && (
+      {has52Range && position52 !== null && (
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-1.5">
           <div className="flex items-center justify-between text-xs text-terminal-text-muted">
-            <span>Biên độ 52 tuần: <strong className="text-terminal-down font-mono">{formatVND(low52Week)}</strong></span>
+            <span>Biên độ 52 tuần: <strong className="text-terminal-down font-mono">{formatVND(low52Week!)}</strong></span>
             <span className="font-mono text-terminal-text-secondary">Vị trí: {position52.toFixed(0)}%</span>
-            <span>Đỉnh 52 tuần: <strong className="text-terminal-up font-mono">{formatVND(high52Week)}</strong></span>
+            <span>Đỉnh 52 tuần: <strong className="text-terminal-up font-mono">{formatVND(high52Week!)}</strong></span>
           </div>
           <div className="relative w-full h-2 rounded-full bg-terminal-surface-subtle overflow-hidden">
             <div
@@ -230,3 +237,4 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
     </div>
   );
 };
+

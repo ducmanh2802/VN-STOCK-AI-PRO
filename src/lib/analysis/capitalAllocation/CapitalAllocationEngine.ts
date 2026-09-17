@@ -15,7 +15,7 @@ export class CapitalAllocationEngine {
     const reasons: string[] = [];
     if (!current) reasons.push('Không có kỳ báo cáo tài chính năm.');
     if (current && type !== 'BANK' && (current.cfo === null || current.capex === null)) reasons.push('Thiếu CFO hoặc CAPEX từ Báo cáo lưu chuyển tiền tệ.');
-    if (current && !dividends.has(current.year)) reasons.push('Thiếu cổ tức tiền mặt thực trả đã xác minh.');
+    if (current && (!dividends.has(current.year) || dividends.get(current.year) === null)) reasons.push('Thiếu cổ tức tiền mặt thực trả đã xác minh.');
     const ev = (statement: Evidence['statement'], item: string) => current ? [evidence(current, statement, item, input.asOfDate)] : [];
     const payout = current ? pct(dividends.get(current.year) ?? null, current.netProfit) : null;
     const retained = payout === null ? null : 100 - payout;
@@ -26,6 +26,7 @@ export class CapitalAllocationEngine {
       roe: metric(current ? roe(current, previous) : null, '%', ev('Derived', 'Net profit / average equity')),
       roic: metric(type === 'BANK' || !current ? null : roic(current, previous), '%', ev('Derived', 'Operating profit / invested capital')),
       cfo: metric(current?.cfo ?? null, 'VND', ev('Cash Flow Statement', 'Operating cash flow')),
+      capex: metric(current?.capex ?? null, 'VND', ev('Cash Flow Statement', 'Capital expenditure (CAPEX)')),
       fcf: metric(current && type !== 'BANK' ? fcf(current) : null, 'VND', ev('Derived', 'CFO - CAPEX')),
       cashConversion: metric(current ? pct(current.cfo, current.netProfit) : null, '%', ev('Derived', 'CFO / net profit')),
       dividendPayout: metric(payout, '%', ev('Cash Flow Statement', 'Dividends paid')),

@@ -2,7 +2,8 @@ import React from 'react';
 import { MoneyFlowData } from '../../types/stockDetail';
 import type { MoneyFlowResult } from '../../lib/analysis/moneyFlow/MoneyFlowEngine';
 import { formatVolume, formatBillionVND } from '../../utils/formatters';
-import { Coins, ArrowUpRight, ArrowDownRight, ShieldCheck, Activity, TrendingUp, Info } from 'lucide-react';
+import { Coins, ArrowUpRight, ArrowDownRight, ShieldCheck, Info } from 'lucide-react';
+import { isFiniteNumber, isPositiveFiniteNumber } from './metrics';
 
 export interface StockMoneyFlowProps {
   moneyFlow: MoneyFlowData;
@@ -10,15 +11,18 @@ export interface StockMoneyFlowProps {
 }
 
 export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analysis }) => {
+  const hasActiveBuy = isFiniteNumber(moneyFlow.activeBuyVolume) && moneyFlow.activeBuyVolume >= 0;
+  const hasActiveSell = isFiniteNumber(moneyFlow.activeSellVolume) && moneyFlow.activeSellVolume >= 0;
+  const totalBuySell = (hasActiveBuy ? moneyFlow.activeBuyVolume : 0) + (hasActiveSell ? moneyFlow.activeSellVolume : 0);
+
+  const hasOrderPressure = isFiniteNumber(moneyFlow.orderPressureRatio);
+  const canComputeRatio = totalBuySell > 0 && hasActiveBuy && hasActiveSell;
+  const buyPercent = canComputeRatio ? Math.round((moneyFlow.activeBuyVolume / totalBuySell) * 100) : null;
+  const sellPercent = isFiniteNumber(buyPercent) ? 100 - buyPercent : null;
+
   const isForeignNetBuy = analysis
     ? (analysis.foreignFlow.net !== null ? analysis.foreignFlow.net >= 0 : moneyFlow.foreignNetValue >= 0)
-    : moneyFlow.foreignNetValue >= 0;
-
-  const isPropNetBuy = moneyFlow.propTradingNetValue >= 0;
-
-  const totalBuySell = moneyFlow.activeBuyVolume + moneyFlow.activeSellVolume || 1;
-  const buyPercent = Math.round((moneyFlow.activeBuyVolume / totalBuySell) * 100);
-  const sellPercent = 100 - buyPercent;
+    : isFiniteNumber(moneyFlow.foreignNetValue) ? moneyFlow.foreignNetValue >= 0 : null;
 
   const getTrendBadge = (trend?: string) => {
     switch (trend) {
@@ -37,6 +41,9 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
   };
 
   const trendBadge = getTrendBadge(analysis?.trend);
+
+  const hasScore = analysis && isFiniteNumber(analysis.score);
+  const hasTradingVal = analysis && isPositiveFiniteNumber(analysis.tradingValue);
 
   return (
     <div
@@ -67,9 +74,9 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
             <div className="px-3 py-1 rounded-lg bg-terminal-bg border border-terminal-border flex items-baseline gap-1">
               <span className="text-[10px] uppercase font-mono text-terminal-text-muted">Score:</span>
               <strong className="text-base font-mono font-bold text-terminal-accent">
-                {analysis.score}
+                {hasScore ? analysis.score : '--'}
               </strong>
-              <span className="text-[10px] font-mono text-terminal-text-muted">/100</span>
+              {hasScore && <span className="text-[10px] font-mono text-terminal-text-muted">/100</span>}
             </div>
           </div>
         )}
@@ -83,11 +90,13 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
             <div className="text-[11px] text-terminal-text-muted">Tỷ lệ Vol / SMA20</div>
             <div className="mt-1 flex items-baseline gap-1.5">
               <span className="text-sm font-bold font-mono text-terminal-text-primary">
-                {analysis.volumeSignal.volumeRatio !== null ? `${analysis.volumeSignal.volumeRatio}x` : 'N/A'}
+                {isFiniteNumber(analysis.volumeSignal.volumeRatio) ? `${analysis.volumeSignal.volumeRatio}x` : '--'}
               </span>
-              <span className="text-[10px] font-mono text-terminal-accent">
-                ({analysis.volumeSignal.status})
-              </span>
+              {analysis.volumeSignal.status && (
+                <span className="text-[10px] font-mono text-terminal-accent">
+                  ({analysis.volumeSignal.status})
+                </span>
+              )}
             </div>
           </div>
 
@@ -95,7 +104,7 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
           <div className="p-2.5 rounded-lg bg-terminal-bg border border-terminal-border/80">
             <div className="text-[11px] text-terminal-text-muted">Giá trị giao dịch</div>
             <div className="mt-1 text-sm font-bold font-mono text-terminal-text-primary">
-              {formatBillionVND(analysis.tradingValue)}
+              {hasTradingVal ? formatBillionVND(analysis.tradingValue) : '--'}
             </div>
           </div>
 
@@ -103,7 +112,7 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
           <div className="p-2.5 rounded-lg bg-terminal-bg border border-terminal-border/80">
             <div className="text-[11px] text-terminal-text-muted">Mô hình Giá - Vol</div>
             <div className="mt-1 text-xs font-mono font-semibold text-terminal-accent truncate" title={analysis.priceVolumeRelationship.description}>
-              {analysis.priceVolumeRelationship.pattern.replace('_', ' ')}
+              {analysis.priceVolumeRelationship.pattern ? analysis.priceVolumeRelationship.pattern.replace('_', ' ') : '--'}
             </div>
           </div>
 
@@ -126,7 +135,7 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
                   ? 'PHÂN PHỐI'
                   : 'TRUNG LẬP'}
               </span>
-              {analysis.accumulationSignal.cmf20 !== null && (
+              {isFiniteNumber(analysis.accumulationSignal.cmf20) && (
                 <span className="text-[10px] font-mono text-terminal-text-muted">
                   CMF: {analysis.accumulationSignal.cmf20}
                 </span>
@@ -141,30 +150,44 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-terminal-text-primary">Tương quan Mua / Bán Chủ Động</span>
           <span className="font-mono text-[11px] text-terminal-up">
-            Hệ số áp lực: {moneyFlow.orderPressureRatio}x ({buyPercent >= 50 ? 'Bên mua kiểm soát' : 'Bên bán kiểm soát'})
+            Hệ số áp lực: {hasOrderPressure ? `${moneyFlow.orderPressureRatio}x` : '--'} {isFiniteNumber(buyPercent) ? `(${buyPercent >= 50 ? 'Bên mua kiểm soát' : 'Bên bán kiểm soát'})` : ''}
           </span>
         </div>
 
         {/* Dual Bar */}
-        <div className="w-full h-3 rounded-full overflow-hidden flex bg-terminal-surface-subtle">
-          <div
-            className="bg-terminal-up h-full transition-all duration-300"
-            style={{ width: `${buyPercent}%` }}
-          />
-          <div
-            className="bg-terminal-down h-full transition-all duration-300"
-            style={{ width: `${sellPercent}%` }}
-          />
-        </div>
+        {isFiniteNumber(buyPercent) && isFiniteNumber(sellPercent) ? (
+          <div className="w-full h-3 rounded-full overflow-hidden flex bg-terminal-surface-subtle">
+            <div
+              className="bg-terminal-up h-full transition-all duration-300"
+              style={{ width: `${buyPercent}%` }}
+            />
+            <div
+              className="bg-terminal-down h-full transition-all duration-300"
+              style={{ width: `${sellPercent}%` }}
+            />
+          </div>
+        ) : (
+          <div className="py-1 text-center text-xs text-terminal-text-muted font-mono">
+            Chưa có dữ liệu lệnh chủ động phiên này.
+          </div>
+        )}
 
         <div className="flex items-center justify-between text-xs font-mono">
           <div className="flex items-center gap-1 text-terminal-up">
             <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>Mua CĐ: {buyPercent}% ({formatVolume(moneyFlow.activeBuyVolume)})</span>
+            <span>
+              Mua CĐ:{' '}
+              {isFiniteNumber(buyPercent) ? `${buyPercent}%` : '--'}{' '}
+              {hasActiveBuy ? `(${formatVolume(moneyFlow.activeBuyVolume)})` : ''}
+            </span>
           </div>
           <div className="flex items-center gap-1 text-terminal-down">
             <ArrowDownRight className="w-3.5 h-3.5" />
-            <span>Bán CĐ: {sellPercent}% ({formatVolume(moneyFlow.activeSellVolume)})</span>
+            <span>
+              Bán CĐ:{' '}
+              {isFiniteNumber(sellPercent) ? `${sellPercent}%` : '--'}{' '}
+              {hasActiveSell ? `(${formatVolume(moneyFlow.activeSellVolume)})` : ''}
+            </span>
           </div>
         </div>
       </div>
@@ -173,7 +196,7 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
       <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-terminal-text-primary">Giao Dịch Khối Ngoại (Foreign Trading)</span>
-          {analysis?.foreignFlow.signal === 'NO_DATA' ? (
+          {analysis?.foreignFlow.signal === 'NO_DATA' || isForeignNetBuy === null ? (
             <span className="text-[10px] font-mono text-terminal-text-muted">Chưa có dữ liệu</span>
           ) : (
             <span className="text-[10px] font-mono text-terminal-accent">
@@ -182,14 +205,14 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
           )}
         </div>
 
-        {analysis?.foreignFlow && analysis.foreignFlow.signal !== 'NO_DATA' && analysis.foreignFlow.foreignNet !== null ? (
+        {analysis?.foreignFlow && analysis.foreignFlow.signal !== 'NO_DATA' && isFiniteNumber(analysis.foreignFlow.foreignNet) ? (
           <div className="grid grid-cols-3 gap-2 pt-1 text-xs font-mono">
             <div>
               <span className="text-[10px] text-terminal-text-muted block">Foreign Buy (Mua):</span>
               <strong className="text-terminal-text-primary">
-                {formatVolume(analysis.foreignFlow.foreignBuy ?? 0)} CP
+                {isFiniteNumber(analysis.foreignFlow.foreignBuy) ? `${formatVolume(analysis.foreignFlow.foreignBuy)} CP` : '--'}
               </strong>
-              {analysis.foreignFlow.buyValue && (
+              {isFiniteNumber(analysis.foreignFlow.buyValue) && (
                 <span className="text-[10px] text-terminal-text-muted block">
                   {(analysis.foreignFlow.buyValue / 1e9).toFixed(1)} tỷ VND
                 </span>
@@ -198,9 +221,9 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
             <div>
               <span className="text-[10px] text-terminal-text-muted block">Foreign Sell (Bán):</span>
               <strong className="text-terminal-text-primary">
-                {formatVolume(analysis.foreignFlow.foreignSell ?? 0)} CP
+                {isFiniteNumber(analysis.foreignFlow.foreignSell) ? `${formatVolume(analysis.foreignFlow.foreignSell)} CP` : '--'}
               </strong>
-              {analysis.foreignFlow.sellValue && (
+              {isFiniteNumber(analysis.foreignFlow.sellValue) && (
                 <span className="text-[10px] text-terminal-text-muted block">
                   {(analysis.foreignFlow.sellValue / 1e9).toFixed(1)} tỷ VND
                 </span>
@@ -211,7 +234,7 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
               <strong className={isForeignNetBuy ? 'text-terminal-up' : 'text-terminal-down'}>
                 {analysis.foreignFlow.foreignNet >= 0 ? `+${formatVolume(analysis.foreignFlow.foreignNet)}` : formatVolume(analysis.foreignFlow.foreignNet)} CP
               </strong>
-              {analysis.foreignFlow.netValue && (
+              {isFiniteNumber(analysis.foreignFlow.netValue) && (
                 <span className={`text-[10px] block ${isForeignNetBuy ? 'text-terminal-up' : 'text-terminal-down'}`}>
                   {analysis.foreignFlow.netValue >= 0 ? `+${(analysis.foreignFlow.netValue / 1e9).toFixed(1)}` : (analysis.foreignFlow.netValue / 1e9).toFixed(1)} tỷ VND
                 </span>
@@ -239,19 +262,21 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
               <div>
                 <span className="text-[10px] text-terminal-text-muted block">Lệnh lớn Mua:</span>
                 <strong className="text-terminal-text-primary">
-                  {analysis.institutionalFlow.largeOrdersBuy ? `${(analysis.institutionalFlow.largeOrdersBuy / 1e9).toFixed(1)} tỷ` : 'N/A'}
+                  {isFiniteNumber(analysis.institutionalFlow.largeOrdersBuy) ? `${(analysis.institutionalFlow.largeOrdersBuy / 1e9).toFixed(1)} tỷ` : '--'}
                 </strong>
               </div>
               <div>
                 <span className="text-[10px] text-terminal-text-muted block">Lệnh lớn Bán:</span>
                 <strong className="text-terminal-text-primary">
-                  {analysis.institutionalFlow.largeOrdersSell ? `${(analysis.institutionalFlow.largeOrdersSell / 1e9).toFixed(1)} tỷ` : 'N/A'}
+                  {isFiniteNumber(analysis.institutionalFlow.largeOrdersSell) ? `${(analysis.institutionalFlow.largeOrdersSell / 1e9).toFixed(1)} tỷ` : '--'}
                 </strong>
               </div>
               <div>
                 <span className="text-[10px] text-terminal-text-muted block">Mua/Bán ròng Lệnh lớn:</span>
                 <strong className={(analysis.institutionalFlow.netBigMoney ?? 0) >= 0 ? 'text-terminal-up' : 'text-terminal-down'}>
-                  {(analysis.institutionalFlow.netBigMoney ?? 0) >= 0 ? `+${((analysis.institutionalFlow.netBigMoney ?? 0) / 1e9).toFixed(1)} tỷ` : `${((analysis.institutionalFlow.netBigMoney ?? 0) / 1e9).toFixed(1)} tỷ`}
+                  {isFiniteNumber(analysis.institutionalFlow.netBigMoney) ? (
+                    (analysis.institutionalFlow.netBigMoney >= 0 ? `+${(analysis.institutionalFlow.netBigMoney / 1e9).toFixed(1)}` : `${(analysis.institutionalFlow.netBigMoney / 1e9).toFixed(1)}`) + ' tỷ'
+                  ) : '--'}
                 </strong>
               </div>
             </div>
@@ -268,7 +293,7 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
       </div>
 
       {/* Reasons / Insights List */}
-      {analysis && analysis.reasons && analysis.reasons.length > 0 && (
+      {analysis && Array.isArray(analysis.reasons) && analysis.reasons.length > 0 && (
         <div className="p-3 rounded-lg bg-terminal-surface-subtle/50 border border-terminal-border/60 space-y-1.5">
           <div className="text-[11px] font-semibold text-terminal-text-primary uppercase font-mono tracking-wider">
             Luận Điểm Đánh Giá Dòng Tiền (Reasons)
@@ -286,3 +311,4 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
     </div>
   );
 };
+

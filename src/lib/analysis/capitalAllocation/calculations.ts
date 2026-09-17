@@ -17,6 +17,14 @@ export const roic = (current: AnnualFinancialFact, previous: AnnualFinancialFact
 export const incrementalProfitPerRetainedCapital = (facts: AnnualFinancialFact[], dividends: Map<number, number | null>): number | null => {
   if (facts.length < 2) return null;
   const first = facts[0]; const last = facts[facts.length - 1];
-  const retained = facts.reduce((sum, f) => sum + (f.netProfit ?? 0) - (dividends.get(f.year) ?? 0), 0);
-  return retained > 0 && first.netProfit !== null && last.netProfit !== null ? (last.netProfit - first.netProfit) / retained : null;
+  if (first.netProfit === null || last.netProfit === null) return null;
+
+  let retained = 0;
+  for (const f of facts) {
+    if (f.netProfit === null) return null;
+    const div = dividends.get(f.year);
+    if (div === undefined || div === null) return null;
+    retained += f.netProfit - div;
+  }
+  return retained > 0 ? (last.netProfit - first.netProfit) / retained : null;
 };

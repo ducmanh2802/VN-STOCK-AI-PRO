@@ -1,17 +1,15 @@
 import React from 'react';
 import { StockAISignalData } from '../../types/stockDetail';
 import { formatVND } from '../../utils/formatters';
-import { Sparkles, TrendingUp, ShieldAlert, Target, AlertOctagon, CheckCircle2, Clock } from 'lucide-react';
+import { Sparkles, ShieldAlert, CheckCircle2, Clock } from 'lucide-react';
+import { isFiniteNumber, isPositiveFiniteNumber } from './metrics';
 
 export interface StockAISignalCardProps {
   signal: StockAISignalData;
   currentPrice: number;
 }
 
-export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal, currentPrice }) => {
-  const isBuy = signal.signalType === 'BUY' || signal.signalType === 'ACCUMULATE';
-  const isSell = signal.signalType === 'SELL';
-
+export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal }) => {
   const badgeColorClass =
     signal.signalType === 'BUY'
       ? 'bg-terminal-up/15 text-terminal-up border-terminal-up/30'
@@ -20,6 +18,12 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal, cu
       : signal.signalType === 'SELL'
       ? 'bg-terminal-down/15 text-terminal-down border-terminal-down/30'
       : 'bg-terminal-ref/15 text-terminal-ref border-terminal-ref/30';
+
+  const hasScore = isFiniteNumber(signal.aiScore) && signal.aiScore >= 0 && signal.aiScore <= 100;
+  const hasConfidence = isFiniteNumber(signal.confidence) && signal.confidence >= 0 && signal.confidence <= 100;
+  const hasTargetPrice = isPositiveFiniteNumber(signal.targetPrice);
+  const hasStopLoss = isPositiveFiniteNumber(signal.stopLossPrice);
+  const hasUpside = isFiniteNumber(signal.upsidePercent);
 
   return (
     <div
@@ -40,20 +44,22 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal, cu
               <h3 className="text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
                 AI Khuyến Nghị Định Lượng
               </h3>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-terminal-surface-subtle text-terminal-text-muted border border-terminal-border">
-                {signal.updatedAt}
-              </span>
+              {signal.updatedAt && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-terminal-surface-subtle text-terminal-text-muted border border-terminal-border">
+                  {signal.updatedAt}
+                </span>
+              )}
             </div>
             <div className="text-[11px] text-terminal-text-muted flex items-center gap-1.5">
               <Clock className="w-3 h-3" />
-              Khung thời gian khuyến nghị: <strong className="text-terminal-text-secondary">{signal.timeframe}</strong>
+              Khung thời gian khuyến nghị: <strong className="text-terminal-text-secondary">{signal.timeframe || '--'}</strong>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <div className={`px-3 py-1 rounded-lg text-xs font-mono font-bold uppercase border ${badgeColorClass}`}>
-            {signal.signalLabel}
+            {signal.signalLabel || 'THEO DÕI'}
           </div>
         </div>
       </div>
@@ -65,14 +71,14 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal, cu
           <div className="text-[11px] text-terminal-text-muted mb-1">AI Score Tổng hợp</div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-2xl font-bold font-mono text-terminal-accent">
-              {signal.aiScore}
+              {hasScore ? signal.aiScore : '--'}
             </span>
-            <span className="text-xs text-terminal-text-muted">/100</span>
+            {hasScore && <span className="text-xs text-terminal-text-muted">/100</span>}
           </div>
           <div className="w-full h-1.5 rounded-full bg-terminal-surface-subtle mt-2 overflow-hidden">
             <div
               className="h-full rounded-full bg-terminal-accent transition-all duration-500"
-              style={{ width: `${signal.aiScore}%` }}
+              style={{ width: `${hasScore ? signal.aiScore : 0}%` }}
             />
           </div>
         </div>
@@ -82,13 +88,13 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal, cu
           <div className="text-[11px] text-terminal-text-muted mb-1">Độ tin cậy mô hình</div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-2xl font-bold font-mono text-terminal-up">
-              {signal.confidence}%
+              {hasConfidence ? `${signal.confidence}%` : '--'}
             </span>
           </div>
           <div className="w-full h-1.5 rounded-full bg-terminal-surface-subtle mt-2 overflow-hidden">
             <div
               className="h-full rounded-full bg-terminal-up transition-all duration-500"
-              style={{ width: `${signal.confidence}%` }}
+              style={{ width: `${hasConfidence ? signal.confidence : 0}%` }}
             />
           </div>
         </div>
@@ -97,10 +103,10 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal, cu
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border">
           <div className="text-[11px] text-terminal-text-muted mb-1">Giá mục tiêu (TP)</div>
           <div className="text-lg font-bold font-mono text-terminal-up">
-            {formatVND(signal.targetPrice)}
+            {hasTargetPrice ? formatVND(signal.targetPrice) : '--'}
           </div>
           <div className="text-xs font-mono font-medium text-terminal-up mt-0.5">
-            +{signal.upsidePercent.toFixed(1)}% Upside
+            {hasUpside ? `+${signal.upsidePercent.toFixed(1)}% Upside` : '--'}
           </div>
         </div>
 
@@ -108,10 +114,10 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal, cu
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border">
           <div className="text-[11px] text-terminal-text-muted mb-1">Ngưỡng cắt lỗ (SL)</div>
           <div className="text-lg font-bold font-mono text-terminal-down">
-            {formatVND(signal.stopLossPrice)}
+            {hasStopLoss ? formatVND(signal.stopLossPrice) : '--'}
           </div>
           <div className="text-xs font-mono font-medium text-terminal-text-secondary mt-0.5">
-            Tỷ lệ R:R: <strong className="text-terminal-accent">{signal.riskRewardRatio}</strong>
+            Tỷ lệ R:R: <strong className="text-terminal-accent">{signal.riskRewardRatio || '--'}</strong>
           </div>
         </div>
       </div>
@@ -125,12 +131,16 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal, cu
             Động lực tăng giá (Key Catalysts)
           </div>
           <ul className="space-y-1.5 text-xs text-terminal-text-secondary">
-            {signal.catalysts.map((cat, idx) => (
-              <li key={idx} className="flex items-start gap-1.5">
-                <span className="text-terminal-up shrink-0 mt-0.5">•</span>
-                <span>{cat}</span>
-              </li>
-            ))}
+            {Array.isArray(signal.catalysts) && signal.catalysts.length > 0 ? (
+              signal.catalysts.map((cat, idx) => (
+                <li key={idx} className="flex items-start gap-1.5">
+                  <span className="text-terminal-up shrink-0 mt-0.5">•</span>
+                  <span>{cat}</span>
+                </li>
+              ))
+            ) : (
+              <li className="text-terminal-text-muted italic">Đang cập nhật động lực...</li>
+            )}
           </ul>
         </div>
 
@@ -141,15 +151,20 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal, cu
             Cảnh báo rủi ro (Risk Factors)
           </div>
           <ul className="space-y-1.5 text-xs text-terminal-text-secondary">
-            {signal.riskWarnings.map((risk, idx) => (
-              <li key={idx} className="flex items-start gap-1.5">
-                <span className="text-amber-400 shrink-0 mt-0.5">•</span>
-                <span>{risk}</span>
-              </li>
-            ))}
+            {Array.isArray(signal.riskWarnings) && signal.riskWarnings.length > 0 ? (
+              signal.riskWarnings.map((risk, idx) => (
+                <li key={idx} className="flex items-start gap-1.5">
+                  <span className="text-amber-400 shrink-0 mt-0.5">•</span>
+                  <span>{risk}</span>
+                </li>
+              ))
+            ) : (
+              <li className="text-terminal-text-muted italic">Không ghi nhận rủi ro bất thường.</li>
+            )}
           </ul>
         </div>
       </div>
     </div>
   );
 };
+

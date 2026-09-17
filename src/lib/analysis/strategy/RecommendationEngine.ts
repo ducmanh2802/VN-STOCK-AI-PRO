@@ -18,6 +18,7 @@ import {
   HORIZON_HOLDING_DAYS,
 } from '../../../types/recommendation';
 import { ConfidenceLevel } from '../../../types/enterpriseIntelligence';
+import { VIETNAM_STOCKS_UNIVERSE } from '../../../services/market/stockUniverse';
 import { StrategyScorer, StrategyScoringInput } from './StrategyScorer';
 import { SignalEngine } from './SignalEngine';
 import { RiskRewardEngine } from './RiskRewardEngine';
@@ -260,8 +261,19 @@ export class RecommendationEngine {
 
     const recommendations: InvestmentRecommendation[] = [];
 
+    // Deduplicate input symbols deterministically to prevent duplicate ranking entries
+    const seenSymbols = new Set<string>();
+    const uniqueSymbols: string[] = [];
     for (const sym of symbols) {
-      const data = universeData.get(sym.toUpperCase());
+      const clean = (sym || '').trim().toUpperCase();
+      if (clean && !seenSymbols.has(clean)) {
+        seenSymbols.add(clean);
+        uniqueSymbols.push(clean);
+      }
+    }
+
+    for (const sym of uniqueSymbols) {
+      const data = universeData.get(sym);
       if (data) {
         const rec = this.generate({
           ...data,
@@ -272,8 +284,11 @@ export class RecommendationEngine {
       }
     }
 
-    // Filter
-    let filtered = recommendations.filter((r) => (r.score ?? 0) >= minScore);
+    // Filter with fail-closed score handling
+    let filtered = recommendations;
+    if (typeof minScore === 'number' && Number.isFinite(minScore) && minScore > 0) {
+      filtered = filtered.filter((r) => r.score !== null && Number.isFinite(r.score) && r.score >= minScore);
+    }
 
     if (minConfidence) {
       const confOrder: Record<ConfidenceLevel, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
@@ -286,29 +301,66 @@ export class RecommendationEngine {
       filtered = filtered.filter((r) => allowed.has(r.signal));
     }
 
-    // Sort descending by score then expected return
+    // Sort descending by score -> expected return -> risk reward -> symbol (nulls sorted last)
     filtered.sort((a, b) => {
-      const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
-      if (scoreDiff !== 0) return scoreDiff;
-      return (b.expectedReturn ?? 0) - (a.expectedReturn ?? 0);
+      const aScoreValid = typeof a.score === 'number' && Number.isFinite(a.score);
+      const bScoreValid = typeof b.score === 'number' && Number.isFinite(b.score);
+      if (aScoreValid && bScoreValid) {
+        const scoreDiff = (b.score as number) - (a.score as number);
+        if (scoreDiff !== 0) return scoreDiff;
+      } else if (aScoreValid !== bScoreValid) {
+        return aScoreValid ? -1 : 1;
+      }
+
+      const aReturnValid = typeof a.expectedReturn === 'number' && Number.isFinite(a.expectedReturn);
+      const bReturnValid = typeof b.expectedReturn === 'number' && Number.isFinite(b.expectedReturn);
+      if (aReturnValid && bReturnValid) {
+        const returnDiff = (b.expectedReturn as number) - (a.expectedReturn as number);
+        if (returnDiff !== 0) return returnDiff;
+      } else if (aReturnValid !== bReturnValid) {
+        return aReturnValid ? -1 : 1;
+      }
+
+      const aRrValid = typeof a.riskReward === 'number' && Number.isFinite(a.riskReward) && a.riskReward > 0;
+      const bRrValid = typeof b.riskReward === 'number' && Number.isFinite(b.riskReward) && b.riskReward > 0;
+      if (aRrValid && bRrValid) {
+        const rrDiff = (b.riskReward as number) - (a.riskReward as number);
+        if (rrDiff !== 0) return rrDiff;
+      } else if (aRrValid !== bRrValid) {
+        return aRrValid ? -1 : 1;
+      }
+
+      return (a.symbol || '').localeCompare(b.symbol || '');
     });
 
-    const rankings: RecommendationRanking[] = filtered.map((r, idx) => ({
-      strategy,
-      rank: idx + 1,
-      symbol: r.symbol,
-      score: r.score,
-      signal: r.signal,
-      confidence: r.confidence,
-      expectedReturn: r.expectedReturn,
-      riskReward: r.riskReward,
-    }));
+    const now = new Date().toISOString();
+
+    const rankings: RecommendationRanking[] = filtered.map((r, idx) => {
+      const stockMeta = VIETNAM_STOCKS_UNIVERSE.find((s) => s.symbol === r.symbol);
+      const isUnavailable = r.score === null || !Number.isFinite(r.score);
+      return {
+        strategy,
+        rank: idx + 1,
+        symbol: r.symbol,
+        companyName: stockMeta?.companyName,
+        score: r.score,
+        signal: r.signal,
+        confidence: r.confidence,
+        expectedReturn: r.expectedReturn,
+        riskReward: r.riskReward,
+        dataStatus: isUnavailable ? 'DATA_UNAVAILABLE' : 'OK',
+        evaluationTimestamp: r.generatedAt || now,
+        source: 'KBS_VPS',
+      };
+    });
 
     return {
       strategy,
-      generatedAt: new Date().toISOString(),
+      generatedAt: now,
+      dataSource: 'KBS_VPS',
+      dataStatus: rankings.length > 0 ? 'OK' : 'EMPTY',
       rankings,
-      universeSize: symbols.length,
+      universeSize: uniqueSymbols.length,
       filteredCount: rankings.length,
     };
   }

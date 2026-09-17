@@ -1,17 +1,8 @@
 import React from 'react';
 import { IndicatorSnapshot } from '../../lib/indicators/types';
 import { formatVND, formatVolume } from '../../utils/formatters';
-import {
-  Gauge,
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  Layers,
-  BarChart3,
-  CheckCircle,
-  AlertTriangle,
-  Zap,
-} from 'lucide-react';
+import { Activity } from 'lucide-react';
+import { isFiniteNumber, isPositiveFiniteNumber } from './metrics';
 
 export interface StockTechnicalIndicatorsProps {
   snapshot: IndicatorSnapshot | null;
@@ -20,7 +11,6 @@ export interface StockTechnicalIndicatorsProps {
 
 export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> = ({
   snapshot,
-  currentPrice,
 }) => {
   if (!snapshot) {
     return (
@@ -31,6 +21,27 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
   }
 
   const { rsi, macd, sma20, sma50, sma200, bollinger, volume } = snapshot;
+
+  const hasRsiVal = isFiniteNumber(rsi?.value);
+  const hasMacdHist = isFiniteNumber(macd?.histogram);
+  const hasMacdLine = isFiniteNumber(macd?.macd);
+
+  const hasBbLower = isPositiveFiniteNumber(bollinger?.lower);
+  const hasBbMiddle = isPositiveFiniteNumber(bollinger?.middle);
+  const hasBbUpper = isPositiveFiniteNumber(bollinger?.upper);
+  const hasBbBandwidth = isFiniteNumber(bollinger?.bandwidth);
+
+  const hasSma20Val = isPositiveFiniteNumber(sma20?.value);
+  const hasSma20Diff = isFiniteNumber(sma20?.diffPercent);
+
+  const hasSma50Val = isPositiveFiniteNumber(sma50?.value);
+  const hasSma50Diff = isFiniteNumber(sma50?.diffPercent);
+
+  const hasSma200Val = isPositiveFiniteNumber(sma200?.value);
+  const hasSma200Diff = isFiniteNumber(sma200?.diffPercent);
+
+  const hasVolumeRatio = isPositiveFiniteNumber(volume?.ratioToMA);
+  const hasVolumeMa20 = isPositiveFiniteNumber(volume?.ma20);
 
   return (
     <div
@@ -69,17 +80,17 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
                   : 'bg-terminal-ref/15 text-terminal-ref border border-terminal-ref/30'
               }`}
             >
-              {rsi.status}
+              {rsi.status || '--'}
             </span>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold font-mono text-terminal-text-primary">
-              {rsi.value}
+              {hasRsiVal ? rsi.value : '--'}
             </span>
-            <span className="text-xs text-terminal-text-muted font-mono">/ 100</span>
+            {hasRsiVal && <span className="text-xs text-terminal-text-muted font-mono">/ 100</span>}
           </div>
           <div className="text-[11px] text-terminal-text-secondary leading-tight">
-            {rsi.label}
+            {rsi.label || '--'}
           </div>
         </div>
 
@@ -94,24 +105,24 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
                   : 'bg-terminal-down/15 text-terminal-down border border-terminal-down/30'
               }`}
             >
-              {macd.trend === 'BULLISH_CROSS' ? 'CROSS UP' : macd.trend}
+              {macd.trend === 'BULLISH_CROSS' ? 'CROSS UP' : (macd.trend || '--')}
             </span>
           </div>
           <div className="flex items-baseline gap-2 font-mono">
             <span className="text-sm text-terminal-text-muted">Hist:</span>
             <span
               className={`text-lg font-bold ${
-                macd.histogram >= 0 ? 'text-terminal-up' : 'text-terminal-down'
+                hasMacdHist && macd.histogram >= 0 ? 'text-terminal-up' : 'text-terminal-down'
               }`}
             >
-              {macd.histogram > 0 ? `+${macd.histogram}` : macd.histogram}
+              {hasMacdHist ? (macd.histogram > 0 ? `+${macd.histogram}` : macd.histogram) : '--'}
             </span>
             <span className="text-[11px] text-terminal-text-muted ml-auto">
-              Line: {macd.macd}
+              Line: {hasMacdLine ? macd.macd : '--'}
             </span>
           </div>
           <div className="text-[11px] text-terminal-text-secondary leading-tight">
-            {macd.label}
+            {macd.label || '--'}
           </div>
         </div>
 
@@ -120,25 +131,25 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold text-cyan-400">Bollinger Bands (20, 2)</span>
             <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/25">
-              {bollinger.status}
+              {bollinger.status || '--'}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-1 text-[11px] font-mono">
             <div>
               <span className="text-terminal-text-muted block">Dưới:</span>
-              <span className="text-terminal-text-secondary">{formatVND(bollinger.lower)}</span>
+              <span className="text-terminal-text-secondary">{hasBbLower ? formatVND(bollinger.lower) : '--'}</span>
             </div>
             <div>
               <span className="text-terminal-text-muted block">Giữa:</span>
-              <span className="text-cyan-400 font-semibold">{formatVND(bollinger.middle)}</span>
+              <span className="text-cyan-400 font-semibold">{hasBbMiddle ? formatVND(bollinger.middle) : '--'}</span>
             </div>
             <div>
               <span className="text-terminal-text-muted block">Trên:</span>
-              <span className="text-terminal-text-secondary">{formatVND(bollinger.upper)}</span>
+              <span className="text-terminal-text-secondary">{hasBbUpper ? formatVND(bollinger.upper) : '--'}</span>
             </div>
           </div>
           <div className="text-[11px] text-terminal-text-secondary leading-tight">
-            {bollinger.label} (Độ rộng: {bollinger.bandwidth}%)
+            {bollinger.label || '--'} {hasBbBandwidth ? `(Độ rộng: ${bollinger.bandwidth}%)` : ''}
           </div>
         </div>
 
@@ -158,14 +169,14 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
           </div>
           <div className="flex items-baseline justify-between font-mono">
             <span className="text-lg font-bold text-terminal-text-primary">
-              {formatVND(sma20.value)}
+              {hasSma20Val ? formatVND(sma20.value) : '--'}
             </span>
             <span
               className={`text-xs font-semibold ${
-                sma20.diffPercent >= 0 ? 'text-terminal-up' : 'text-terminal-down'
+                hasSma20Diff && sma20.diffPercent >= 0 ? 'text-terminal-up' : 'text-terminal-down'
               }`}
             >
-              {sma20.diffPercent >= 0 ? `+${sma20.diffPercent}%` : `${sma20.diffPercent}%`}
+              {hasSma20Diff ? (sma20.diffPercent >= 0 ? `+${sma20.diffPercent}%` : `${sma20.diffPercent}%`) : '--'}
             </span>
           </div>
           <div className="text-[11px] text-terminal-text-secondary">
@@ -188,13 +199,17 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
           <div className="grid grid-cols-2 gap-2 text-xs font-mono">
             <div>
               <span className="text-terminal-text-muted block text-[10px]">MA50 (Trung hạn):</span>
-              <span className="font-bold text-blue-400">{formatVND(sma50.value)}</span>
-              <span className="text-[10px] text-terminal-text-muted block">({sma50.diffPercent}%)</span>
+              <span className="font-bold text-blue-400">{hasSma50Val ? formatVND(sma50.value) : '--'}</span>
+              <span className="text-[10px] text-terminal-text-muted block">
+                {hasSma50Diff ? `(${sma50.diffPercent}%)` : '(--)'}
+              </span>
             </div>
             <div>
               <span className="text-terminal-text-muted block text-[10px]">MA200 (Dài hạn):</span>
-              <span className="font-bold text-purple-400">{formatVND(sma200.value)}</span>
-              <span className="text-[10px] text-terminal-text-muted block">({sma200.diffPercent}%)</span>
+              <span className="font-bold text-purple-400">{hasSma200Val ? formatVND(sma200.value) : '--'}</span>
+              <span className="text-[10px] text-terminal-text-muted block">
+                {hasSma200Diff ? `(${sma200.diffPercent}%)` : '(--)'}
+              </span>
             </div>
           </div>
           <div className="text-[11px] text-terminal-text-secondary">
@@ -222,14 +237,14 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
           </div>
           <div className="flex items-baseline justify-between font-mono">
             <span className="text-lg font-bold text-terminal-text-primary">
-              {volume.ratioToMA}x
+              {hasVolumeRatio ? `${volume.ratioToMA}x` : '--'}
             </span>
             <span className="text-xs text-terminal-text-muted">
-              TB: {formatVolume(volume.ma20)}
+              TB: {hasVolumeMa20 ? formatVolume(volume.ma20) : '--'}
             </span>
           </div>
           <div className="text-[11px] text-terminal-text-secondary">
-            {volume.ratioToMA >= 1.3
+            {hasVolumeRatio && volume.ratioToMA >= 1.3
               ? 'Thanh khoản bùng nổ vượt trội so với trung bình 20 phiên, dòng tiền tham gia quyết liệt'
               : 'Thanh khoản duy trì ở mức cân bằng tích lũy'}
           </div>
@@ -238,3 +253,4 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
     </div>
   );
 };
+

@@ -230,6 +230,9 @@ export interface RecommendationRanking {
   /** Stock symbol */
   symbol: string;
 
+  /** Company name (where available) */
+  companyName?: string;
+
   /** Overall composite score (0-100) */
   score: number | null;
 
@@ -244,6 +247,15 @@ export interface RecommendationRanking {
 
   /** Optional: risk:reward for quick sorting */
   riskReward: number | null;
+
+  /** Data status of the ranking entry */
+  dataStatus?: 'OK' | 'DATA_UNAVAILABLE';
+
+  /** ISO timestamp when recommendation was generated */
+  evaluationTimestamp?: string;
+
+  /** Data source provenance */
+  source?: string;
 }
 
 /**
@@ -275,6 +287,10 @@ export interface RankingResult {
   rankings: RecommendationRanking[];
   universeSize: number;
   filteredCount: number;
+  /** Status of ranking dataset */
+  dataStatus?: 'OK' | 'DATA_UNAVAILABLE' | 'EMPTY';
+  /** Primary data sources utilized */
+  dataSource?: string;
 }
 
 /**
