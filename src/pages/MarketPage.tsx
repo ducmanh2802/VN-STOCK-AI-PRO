@@ -81,10 +81,10 @@ export function MarketPage({
   return (
     <div id="page-market" className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-terminal-border/70 pb-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="mb-1 text-[10px] font-mono uppercase tracking-[0.18em] text-terminal-accent">Phase 20 intelligence workspace</p>
           <h1 className="text-2xl font-semibold tracking-tight text-terminal-text">Market Intelligence</h1>
-          <p className="mt-1 max-w-2xl text-sm text-terminal-muted">A canonical view of market state, breadth, participation, structure and risk.</p>
+          <p className="mt-1 max-w-[42rem] text-sm text-terminal-muted">A canonical view of market state, breadth, participation, structure and risk.</p>
         </div>
         <DemoBadge size="md" />
       </header>

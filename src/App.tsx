@@ -111,17 +111,17 @@ export default function App() {
   const stockDetailQuery = useStockDetail(selectedStockSymbol);
   const refreshMarket = useRefreshMarket();
 
+  const isMarketView = ['dashboard', 'market', 'sector-intelligence'].includes(currentView);
   const isLoading =
-    indicesQuery.isLoading ||
-    statusQuery.isLoading ||
-    sectorsQuery.isLoading ||
-    moversQuery.isLoading;
+    isMarketView &&
+    (indicesQuery.isLoading ||
+      statusQuery.isLoading ||
+      sectorsQuery.isLoading ||
+      moversQuery.isLoading);
 
-  const error =
-    indicesQuery.error ||
-    statusQuery.error ||
-    sectorsQuery.error ||
-    moversQuery.error;
+  const error = isMarketView
+    ? indicesQuery.error || statusQuery.error || sectorsQuery.error || moversQuery.error
+    : null;
 
   const handleSelectStock = useCallback(
     (symbol: string) => {

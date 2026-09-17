@@ -114,7 +114,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
       <div
-        className="relative w-full max-w-2xl bg-[#111827] border border-[#263244] rounded-2xl shadow-2xl overflow-hidden text-slate-200"
+        className="relative w-full max-w-[42rem] bg-[#111827] border border-[#263244] rounded-2xl shadow-2xl overflow-hidden text-slate-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Input Bar */}

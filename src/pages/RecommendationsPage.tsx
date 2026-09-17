@@ -105,7 +105,7 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({ onSele
               PHASE 19.5.4
             </span>
           </div>
-          <p className="text-xs text-slate-400 max-w-2xl font-sans leading-relaxed">
+          <p className="text-xs text-slate-400 max-w-[42rem] font-sans leading-relaxed">
             Hệ thống xếp hạng và chấm điểm chiến lược đa khung thời gian (StrategyScorer + SignalEngine + RiskRewardEngine) dựa trên dữ liệu giao dịch thực tế từ KBS & VPS.
           </p>
         </div>
