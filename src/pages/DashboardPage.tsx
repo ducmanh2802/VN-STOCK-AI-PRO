@@ -98,88 +98,97 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const aiSummary = propsAiSummary || aiSummaryQuery.data || null;
 
   return (
-    <div id="page-dashboard" className="space-y-4 sm:space-y-5">
-      {/* Top Banner / Dashboard Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-terminal-border/60">
-        <div className="flex items-center gap-2">
-          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent">
-            <Monitor className="w-4 h-4" />
+    <div id="page-dashboard" className="space-y-5 sm:space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-terminal-border/70 pb-3">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <div className="mt-0.5 rounded-md border border-terminal-accent/30 bg-terminal-accent/10 p-1.5 text-terminal-accent">
+            <Monitor className="h-4 w-4" aria-hidden="true" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm sm:text-base font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
-                VN STOCK AI · Bàn Làm Việc Thị Trường (Terminal Dashboard)
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-sm font-semibold uppercase tracking-[0.14em] text-terminal-text-primary sm:text-base">
+                Bàn làm việc thị trường
               </h1>
               <DemoBadge size="sm" />
             </div>
-            <p className="text-[11px] text-terminal-text-muted">
-              Hệ thống giám sát định lượng đa chiều: Chỉ số · Độ rộng · Dòng tiền · AI Tín hiệu
+            <p className="mt-1 text-[11px] text-terminal-text-muted">
+              Direction · breadth · rotation · signals
             </p>
           </div>
         </div>
+        <button
+          id="btn-refresh-dashboard"
+          onClick={() => refreshMarket()}
+          className="flex items-center gap-1.5 rounded-md border border-terminal-border bg-terminal-surface px-2.5 py-1.5 text-xs font-mono text-terminal-text-secondary transition-colors hover:border-terminal-border-bright hover:bg-terminal-surface-hover hover:text-terminal-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terminal-accent"
+          title="Đồng bộ toàn bộ dữ liệu bảng điều khiển"
+        >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="hidden sm:inline">Làm mới dữ liệu</span>
+        </button>
+      </header>
 
+      <section aria-labelledby="dashboard-regime-heading" className="space-y-2">
         <div className="flex items-center gap-2">
-          <button
-            id="btn-refresh-dashboard"
-            onClick={() => refreshMarket()}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-terminal-surface hover:bg-terminal-surface-hover border border-terminal-border text-xs font-mono text-terminal-text-secondary hover:text-terminal-text-primary transition-colors"
-            title="Đồng bộ toàn bộ dữ liệu bảng điều khiển"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Làm mới dữ liệu</span>
-          </button>
+          <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" aria-hidden="true" />
+          <h2 id="dashboard-regime-heading" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-terminal-text-muted">
+            01 · Regime &amp; market direction
+          </h2>
         </div>
-      </div>
-
-      {/* SECTION 0: Market Intelligence (Phase 20 Step 1) */}
-      <MarketIntelligenceWidget
-        intelligence={intelligenceQuery.data}
-        indices={indices}
-        isLoading={intelligenceQuery.isLoading}
-        isError={intelligenceQuery.isError}
-        error={intelligenceQuery.error}
-        onRetry={() => {
-          intelligenceQuery.refetch();
-          indicesQuery.refetch();
-        }}
-      />
-
-      {/* SECTION 1: Market Index Ribbon */}
-      <MarketIndexRibbon
-        indices={indices}
-        isLoading={indicesQuery.isLoading}
-        isError={indicesQuery.isError}
-        error={indicesQuery.error}
-        onRetry={() => indicesQuery.refetch()}
-        onSelectIndex={(symbol) => {
-          // Can filter or view index
-        }}
-      />
-
-      {/* SECTION 2 & 3: Market Sentiment & Market Breadth */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Section 2: Market Sentiment */}
-        <MarketSentimentWidget
-          sentiment={sentiment}
-          isLoading={sentimentQuery.isLoading}
-          isError={sentimentQuery.isError}
-          error={sentimentQuery.error}
-          onRetry={() => sentimentQuery.refetch()}
+        <MarketIntelligenceWidget
+          intelligence={intelligenceQuery.data}
+          indices={indices}
+          isLoading={intelligenceQuery.isLoading}
+          isError={intelligenceQuery.isError}
+          error={intelligenceQuery.error}
+          onRetry={() => {
+            intelligenceQuery.refetch();
+            indicesQuery.refetch();
+          }}
         />
-
-        {/* Section 3: Market Breadth */}
-        <MarketBreadthWidget
-          breadth={breadth}
-          isLoading={breadthQuery.isLoading}
-          isError={breadthQuery.isError}
-          error={breadthQuery.error}
-          onRetry={() => breadthQuery.refetch()}
+        <MarketIndexRibbon
+          indices={indices}
+          isLoading={indicesQuery.isLoading}
+          isError={indicesQuery.isError}
+          error={indicesQuery.error}
+          onRetry={() => indicesQuery.refetch()}
+          onSelectIndex={() => undefined}
         />
-      </div>
+      </section>
 
-      {/* SECTIONS 4, 5, 6: Top Movers (Top Gainers, Top Losers, Most Active) */}
-      {/* Supports both mobile tabbed interface and dense 3-column desktop terminal layout */}
-      <TopMoversSection
+      <section aria-labelledby="dashboard-breadth-heading" className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" aria-hidden="true" />
+          <h2 id="dashboard-breadth-heading" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-terminal-text-muted">
+            02 · Breadth &amp; sentiment
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <MarketSentimentWidget
+            sentiment={sentiment}
+            isLoading={sentimentQuery.isLoading}
+            isError={sentimentQuery.isError}
+            error={sentimentQuery.error}
+            onRetry={() => sentimentQuery.refetch()}
+          />
+          <MarketBreadthWidget
+            breadth={breadth}
+            isLoading={breadthQuery.isLoading}
+            isError={breadthQuery.isError}
+            error={breadthQuery.error}
+            onRetry={() => breadthQuery.refetch()}
+          />
+        </div>
+      </section>
+
+      <section aria-labelledby="dashboard-opportunity-heading" className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" aria-hidden="true" />
+          <h2 id="dashboard-opportunity-heading" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-terminal-text-muted">
+            03 · Opportunities &amp; rotation
+          </h2>
+        </div>
+
+        <TopMoversSection
         gainers={gainers}
         losers={losers}
         active={active}
@@ -243,6 +252,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       {aiSummary && (
         <AIMarketSummaryCard summary={aiSummary} onSelectStock={handleSelectStock} />
       )}
+      </section>
     </div>
   );
 };
