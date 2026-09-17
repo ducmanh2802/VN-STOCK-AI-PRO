@@ -56,12 +56,17 @@ export default function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
 
-  // Global keyboard shortcuts (Ctrl+K or Cmd+K)
+  // Global keyboard shortcuts (Ctrl+K or Cmd+K) and shell escape handling
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        setIsSidebarMobileOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
