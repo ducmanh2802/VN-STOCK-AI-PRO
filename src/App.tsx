@@ -10,6 +10,7 @@ import {
   useWatchlistData,
   useStockDetail,
   useRefreshMarket,
+  useMarketIntelligence,
 } from './hooks/useMarketQueries';
 import { Header } from './components/common/Header';
 import { Sidebar } from './components/common/Sidebar';
@@ -101,6 +102,7 @@ export default function App() {
   const indicesQuery = useMarketIndices();
   const statusQuery = useMarketStatus();
   const sectorsQuery = useMarketHeatmap();
+  const intelligenceQuery = useMarketIntelligence();
   const moversQuery = useTopMovers();
   const allStocksQuery = useStocksList();
   const aiSummaryQuery = useAIMarketSummary();
@@ -227,6 +229,10 @@ export default function App() {
                     gainers={movers.gainers}
                     losers={movers.losers}
                     active={movers.active}
+                    intelligence={intelligenceQuery.data}
+                    intelligenceLoading={intelligenceQuery.isLoading}
+                    intelligenceError={intelligenceQuery.error}
+                    onRetryIntelligence={() => intelligenceQuery.refetch()}
                     onSelectStock={handleSelectStock}
                   />
                 )}
