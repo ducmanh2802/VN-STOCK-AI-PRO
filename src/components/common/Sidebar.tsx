@@ -2,6 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard,
   TrendingUp,
+  Layers,
   Bookmark,
   Sparkles,
   SlidersHorizontal,
@@ -53,6 +54,7 @@ export const navigationStructure: NavGroup[] = [
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { id: 'market', label: 'Market Overview', icon: TrendingUp },
+      { id: 'sector-intelligence', label: 'Sector Intelligence', icon: Layers },
       { id: 'watchlist', label: 'Watchlist', icon: Bookmark },
     ],
   },

@@ -20,6 +20,7 @@ import { AICopilot } from './components/ai/AICopilot';
 import { StockQuickViewModal } from './components/stock/StockQuickViewModal';
 import { DashboardPage } from './pages/DashboardPage';
 import { MarketPage } from './pages/MarketPage';
+import { SectorIntelligencePage } from './pages/SectorIntelligencePage';
 import { WatchlistPage } from './pages/WatchlistPage';
 import { StockScreenerPage } from './pages/StockScreenerPage';
 import { PortfolioPage } from './pages/PortfolioPage';
@@ -233,6 +234,18 @@ export default function App() {
                     intelligenceLoading={intelligenceQuery.isLoading}
                     intelligenceError={intelligenceQuery.error}
                     onRetryIntelligence={() => intelligenceQuery.refetch()}
+                    onSelectStock={handleSelectStock}
+                  />
+                )}
+
+                {currentView === 'sector-intelligence' && (
+                  <SectorIntelligencePage
+                    sectors={sectors}
+                    stocks={allStocks}
+                    intelligence={intelligenceQuery.data}
+                    isLoading={intelligenceQuery.isLoading}
+                    error={intelligenceQuery.error}
+                    onRetry={() => intelligenceQuery.refetch()}
                     onSelectStock={handleSelectStock}
                   />
                 )}
