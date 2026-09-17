@@ -42,7 +42,7 @@ export function StockQuickViewModal({
     >
       <div
         id="modal-stock-quickview-content"
-        className="w-full max-w-2xl bg-terminal-surface border border-terminal-border rounded-xl shadow-2xl overflow-hidden text-terminal-text-primary animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-[42rem] bg-terminal-surface border border-terminal-border rounded-xl shadow-2xl overflow-hidden text-terminal-text-primary animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Bar */}

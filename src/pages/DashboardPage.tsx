@@ -98,88 +98,101 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const aiSummary = propsAiSummary || aiSummaryQuery.data || null;
 
   return (
-    <div id="page-dashboard" className="space-y-4 sm:space-y-5">
-      {/* Top Banner / Dashboard Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-terminal-border/60">
-        <div className="flex items-center gap-2">
-          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent">
-            <Monitor className="w-4 h-4" />
+    <div id="page-dashboard" className="space-y-6 sm:space-y-7">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-terminal-border/70 pb-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="mt-0.5 rounded-md border border-terminal-accent/30 bg-terminal-accent/10 p-2 text-terminal-accent">
+            <Monitor className="h-4 w-4" aria-hidden="true" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm sm:text-base font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
-                VN STOCK AI · Bàn Làm Việc Thị Trường (Terminal Dashboard)
-              </h1>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-terminal-accent">Market command center</p>
               <DemoBadge size="sm" />
             </div>
-            <p className="text-[11px] text-terminal-text-muted">
-              Hệ thống giám sát định lượng đa chiều: Chỉ số · Độ rộng · Dòng tiền · AI Tín hiệu
+            <h1 className="mt-1 truncate text-lg font-semibold tracking-tight text-terminal-text-primary sm:text-xl">
+              Bàn làm việc thị trường
+            </h1>
+            <p className="mt-1 text-xs text-terminal-text-muted">
+              Market state · breadth · rotation · opportunities
             </p>
           </div>
         </div>
+        <button
+          id="btn-refresh-dashboard"
+          onClick={() => refreshMarket()}
+          className="flex items-center gap-1.5 rounded-md border border-terminal-border bg-terminal-surface px-3 py-2 text-xs font-mono text-terminal-text-secondary transition-colors hover:border-terminal-border-bright hover:bg-terminal-surface-hover hover:text-terminal-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terminal-accent"
+          title="Đồng bộ toàn bộ dữ liệu bảng điều khiển"
+        >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="hidden sm:inline">Làm mới dữ liệu</span>
+        </button>
+      </header>
 
-        <div className="flex items-center gap-2">
-          <button
-            id="btn-refresh-dashboard"
-            onClick={() => refreshMarket()}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-terminal-surface hover:bg-terminal-surface-hover border border-terminal-border text-xs font-mono text-terminal-text-secondary hover:text-terminal-text-primary transition-colors"
-            title="Đồng bộ toàn bộ dữ liệu bảng điều khiển"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Làm mới dữ liệu</span>
-          </button>
+      <section aria-labelledby="dashboard-regime-heading" className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" aria-hidden="true" />
+            <h2 id="dashboard-regime-heading" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-terminal-text-muted">
+              01 · Market state
+            </h2>
+          </div>
+          <span className="hidden text-[10px] font-mono uppercase tracking-wider text-terminal-text-disabled sm:inline">Authoritative market data</span>
         </div>
-      </div>
-
-      {/* SECTION 0: Market Intelligence (Phase 20 Step 1) */}
-      <MarketIntelligenceWidget
-        intelligence={intelligenceQuery.data}
-        indices={indices}
-        isLoading={intelligenceQuery.isLoading}
-        isError={intelligenceQuery.isError}
-        error={intelligenceQuery.error}
-        onRetry={() => {
-          intelligenceQuery.refetch();
-          indicesQuery.refetch();
-        }}
-      />
-
-      {/* SECTION 1: Market Index Ribbon */}
-      <MarketIndexRibbon
-        indices={indices}
-        isLoading={indicesQuery.isLoading}
-        isError={indicesQuery.isError}
-        error={indicesQuery.error}
-        onRetry={() => indicesQuery.refetch()}
-        onSelectIndex={(symbol) => {
-          // Can filter or view index
-        }}
-      />
-
-      {/* SECTION 2 & 3: Market Sentiment & Market Breadth */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Section 2: Market Sentiment */}
-        <MarketSentimentWidget
-          sentiment={sentiment}
-          isLoading={sentimentQuery.isLoading}
-          isError={sentimentQuery.isError}
-          error={sentimentQuery.error}
-          onRetry={() => sentimentQuery.refetch()}
+        <MarketIndexRibbon
+          indices={indices}
+          isLoading={indicesQuery.isLoading}
+          isError={indicesQuery.isError}
+          error={indicesQuery.error}
+          onRetry={() => indicesQuery.refetch()}
+          onSelectIndex={() => undefined}
         />
-
-        {/* Section 3: Market Breadth */}
-        <MarketBreadthWidget
-          breadth={breadth}
-          isLoading={breadthQuery.isLoading}
-          isError={breadthQuery.isError}
-          error={breadthQuery.error}
-          onRetry={() => breadthQuery.refetch()}
+        <MarketIntelligenceWidget
+          intelligence={intelligenceQuery.data}
+          indices={indices}
+          isLoading={intelligenceQuery.isLoading}
+          isError={intelligenceQuery.isError}
+          error={intelligenceQuery.error}
+          onRetry={() => {
+            intelligenceQuery.refetch();
+            indicesQuery.refetch();
+          }}
         />
-      </div>
+      </section>
 
-      {/* SECTIONS 4, 5, 6: Top Movers (Top Gainers, Top Losers, Most Active) */}
-      {/* Supports both mobile tabbed interface and dense 3-column desktop terminal layout */}
-      <TopMoversSection
+      <section aria-labelledby="dashboard-breadth-heading" className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" aria-hidden="true" />
+          <h2 id="dashboard-breadth-heading" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-terminal-text-muted">
+            02 · Breadth &amp; sentiment
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <MarketSentimentWidget
+            sentiment={sentiment}
+            isLoading={sentimentQuery.isLoading}
+            isError={sentimentQuery.isError}
+            error={sentimentQuery.error}
+            onRetry={() => sentimentQuery.refetch()}
+          />
+          <MarketBreadthWidget
+            breadth={breadth}
+            isLoading={breadthQuery.isLoading}
+            isError={breadthQuery.isError}
+            error={breadthQuery.error}
+            onRetry={() => breadthQuery.refetch()}
+          />
+        </div>
+      </section>
+
+      <section aria-labelledby="dashboard-opportunity-heading" className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" aria-hidden="true" />
+          <h2 id="dashboard-opportunity-heading" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-terminal-text-muted">
+            03 · Opportunities &amp; rotation
+          </h2>
+        </div>
+
+        <TopMoversSection
         gainers={gainers}
         losers={losers}
         active={active}
@@ -243,6 +256,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       {aiSummary && (
         <AIMarketSummaryCard summary={aiSummary} onSelectStock={handleSelectStock} />
       )}
+      </section>
     </div>
   );
 };

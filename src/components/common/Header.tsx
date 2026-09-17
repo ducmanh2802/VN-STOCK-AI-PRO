@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       id="main-app-header"
-      className="sticky top-0 z-30 w-full bg-[#0B0F17]/95 border-b border-[#263244] backdrop-blur-md"
+      className="sticky top-0 z-30 w-full bg-background/95 border-b border-border"
     >
       {/* Top Bar */}
       <div className="flex items-center justify-between px-4 lg:px-6 h-16 gap-3">
@@ -113,7 +113,7 @@ export const Header: React.FC<HeaderProps> = ({
                 if (searchTerm.trim().length > 0) setIsDropdownOpen(true);
               }}
               placeholder="Search stocks, symbols, fundamentals (HPG, FPT, VCB...)"
-              className="w-full pl-9 pr-20 py-2 bg-[#111827] border border-[#263244] hover:border-[#334155] focus:border-indigo-500 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-all font-sans"
+              className="w-full pl-10 pr-20 py-2.5 bg-surface border border-border hover:border-accent-primary/60 focus:border-accent-primary rounded-md text-sm text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-colors font-sans"
             />
             <div className="absolute right-2.5 flex items-center gap-1.5">
               <button

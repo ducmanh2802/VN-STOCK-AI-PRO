@@ -100,7 +100,7 @@ export const DataStatusBadge: React.FC<DataStatusBadgeProps> = ({
   if (compact) {
     return (
       <div
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium font-mono ${config.badgeClass} ${className}`}
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-medium font-mono ${config.badgeClass} ${className}`}
         title={`${source ? `${source} • ` : ''}${config.text}${formattedTime ? ` • ${formattedTime}` : ''}`}
       >
         <span className={`w-1.5 h-1.5 rounded-full ${config.dotClass}`} />

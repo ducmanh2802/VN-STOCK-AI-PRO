@@ -10,6 +10,7 @@ import {
   useWatchlistData,
   useStockDetail,
   useRefreshMarket,
+  useMarketIntelligence,
 } from './hooks/useMarketQueries';
 import { Header } from './components/common/Header';
 import { Sidebar } from './components/common/Sidebar';
@@ -19,6 +20,7 @@ import { AICopilot } from './components/ai/AICopilot';
 import { StockQuickViewModal } from './components/stock/StockQuickViewModal';
 import { DashboardPage } from './pages/DashboardPage';
 import { MarketPage } from './pages/MarketPage';
+import { SectorIntelligencePage } from './pages/SectorIntelligencePage';
 import { WatchlistPage } from './pages/WatchlistPage';
 import { StockScreenerPage } from './pages/StockScreenerPage';
 import { PortfolioPage } from './pages/PortfolioPage';
@@ -56,12 +58,17 @@ export default function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
 
-  // Global keyboard shortcuts (Ctrl+K or Cmd+K)
+  // Global keyboard shortcuts (Ctrl+K or Cmd+K) and shell escape handling
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        setIsSidebarMobileOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -96,6 +103,7 @@ export default function App() {
   const indicesQuery = useMarketIndices();
   const statusQuery = useMarketStatus();
   const sectorsQuery = useMarketHeatmap();
+  const intelligenceQuery = useMarketIntelligence();
   const moversQuery = useTopMovers();
   const allStocksQuery = useStocksList();
   const aiSummaryQuery = useAIMarketSummary();
@@ -103,17 +111,17 @@ export default function App() {
   const stockDetailQuery = useStockDetail(selectedStockSymbol);
   const refreshMarket = useRefreshMarket();
 
+  const isMarketView = ['dashboard', 'market', 'sector-intelligence'].includes(currentView);
   const isLoading =
-    indicesQuery.isLoading ||
-    statusQuery.isLoading ||
-    sectorsQuery.isLoading ||
-    moversQuery.isLoading;
+    isMarketView &&
+    (indicesQuery.isLoading ||
+      statusQuery.isLoading ||
+      sectorsQuery.isLoading ||
+      moversQuery.isLoading);
 
-  const error =
-    indicesQuery.error ||
-    statusQuery.error ||
-    sectorsQuery.error ||
-    moversQuery.error;
+  const error = isMarketView
+    ? indicesQuery.error || statusQuery.error || sectorsQuery.error || moversQuery.error
+    : null;
 
   const handleSelectStock = useCallback(
     (symbol: string) => {
@@ -141,7 +149,7 @@ export default function App() {
   const watchlistStocks = watchlistQuery.data || [];
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col selection:bg-indigo-600/30 selection:text-indigo-200 font-sans">
+    <div className="min-h-screen bg-background text-slate-100 flex flex-col font-sans">
       {/* 1. Header with Tickers & Search */}
       <Header
         indices={indices}
@@ -176,7 +184,7 @@ export default function App() {
             isSidebarCollapsed ? 'lg:pl-0' : 'lg:pl-0'
           }`}
         >
-          <div className="flex-1 p-4 lg:p-6 max-w-7xl w-full mx-auto">
+          <div className="flex-1 p-4 sm:p-5 lg:p-7 max-w-[1480px] w-full mx-auto">
             {/* Loading State */}
             {isLoading && (
               <div className="py-16">
@@ -222,6 +230,22 @@ export default function App() {
                     gainers={movers.gainers}
                     losers={movers.losers}
                     active={movers.active}
+                    intelligence={intelligenceQuery.data}
+                    intelligenceLoading={intelligenceQuery.isLoading}
+                    intelligenceError={intelligenceQuery.error}
+                    onRetryIntelligence={() => intelligenceQuery.refetch()}
+                    onSelectStock={handleSelectStock}
+                  />
+                )}
+
+                {currentView === 'sector-intelligence' && (
+                  <SectorIntelligencePage
+                    sectors={sectors}
+                    stocks={allStocks}
+                    intelligence={intelligenceQuery.data}
+                    isLoading={intelligenceQuery.isLoading}
+                    error={intelligenceQuery.error}
+                    onRetry={() => intelligenceQuery.refetch()}
                     onSelectStock={handleSelectStock}
                   />
                 )}

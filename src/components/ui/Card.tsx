@@ -25,7 +25,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'rounded-lg border transition-colors',
+          'rounded-md border transition-colors duration-150',
           variantStyles[variant],
           densityStyles[density],
           className
@@ -43,7 +43,7 @@ export const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn('flex flex-col space-y-1.5 pb-3 border-b border-terminal-border', className)}
+    className={cn('flex flex-col gap-1.5 pb-3 border-b border-terminal-border', className)}
     {...props}
   />
 ));

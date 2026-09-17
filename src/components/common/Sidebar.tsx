@@ -2,6 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard,
   TrendingUp,
+  Layers,
   Bookmark,
   Sparkles,
   SlidersHorizontal,
@@ -53,6 +54,7 @@ export const navigationStructure: NavGroup[] = [
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { id: 'market', label: 'Market Overview', icon: TrendingUp },
+      { id: 'sector-intelligence', label: 'Sector Intelligence', icon: Layers },
       { id: 'watchlist', label: 'Watchlist', icon: Bookmark },
     ],
   },
@@ -127,7 +129,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <aside
         id="main-app-sidebar"
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen bg-[#0E1522] border-r border-[#263244] flex flex-col justify-between transition-all duration-200 select-none ${
+        className={`fixed lg:sticky top-0 left-0 z-40 h-screen bg-surface border-r border-border flex flex-col justify-between transition-all duration-200 select-none ${
           isCollapsed ? 'w-16' : 'w-64'
         } ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
@@ -135,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Top Branding Section */}
         <div>
-          <div className="h-16 flex items-center justify-between px-4 border-b border-[#263244] bg-[#111827]">
+          <div className="h-16 flex items-center justify-between px-4 border-b border-border bg-surface">
             {!isCollapsed ? (
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-600/30">
@@ -201,10 +203,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         if (onClose) onClose();
                       }}
                       title={isCollapsed ? item.label : undefined}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 relative group ${
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-colors duration-150 relative group ${
                         isActive
-                          ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 font-semibold shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-[#182231] border border-transparent'
+                          ? 'bg-accent-primary/12 text-text-primary border border-accent-primary/25 font-semibold'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated border border-transparent'
                       } ${isCollapsed ? 'justify-center px-0' : ''}`}
                     >
                       <Icon
