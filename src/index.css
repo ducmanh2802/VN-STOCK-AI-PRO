@@ -155,3 +155,58 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* VN STOCK AI PRO workspace primitives */
+.app-workspace,
+main {
+  min-width: 0;
+}
+
+[data-mono="true"],
+.font-mono,
+.tabular-nums {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition-property: color, background-color, border-color, box-shadow, opacity;
+  transition-duration: 180ms;
+  transition-timing-function: ease-out;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Normalize legacy terminal surfaces without changing component behavior. */
+[class*="bg-[#0b1728]"],
+[class*="bg-[#09111f]"],
+[class*="bg-[#0f1b2d]"],
+[class*="bg-[#111827]"] {
+  background-color: var(--color-surface) !important;
+}
+
+[class*="border-[#203652]"],
+[class*="border-[#263244]"] {
+  border-color: var(--color-border) !important;
+}
+
+/* Keep dense analytical sections readable at every breakpoint. */
+@media (max-width: 1023px) {
+  main {
+    padding-bottom: 1.5rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .surface-panel {
+    border-left-color: transparent;
+    border-right-color: transparent;
+    border-radius: 0;
+  }
+}
