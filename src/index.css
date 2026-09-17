@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0B0F17;
-  --color-surface: #111827;
-  --color-surface-elevated: #182231;
-  --color-surface-hover: #1E293B;
-  --color-border: #263244;
-  --color-border-subtle: #1C2636;
-  --color-border-bright: #334155;
+  --color-background: #09111f;
+  --color-surface: #0f1b2d;
+  --color-surface-elevated: #14243a;
+  --color-surface-hover: #1a2d47;
+  --color-border: #203652;
+  --color-border-subtle: #172b43;
+  --color-border-bright: #2c496b;
 
-  --color-text-primary: #F8FAFC;
-  --color-text-secondary: #94A3B8;
-  --color-text-muted: #64748B;
+  --color-text-primary: #f4f8fc;
+  --color-text-secondary: #9aafc5;
+  --color-text-muted: #6d849d;
 
-  --color-accent: #6366F1;
-  --color-accent-hover: #4F46E5;
-  --color-accent-blue: #38BDF8;
-  --color-accent-violet: #8B5CF6;
+  --color-accent: #22c7d6;
+  --color-accent-hover: #12a8ba;
+  --color-accent-blue: #59a9ff;
+  --color-accent-violet: #8b7cff;
 
   --color-positive: #22C55E;
   --color-warning: #F59E0B;
@@ -47,7 +47,7 @@
   --color-terminal-ceiling: #C084FC;
   --color-terminal-floor: #22D3EE;
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'DM Sans', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 }
 
@@ -71,8 +71,16 @@
 @layer base {
   body {
     font-family: var(--font-sans);
-    background-color: #0B0F17;
-    color: #94A3B8;
+    background:
+      radial-gradient(circle at 84% -10%, rgba(34, 199, 214, 0.1), transparent 28rem),
+      linear-gradient(145deg, #09111f 0%, #0b1423 48%, #09111f 100%);
+    color: #9aafc5;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: rgba(34, 199, 214, 0.28);
+    color: #f4f8fc;
   }
 
   code, pre, .font-mono, [data-mono="true"] {
@@ -103,6 +111,13 @@
 }
 .data-grid-row:hover {
   background-color: rgba(30, 41, 59, 0.7);
+}
+
+/* Shared surfaces and subtle depth */
+.surface-panel {
+  background: linear-gradient(145deg, rgba(20, 36, 58, 0.92), rgba(12, 25, 42, 0.92));
+  border: 1px solid rgba(44, 73, 107, 0.72);
+  box-shadow: 0 16px 40px rgba(2, 10, 22, 0.22);
 }
 
 /* Subtle glowing and glass elements */

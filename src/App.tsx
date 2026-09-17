@@ -141,7 +141,7 @@ export default function App() {
   const watchlistStocks = watchlistQuery.data || [];
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col selection:bg-indigo-600/30 selection:text-indigo-200 font-sans">
+    <div className="min-h-screen bg-background text-slate-100 flex flex-col font-sans">
       {/* 1. Header with Tickers & Search */}
       <Header
         indices={indices}
@@ -176,7 +176,7 @@ export default function App() {
             isSidebarCollapsed ? 'lg:pl-0' : 'lg:pl-0'
           }`}
         >
-          <div className="flex-1 p-4 lg:p-6 max-w-7xl w-full mx-auto">
+          <div className="flex-1 p-4 sm:p-5 lg:p-7 max-w-[1480px] w-full mx-auto">
             {/* Loading State */}
             {isLoading && (
               <div className="py-16">
