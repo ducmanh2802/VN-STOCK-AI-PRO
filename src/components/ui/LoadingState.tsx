@@ -42,7 +42,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   return (
     <div
       className={cn(
-        'animate-pulse bg-terminal-surface-hover',
+        'animate-pulse bg-terminal-surface-high/70',
         variant === 'rectangular' && 'rounded-md',
         variant === 'circular' && 'rounded-full',
         variant === 'text' && 'h-3 rounded',

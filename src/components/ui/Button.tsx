@@ -25,7 +25,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center font-medium transition-all duration-150 rounded-lg select-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none active:scale-[0.98]';
+      'inline-flex items-center justify-center font-medium transition-colors duration-150 rounded-md select-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terminal-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-terminal-bg';
 
     const sizeStyles = {
       xs: 'h-7 px-2.5 text-xs gap-1.5',
@@ -37,19 +37,19 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variantStyles = {
       primary:
-        'bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm shadow-indigo-950/50 border border-indigo-500/30',
+        'bg-terminal-accent text-white hover:bg-terminal-accent-hover border border-terminal-accent/40',
       'accent-glow':
-        'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500 shadow-md shadow-indigo-600/20 border border-indigo-400/30',
+        'bg-terminal-accent text-white hover:bg-terminal-accent-hover border border-terminal-accent/40',
       secondary:
-        'bg-[#182231] text-slate-200 hover:bg-[#1E293B] hover:text-white border border-[#263244] shadow-sm',
+        'bg-terminal-surface-elevated text-terminal-text-primary hover:bg-terminal-surface-hover border border-terminal-border',
       outline:
-        'bg-transparent text-slate-300 hover:bg-[#182231] hover:text-white border border-[#263244]',
+        'bg-transparent text-terminal-text-secondary hover:bg-terminal-surface hover:text-terminal-text-primary border border-terminal-border',
       ghost:
-        'bg-transparent text-slate-400 hover:text-slate-100 hover:bg-[#182231]',
+        'bg-transparent text-terminal-text-secondary hover:text-terminal-text-primary hover:bg-terminal-surface',
       danger:
-        'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30',
+        'bg-terminal-down/10 text-terminal-down hover:bg-terminal-down/15 border border-terminal-down/30',
       success:
-        'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30',
+        'bg-terminal-up/10 text-terminal-up hover:bg-terminal-up/15 border border-terminal-up/30',
     };
 
     return (
