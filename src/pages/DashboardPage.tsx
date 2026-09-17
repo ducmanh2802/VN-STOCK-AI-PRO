@@ -98,28 +98,29 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const aiSummary = propsAiSummary || aiSummaryQuery.data || null;
 
   return (
-    <div id="page-dashboard" className="space-y-5 sm:space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-terminal-border/70 pb-3">
-        <div className="flex min-w-0 items-start gap-2.5">
-          <div className="mt-0.5 rounded-md border border-terminal-accent/30 bg-terminal-accent/10 p-1.5 text-terminal-accent">
+    <div id="page-dashboard" className="space-y-6 sm:space-y-7">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-terminal-border/70 pb-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="mt-0.5 rounded-md border border-terminal-accent/30 bg-terminal-accent/10 p-2 text-terminal-accent">
             <Monitor className="h-4 w-4" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-sm font-semibold uppercase tracking-[0.14em] text-terminal-text-primary sm:text-base">
-                Bàn làm việc thị trường
-              </h1>
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-terminal-accent">Market command center</p>
               <DemoBadge size="sm" />
             </div>
-            <p className="mt-1 text-[11px] text-terminal-text-muted">
-              Direction · breadth · rotation · signals
+            <h1 className="mt-1 truncate text-lg font-semibold tracking-tight text-terminal-text-primary sm:text-xl">
+              Bàn làm việc thị trường
+            </h1>
+            <p className="mt-1 text-xs text-terminal-text-muted">
+              Market state · breadth · rotation · opportunities
             </p>
           </div>
         </div>
         <button
           id="btn-refresh-dashboard"
           onClick={() => refreshMarket()}
-          className="flex items-center gap-1.5 rounded-md border border-terminal-border bg-terminal-surface px-2.5 py-1.5 text-xs font-mono text-terminal-text-secondary transition-colors hover:border-terminal-border-bright hover:bg-terminal-surface-hover hover:text-terminal-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terminal-accent"
+          className="flex items-center gap-1.5 rounded-md border border-terminal-border bg-terminal-surface px-3 py-2 text-xs font-mono text-terminal-text-secondary transition-colors hover:border-terminal-border-bright hover:bg-terminal-surface-hover hover:text-terminal-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terminal-accent"
           title="Đồng bộ toàn bộ dữ liệu bảng điều khiển"
         >
           <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
@@ -127,13 +128,24 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </button>
       </header>
 
-      <section aria-labelledby="dashboard-regime-heading" className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" aria-hidden="true" />
-          <h2 id="dashboard-regime-heading" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-terminal-text-muted">
-            01 · Regime &amp; market direction
-          </h2>
+      <section aria-labelledby="dashboard-regime-heading" className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" aria-hidden="true" />
+            <h2 id="dashboard-regime-heading" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-terminal-text-muted">
+              01 · Market state
+            </h2>
+          </div>
+          <span className="hidden text-[10px] font-mono uppercase tracking-wider text-terminal-text-disabled sm:inline">Authoritative market data</span>
         </div>
+        <MarketIndexRibbon
+          indices={indices}
+          isLoading={indicesQuery.isLoading}
+          isError={indicesQuery.isError}
+          error={indicesQuery.error}
+          onRetry={() => indicesQuery.refetch()}
+          onSelectIndex={() => undefined}
+        />
         <MarketIntelligenceWidget
           intelligence={intelligenceQuery.data}
           indices={indices}
@@ -144,14 +156,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             intelligenceQuery.refetch();
             indicesQuery.refetch();
           }}
-        />
-        <MarketIndexRibbon
-          indices={indices}
-          isLoading={indicesQuery.isLoading}
-          isError={indicesQuery.isError}
-          error={indicesQuery.error}
-          onRetry={() => indicesQuery.refetch()}
-          onSelectIndex={() => undefined}
         />
       </section>
 
