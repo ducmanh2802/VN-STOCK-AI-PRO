@@ -131,7 +131,7 @@ export const RankingsTable: React.FC<RankingsTableProps> = ({
             const scoreDisplay = formatScore(rank.score);
             const expectedReturnDisplay = formatExpectedReturn(rank.expectedReturn);
             const riskRewardDisplay = formatRiskReward(rank.riskReward);
-            const statusInfo = formatDataStatus(rank.dataStatus || (rank.score !== null ? 'OK' : 'DATA_UNAVAILABLE'));
+            const statusInfo = formatDataStatus(rank.dataStatus || (isFiniteNumber(rank.score) ? 'OK' : 'DATA_UNAVAILABLE'));
 
             return (
               <tr

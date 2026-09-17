@@ -78,11 +78,14 @@ export const PaperTradingPage: React.FC = () => {
     setActionError(null);
     setActionSuccess(null);
     try {
-      const result = await placeOrderMutation.mutateAsync({
-        symbol: symbol.trim().toUpperCase(),
+      // Canonical submission: POST /api/trading/order → TradingEngine →
+      // TradingDataValidator → RiskGuard → OrderManager → PaperBroker.
+      const result: Order = await placeOrderMutation.mutateAsync({
+        symbol: canonicalSymbol,
         side,
         quantity: Number(quantity),
         orderType,
+        ...(orderType === 'LIMIT' ? { limitPrice } : {}),
       });
       setActionSuccess(`Order ${result?.id ?? ''} accepted by the canonical trading service.`.trim());
       setSymbol('');

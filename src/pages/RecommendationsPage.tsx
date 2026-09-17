@@ -102,7 +102,7 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({ onSele
             </div>
             <h1 className="text-xl font-bold text-white font-mono">AI INVESTMENT RECOMMENDATIONS</h1>
             <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-              PHASE 19.5.4
+              PHASE 19.5.5
             </span>
           </div>
           <p className="text-xs text-slate-400 max-w-[42rem] font-sans leading-relaxed">

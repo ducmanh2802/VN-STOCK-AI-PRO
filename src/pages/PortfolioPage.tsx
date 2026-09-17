@@ -1,8 +1,17 @@
+/**
+ * PHASE 19.5.6 — Portfolio / Positions UI Hardening & Canonical Trading-State Integration.
+ *
+ * This page is a pure presentation/consumption layer over the canonical
+ * paper-trading state served by TradingEngine/PaperBroker (/api/trading/portfolio,
+ * /api/trading/positions, /api/trading/status). It performs NO financial
+ * recomputation: every displayed value comes verbatim from the canonical
+ * contracts (BrokerAccount / BrokerPosition) after presentation-only formatting.
+ * Unavailable values (null / undefined / NaN / ±Infinity) render fail-closed as
+ * '—' — never as fabricated zeros (docs/metric-contracts.md §1).
+ */
 import React from 'react';
 import {
   Briefcase,
-  TrendingUp,
-  TrendingDown,
   DollarSign,
   PieChart,
   ShieldAlert,
@@ -11,10 +20,10 @@ import {
   ChevronRight,
   Layers,
   ArrowUpRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { MetricCard } from '../components/ui/MetricCard';
 import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
 import { DataStatusBadge } from '../components/ui/DataStatusBadge';
 import { useAppStore } from '../store/useAppStore';
 import {
@@ -23,6 +32,15 @@ import {
   useTradingStatus,
 } from '../hooks/useMarketQueries';
 import { LoadingState } from '../components/ui/LoadingState';
+import {
+  UNAVAILABLE,
+  isFiniteNumber,
+  formatAmount,
+  formatMillionsVND,
+  formatSignedMillionsVND,
+  formatSignedPercent,
+} from './portfolio/metrics';
+import type { BrokerPosition } from '../lib/trading/execution/BrokerAdapter';
 
 export const PortfolioPage: React.FC = () => {
   const { openQuickView, setCurrentView } = useAppStore();
@@ -31,30 +49,32 @@ export const PortfolioPage: React.FC = () => {
   const statusQuery = useTradingStatus();
 
   const isLoading = portfolioQuery.isLoading || positionsQuery.isLoading;
-  const isError = portfolioQuery.isError || positionsQuery.isError;
   const portfolio = portfolioQuery.data;
-  const positions = positionsQuery.data || [];
+  const status = statusQuery.data;
+  // Canonical positions array — never fabricated into an empty list on failure.
+  const positions = Array.isArray(positionsQuery.data) ? positionsQuery.data : null;
 
-  // Server-authoritative values
-  const totalCash = portfolio?.cash ?? 0;
-  const totalEquity = portfolio?.equity ?? totalCash;
-  const totalMarketValue = portfolio?.marketValue ?? 0;
-  const unrealizedPnL = portfolio?.unrealizedPnL ?? 0;
-  const realizedPnL = portfolio?.realizedPnL ?? 0;
-  // Display-only unrealized return derived from server fields: PnL / costBasis.
-  // costBasis = marketValue - unrealizedPnL. Falls back to 0% only when undefined or cost basis is 0.
-  const totalReturnPercent =
-    unrealizedPnL !== 0 && (totalMarketValue - unrealizedPnL) !== 0 && portfolio !== null
-      ? (unrealizedPnL / (totalMarketValue - unrealizedPnL)) * 100
-      : 0;
-
-  // Sector allocation (derived from actual positions if any)
-  const sectorMap = positions.reduce((acc: Record<string, number>, p: any) => {
-    const sec = p.sector || 'Chưa phân loại';
-    const val = (p.shares || p.quantity || 0) * (p.currentPrice || p.lastPrice || 0);
-    acc[sec] = (acc[sec] || 0) + val;
-    return acc;
-  }, {});
+  // Server-authoritative values (fail-closed: guarded, never defaulted to 0).
+  const cash = portfolio?.cash;
+  const availableCash = portfolio?.availableCash;
+  const equity = portfolio?.equity;
+  const marketValue = portfolio?.marketValue;
+  const unrealizedPnL = portfolio?.unrealizedPnL;
+  const realizedPnL = portfolio?.realizedPnL;
+  const portfolioState = portfolioQuery.isError
+    ? portfolio
+      ? 'STALE'
+      : 'ERROR'
+    : portfolio
+    ? 'LIVE'
+    : 'DATA_UNAVAILABLE';
+  const statusState = statusQuery.isError
+    ? status
+      ? 'STALE'
+      : 'ERROR'
+    : status
+    ? 'LIVE'
+    : 'DATA_UNAVAILABLE';
 
   const handleRefresh = () => {
     portfolioQuery.refetch();
@@ -75,8 +95,17 @@ export const PortfolioPage: React.FC = () => {
               Portfolio Analytics & Asset Allocation
             </h1>
             <DataStatusBadge
-              status={isLoading ? 'LOADING' : isError ? 'ERROR' : 'LIVE'}
+              status={
+                isLoading
+                  ? 'LOADING'
+                  : portfolioQuery.isError || positionsQuery.isError || statusQuery.isError
+                  ? portfolio || positions || status
+                    ? 'STALE'
+                    : 'ERROR'
+                  : 'LIVE'
+              }
               source="PaperBroker (Server-Authoritative)"
+              lastUpdated={portfolio?.updatedAt}
               compact
             />
           </div>
@@ -112,63 +141,116 @@ export const PortfolioPage: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* Top Portfolio Metrics Cards */}
+          {/* Top Portfolio Metrics Cards (all values server-authoritative, presentation-only formatting) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
               label="TỔNG GIÁ TRỊ TÀI SẢN (NAV)"
-              value={`${(totalEquity / 1000000).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tr VND`}
-              subValue={`Tiền mặt: ${(totalCash / 1000000).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tr (${totalEquity > 0 ? ((totalCash / totalEquity) * 100).toFixed(1) : '100'}%)`}
+              value={
+                isFiniteNumber(equity)
+                  ? `${formatMillionsVND(equity)} VND`
+                  : UNAVAILABLE
+              }
+              subValue={
+                isFiniteNumber(cash) && isFiniteNumber(availableCash)
+                  ? `Tiền mặt KH dụng: ${formatMillionsVND(availableCash)} / ${formatMillionsVND(cash)}`
+                  : `Tiền mặt KH dụng: ${UNAVAILABLE} / ${UNAVAILABLE}`
+              }
               icon={DollarSign}
-              status={isError ? 'DATA_UNAVAILABLE' : 'LIVE'}
+              status={portfolioState}
             />
 
             <MetricCard
               label="LÃI / LỖ TẠM TÍNH (UNREALIZED)"
-              value={`${unrealizedPnL >= 0 ? '+' : ''}${(unrealizedPnL / 1000000).toFixed(2)} tr`}
-              change={totalReturnPercent}
-              subValue={`Lãi chốt (Realized): ${(realizedPnL / 1000000).toFixed(2)} tr`}
-              badge={unrealizedPnL >= 0 ? 'PROFITABLE' : 'LOSS'}
-              badgeVariant={unrealizedPnL >= 0 ? 'success' : 'danger'}
-              status={isError ? 'DATA_UNAVAILABLE' : 'LIVE'}
+              value={formatSignedMillionsVND(unrealizedPnL)}
+              subValue={
+                isFiniteNumber(realizedPnL)
+                  ? `Lãi chốt (Realized): ${formatSignedMillionsVND(realizedPnL)}`
+                  : `Lãi chốt (Realized): ${UNAVAILABLE}`
+              }
+              badge={
+                isFiniteNumber(unrealizedPnL)
+                  ? unrealizedPnL >= 0
+                    ? 'PROFITABLE'
+                    : 'LOSS'
+                  : undefined
+              }
+              badgeVariant={
+                isFiniteNumber(unrealizedPnL) && unrealizedPnL < 0 ? 'danger' : 'success'
+              }
+              status={portfolioState}
             />
 
             <MetricCard
               label="GIÁ TRỊ DANH MỤC CỔ PHIẾU"
-              value={`${(totalMarketValue / 1000000).toFixed(2)} tr VND`}
-              subValue={`Số vị thế mở: ${positions.length}`}
-              badge={positions.length > 0 ? 'ACTIVE' : 'ALL CASH'}
-              badgeVariant={positions.length > 0 ? 'indigo' : 'neutral'}
-              status={isError ? 'DATA_UNAVAILABLE' : 'LIVE'}
+              value={
+                isFiniteNumber(marketValue)
+                  ? `${formatMillionsVND(marketValue)} VND`
+                  : UNAVAILABLE
+              }
+              subValue={`Số vị thế mở: ${positions === null ? UNAVAILABLE : positions.length}`}
+              badge={
+                positions === null
+                  ? undefined
+                  : positions.length > 0
+                  ? 'ACTIVE'
+                  : 'ALL CASH'
+              }
+              badgeVariant={
+                positions !== null && positions.length > 0 ? 'indigo' : 'neutral'
+              }
+              status={portfolioState}
             />
 
             <MetricCard
               label="TRẠNG THÁI ENGINE"
-              value={statusQuery.data?.tradingEnabled ? 'ACTIVE' : 'READY'}
-              subValue={`Chế độ: ${statusQuery.data?.brokerMode || 'PAPER'} · RiskGuard: BẬT`}
-              badge={statusQuery.data?.emergencyStop ? 'EMERGENCY STOP' : 'ONLINE'}
-              badgeVariant={statusQuery.data?.emergencyStop ? 'danger' : 'success'}
+              value={
+                status == null
+                  ? UNAVAILABLE
+                  : status.tradingEnabled
+                  ? 'ACTIVE'
+                  : 'READY'
+              }
+              subValue={`Chế độ: ${status?.brokerMode ?? UNAVAILABLE} · RiskGuard: BẬT`}
+              badge={
+                status?.emergencyStop
+                  ? 'EMERGENCY STOP'
+                  : status != null
+                  ? 'ONLINE'
+                  : undefined
+              }
+              badgeVariant={status?.emergencyStop ? 'danger' : 'success'}
               icon={ShieldAlert}
-              status={isError ? 'DATA_UNAVAILABLE' : 'LIVE'}
+              status={statusState}
             />
           </div>
 
           {/* Holdings and Allocation Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Active Positions Table (2 Cols) */}
+            {/* Active Positions Table (2 Cols) — canonical BrokerPosition fields only */}
             <div className="lg:col-span-2 bg-[#111827] border border-[#263244] rounded-xl overflow-hidden flex flex-col">
               <div className="p-4 bg-[#0E1522] border-b border-[#263244] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-200 font-mono uppercase tracking-wider">
-                    Danh mục vị thế nắm giữ ({positions.length})
+                    Danh mục vị thế nắm giữ ({positions === null ? UNAVAILABLE : positions.length})
                   </span>
                 </div>
                 <span className="text-[11px] font-mono text-slate-400">
-                  Tổng giá trị cổ phiếu: {(totalMarketValue / 1000000).toFixed(2)} tr VND
+                  Tổng giá trị cổ phiếu: {isFiniteNumber(marketValue) ? `${formatMillionsVND(marketValue)} VND` : UNAVAILABLE}
                 </span>
               </div>
 
               <div className="overflow-x-auto">
-                {positions.length === 0 ? (
+                {positions === null ? (
+                  <div className="p-8 text-center space-y-3">
+                    <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
+                    <p className="text-xs font-mono text-amber-400">
+                      Không tải được trạng thái vị thế từ PaperBroker (server-authoritative).
+                    </p>
+                    <Button variant="outline" size="sm" onClick={handleRefresh} leftIcon={RefreshCw}>
+                      Thử lại
+                    </Button>
+                  </div>
+                ) : positions.length === 0 ? (
                   <div className="p-8 text-center space-y-3">
                     <Layers className="w-10 h-10 text-slate-600 mx-auto" />
                     <p className="text-xs text-slate-400">
@@ -191,21 +273,20 @@ export const PortfolioPage: React.FC = () => {
                         <th className="py-2.5 px-3 font-semibold">Khối lượng</th>
                         <th className="py-2.5 px-3 font-semibold">Giá vốn</th>
                         <th className="py-2.5 px-3 font-semibold">Giá hiện tại</th>
+                        <th className="py-2.5 px-3 font-semibold">Giá trị thị trường</th>
                         <th className="py-2.5 px-3 font-semibold">Lãi / Lỗ</th>
-                        <th className="py-2.5 px-3 font-semibold">Tỷ trọng</th>
                         <th className="py-2.5 px-3 text-right">Chi tiết</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#263244]">
-                      {positions.map((pos: any) => {
-                        const shares = pos.shares || pos.quantity || 0;
-                        const avgPrice = pos.avgPrice || pos.averagePrice || 0;
-                        const currentPrice = pos.currentPrice || pos.lastPrice || avgPrice;
-                        const mktVal = shares * currentPrice;
-                        const costVal = shares * avgPrice;
-                        const pnl = pos.unrealizedPnL ?? (mktVal - costVal);
-                        const pnlPercent = costVal > 0 ? (pnl / costVal) * 100 : 0;
-                        const weight = totalEquity > 0 ? (mktVal / totalEquity) * 100 : 0;
+                      {positions.map((pos: BrokerPosition) => {
+                        // All values below are canonical BrokerPosition fields rendered
+                        // verbatim (presentation-only formatting). NO frontend recomputation:
+                        // no market value, P&L, return, exposure, or weight math here.
+                        const pnlColor =
+                          isFiniteNumber(pos.unrealizedPnL) && pos.unrealizedPnL < 0
+                            ? 'text-rose-400'
+                            : 'text-emerald-400';
 
                         return (
                           <tr
@@ -219,28 +300,25 @@ export const PortfolioPage: React.FC = () => {
                               </span>
                             </td>
                             <td className="py-3 px-3 font-mono text-slate-300 font-semibold">
-                              {shares.toLocaleString()}
+                              {formatAmount(pos.quantity)}
                             </td>
                             <td className="py-3 px-3 font-mono text-slate-400">
-                              {avgPrice.toLocaleString()}
+                              {formatAmount(pos.averageCost)}
                             </td>
                             <td className="py-3 px-3 font-mono font-semibold text-slate-100">
-                              {currentPrice.toLocaleString()}
+                              {formatAmount(pos.currentPrice)}
+                            </td>
+                            <td className="py-3 px-3 font-mono text-slate-200">
+                              {formatMillionsVND(pos.marketValue)}
                             </td>
                             <td className="py-3 px-3 font-mono">
-                              <div className={pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                              <div className={pnlColor}>
                                 <span className="font-bold">
-                                  {pnl >= 0 ? '+' : ''}{(pnl / 1000000).toFixed(2)} tr
+                                  {formatSignedMillionsVND(pos.unrealizedPnL)}
                                 </span>
                                 <span className="block text-[10px]">
-                                  {pnl >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
+                                  {formatSignedPercent(pos.unrealizedPnLPercent)}
                                 </span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-3 font-mono">
-                              <span className="text-slate-200 font-medium">{weight.toFixed(1)}%</span>
-                              <div className="w-12 h-1 bg-[#1E293B] rounded-full mt-1 overflow-hidden">
-                                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.min(weight, 100)}%` }} />
                               </div>
                             </td>
                             <td className="py-3 px-3 text-right">
@@ -255,42 +333,26 @@ export const PortfolioPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Sector Allocation Breakdown (1 Col) */}
+            {/* Sector/Asset Allocation (1 Col).
+                The canonical BrokerPosition/BrokerAccount contract exposes NO sector
+                classification and NO per-position allocation weights, so this panel
+                intentionally performs ZERO frontend computation (Phase 19.5.6 §5/§6):
+                allocation/exposure must come from a canonical provider or not display. */}
             <div className="bg-[#111827] border border-[#263244] rounded-xl p-4 space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-[#263244]">
                 <span className="text-xs font-bold uppercase tracking-wider font-mono text-slate-200 flex items-center gap-2">
                   <PieChart className="w-4 h-4 text-indigo-400" />
-                  Phân bổ theo ngành
+                  Phân bổ tài sản
                 </span>
-                <span className="text-[10px] font-mono text-slate-400">Tỷ trọng</span>
               </div>
 
-              {positions.length === 0 ? (
-                <div className="py-8 text-center space-y-2 text-slate-400 text-xs">
-                  <p>100% Tiền mặt (Cash Reserve)</p>
-                  <p className="text-[11px] text-slate-500 font-mono">Chưa phân bổ vào nhóm ngành cổ phiếu</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {Object.entries(sectorMap).map(([sec, val]) => {
-                    const pct = totalMarketValue > 0 ? ((val as number) / totalMarketValue) * 100 : 0;
-                    return (
-                      <div key={sec} className="space-y-1">
-                        <div className="flex justify-between text-xs font-mono">
-                          <span className="text-slate-300 font-sans">{sec}</span>
-                          <span className="text-slate-100 font-bold">{pct.toFixed(1)}%</span>
-                        </div>
-                        <div className="w-full h-2 bg-[#1E293B] rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
-                            style={{ width: `${Math.min(pct, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="py-4 text-center space-y-2 text-slate-400 text-xs">
+                <p className="font-mono text-amber-400/90">DATA_UNAVAILABLE</p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Phân bổ ngành / tỷ trọng vị thế không nằm trong hợp đồng dữ liệu PaperBroker
+                  hiện tại. Giá trị này chỉ hiển thị khi có nguồn canonical phía máy chủ.
+                </p>
+              </div>
 
               <div className="pt-3 border-t border-[#263244] space-y-2 text-xs">
                 <div className="flex items-center gap-2 text-emerald-400">

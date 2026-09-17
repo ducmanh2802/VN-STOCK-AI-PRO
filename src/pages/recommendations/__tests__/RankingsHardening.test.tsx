@@ -15,6 +15,33 @@ import {
 import { RecommendationRanking, RankingResult } from '../../../types/recommendation';
 import { RecommendationEngine } from '../../../lib/analysis/strategy/RecommendationEngine';
 import { RankingsTable } from '../RankingsTable';
+import { RecommendationsPage } from '../../RecommendationsPage';
+
+// Rankings page state is driven by the market-queries hooks. Controlling them
+// at the hook boundary lets each test render the REAL page branch (loading,
+// data, empty, error) without a DOM environment or network.
+const hooksMock = vi.hoisted(() => ({
+  rankings: {
+    data: undefined as unknown,
+    isLoading: false,
+    error: null as unknown,
+    refetch: () => {},
+    isFetching: false,
+  },
+  stockRecommendations: {
+    data: undefined as unknown,
+    isLoading: true,
+    error: null as unknown,
+  },
+}));
+
+vi.mock('../../../hooks/useMarketQueries', () => ({
+  useRecommendationRankings: () => hooksMock.rankings,
+  useStockRecommendations: () => hooksMock.stockRecommendations,
+}));
+
+const renderPage = () =>
+  renderToStaticMarkup(<RecommendationsPage onSelectStock={() => {}} />);
 
 /**
  * PHASE 19.5.4 — Rankings UI Hardening & Canonical Quant Integration Test Suite
@@ -125,6 +152,36 @@ describe('Phase 19.5.4 — Rankings Hardening & Integration', () => {
 
     // Score must be rendered exactly as 87
     expect(html).toContain('>87<');
+  });
+
+  // Backend rank is authoritative: presentation sorting must never re-derive ranks
+  it('Test 2b: Backend rank is authoritative — UI sorting never recomputes rank', () => {
+    // Deliberately NOT ordered by rank; sorted by symbol for presentation.
+    const unsorted: RecommendationRanking[] = [
+      { ...validRankings[2], rank: 3, symbol: 'VNM', score: 45 }, // backend rank 3
+      { ...validRankings[0], rank: 1, symbol: 'FPT', score: 85 }, // backend rank 1
+    ];
+
+    const html = renderToStaticMarkup(
+      <RankingsTable
+        rankings={unsorted}
+        activeStockSymbol="FPT"
+        sortBy="symbol"
+        sortOrder="asc"
+        onSort={vi.fn()}
+        onSelectRowStock={vi.fn()}
+        onNavigateToStock={vi.fn()}
+      />
+    );
+
+    // Backend ranks 1 and 3 are displayed verbatim. A recomputed order would
+    // have re-numbered VNM to 2 — the backend rank must survive presentation sorting.
+    expect(html).toContain('>1<');
+    expect(html).toContain('>3<');
+    expect(html).not.toContain('>2<');
+    // Canonical score rendered verbatim, not recalculated from the sort order.
+    expect(html).toContain('>85<');
+    expect(html).toContain('>45<');
   });
 
   // Test 3: Unavailable metric does not become zero
@@ -275,32 +332,53 @@ describe('Phase 19.5.4 — Rankings Hardening & Integration', () => {
     expect(result.rankings[0].rank).toBe(1);
   });
 
-  // Test 7: Loading state representation
-  it('Test 7: Loading state behaves with appropriate feedback', () => {
-    const loadingMessage = 'Đang chấm điểm và xếp hạng chiến lược toàn rổ cổ phiếu...';
-    expect(loadingMessage).toContain('Đang chấm điểm');
+  // Test 7: Loading state — real page render shows loading feedback, never fabricated rows
+  it('Test 7: Loading state renders loading feedback without fabricated rankings', () => {
+    hooksMock.rankings.isLoading = true;
+    hooksMock.rankings.data = undefined;
+    hooksMock.rankings.error = null;
+
+    const html = renderPage();
+
+    expect(html).toContain('Đang chấm điểm và xếp hạng chiến lược toàn rổ cổ phiếu');
+    // No ranking table may be fabricated while loading
+    expect(html).not.toContain('<table');
+    expect(html).not.toContain('data-testid="ranking-row-');
   });
 
-  // Test 8: Empty state representation
-  it('Test 8: Empty state handles zero results gracefully', () => {
-    const emptyResult: RankingResult = {
+  // Test 8: Empty state — real page render shows explicit empty state, no injected securities
+  it('Test 8: Empty result renders explicit empty state without fabricated securities', () => {
+    hooksMock.rankings.isLoading = false;
+    hooksMock.rankings.error = null;
+    hooksMock.rankings.data = {
       strategy: 'SHORT_TERM',
-      generatedAt: new Date().toISOString(),
+      generatedAt: '2026-03-20T10:00:00.000Z',
       dataSource: 'KBS_VPS',
       dataStatus: 'EMPTY',
       rankings: [],
       universeSize: 0,
       filteredCount: 0,
-    };
+    } satisfies RankingResult;
 
-    expect(emptyResult.rankings.length).toBe(0);
-    expect(emptyResult.dataStatus).toBe('EMPTY');
+    const html = renderPage();
+
+    expect(html).toContain('Chưa có dữ liệu xếp hạng chiến lược cho khung thời gian này');
+    expect(html).not.toContain('<table');
+    expect(html).not.toContain('data-testid="ranking-row-');
   });
 
-  // Test 9: Error state representation
-  it('Test 9: Error state maintains clean error diagnostics', () => {
-    const err = new Error('Network connection failed');
-    expect(err.message).toBe('Network connection failed');
+  // Test 9: API error — real page render shows the error state, NOT an empty ranking
+  it('Test 9: API failure renders error state and never hides the backend failure', () => {
+    hooksMock.rankings.isLoading = false;
+    hooksMock.rankings.error = new Error('Failed to fetch recommendation rankings');
+    hooksMock.rankings.data = undefined;
+
+    const html = renderPage();
+
+    expect(html).toContain('Không thể tải bảng xếp hạng khuyến nghị');
+    expect(html).toContain('Failed to fetch recommendation rankings');
+    // An API error must not degrade into the empty-state message
+    expect(html).not.toContain('Chưa có dữ liệu xếp hạng');
   });
 
   // Test 10: DATA_UNAVAILABLE rendering
@@ -314,19 +392,35 @@ describe('Phase 19.5.4 — Rankings Hardening & Integration', () => {
     expect(unavailStatus.label).toBe('CHƯA ĐỦ DỮ LIỆU');
   });
 
-  // Test 11: Stock Detail navigation maintains canonical symbol identity
-  it('Test 11: Stock Detail navigation maintains uppercase trimmed symbol identity', () => {
-    const targetSymbol = '  hpg  ';
-    const cleanSymbol = targetSymbol.trim().toUpperCase();
-    expect(cleanSymbol).toBe('HPG');
+  // Test 11: Stock Detail navigation preserves canonical symbol identity (no mutation)
+  it('Test 11: Stock Detail navigation preserves uppercase trimmed symbol identity', () => {
+    const dirtyRanking: RecommendationRanking[] = [
+      { ...validRankings[1], symbol: '  hpg  ' },
+    ];
 
     let navigatedTo: string | null = null;
-    const handleNavigate = (sym: string) => {
-      navigatedTo = (sym || '').trim().toUpperCase();
-    };
+    const html = renderToStaticMarkup(
+      <RankingsTable
+        rankings={dirtyRanking}
+        activeStockSymbol="HPG"
+        sortBy="rank"
+        sortOrder="asc"
+        onSort={vi.fn()}
+        onSelectRowStock={vi.fn()}
+        onNavigateToStock={(sym) => {
+          navigatedTo = sym;
+        }}
+      />
+    );
 
-    handleNavigate(targetSymbol);
-    expect(navigatedTo).toBe('HPG');
+    // The table renders (and would navigate with) the cleaned canonical identity
+    expect(html).toContain('data-testid="ranking-row-HPG"');
+    expect(html).toContain('Xem chi tiết HPG');
+    // No mutated/lowercase/untrimmed variant may leak into the markup
+    expect(html).not.toContain('hpg');
+    // Page-level normalization contract used by both navigation handlers
+    expect('  hpg  '.trim().toUpperCase()).toBe('HPG');
+    expect(navigatedTo).toBeNull();
   });
 
   // Test 12: Stale/provenance metadata handling
