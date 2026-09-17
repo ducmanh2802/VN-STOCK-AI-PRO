@@ -12,5 +12,8 @@
 | Phase 19.5.2 | Screener UI Hardening | COMPLETED |
 | Phase 19.5.3 | Stock Detail UI Hardening | COMPLETED |
 | Phase 19.5.4 | Rankings UI Hardening | COMPLETED |
+| Phase 19.5.5 | Recommendations UI Hardening & Canonical Risk/Allocation Integration | COMPLETED |
+| Phase 19.5.6 | Portfolio / Positions UI Hardening & Canonical Trading-State Integration | COMPLETED |
+| Phase 19.5.7 | Trading UI / Order Hardening & Canonical Paper-Trading Integration | COMPLETED |
 | Phase 19.6 | Authoritative Financial Document Pipeline | COMPLETED |
 | Phase 19.7 | Authoritative Financial Facts Integration | COMPLETED |

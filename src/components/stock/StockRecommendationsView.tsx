@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { InvestmentHorizon, HORIZON_LABELS, InvestmentRecommendation } from '../../types/recommendation';
 import { useStockRecommendations } from '../../hooks/useMarketQueries';
+import { isFiniteNumber, isPositiveFiniteNumber } from './metrics';
 
 interface StockRecommendationsViewProps {
   symbol: string;
@@ -24,6 +25,18 @@ interface StockRecommendationsViewProps {
 export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> = ({ symbol }) => {
   const [selectedHorizon, setSelectedHorizon] = useState<InvestmentHorizon>('SHORT_TERM');
   const { data, isLoading, error } = useStockRecommendations(symbol);
+
+  // Canonical fail-closed panel: recommendation unavailable → explicit unavailable
+  // state, never fabricated values (Phase 19.5.5).
+  const unavailablePanel = (
+    <div className="p-8 bg-slate-900/60 border border-slate-800 rounded-xl text-center space-y-3">
+      <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
+      <p className="text-base font-bold text-slate-200 font-mono">Dữ liệu phân tích khuyến nghị chưa sẵn sàng</p>
+      <p className="text-xs text-slate-400 max-w-md mx-auto">
+        Cần đủ dữ liệu giao dịch thực tế từ KBS và báo cáo tài chính VPS để kích hoạt Engine khuyến nghị.
+      </p>
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -35,23 +48,18 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
   }
 
   if (error || !data || data.dataStatus === 'DATA_UNAVAILABLE') {
-    return (
-      <div className="p-8 bg-slate-900/60 border border-slate-800 rounded-xl text-center space-y-3">
-        <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
-        <p className="text-base font-bold text-slate-200 font-mono">Dữ liệu phân tích khuyến nghị chưa sẵn sàng</p>
-        <p className="text-xs text-slate-400 max-w-md mx-auto">
-          Cần đủ dữ liệu giao dịch thực tế từ KBS và báo cáo tài chính VPS để kích hoạt Engine khuyến nghị.
-        </p>
-      </div>
-    );
+    return unavailablePanel;
   }
 
   const recs = data.recommendations;
   if (!recs) {
-    return null;
+    return unavailablePanel;
   }
 
-  const currentRec: InvestmentRecommendation = recs[selectedHorizon];
+  const currentRec: InvestmentRecommendation | undefined = recs[selectedHorizon];
+  if (!currentRec) {
+    return unavailablePanel;
+  }
 
   const getSignalColor = (signal: string) => {
     switch (signal) {
@@ -78,13 +86,14 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
 
   const signalStyle = getSignalColor(currentRec.signal);
 
+  // Fail-closed formatters: null / undefined / NaN / ±Infinity → '—' (never 0, never "NaN").
   const formatVND = (val?: number | null) => {
-    if (val === null || val === undefined) return '—';
+    if (!isFiniteNumber(val)) return '—';
     return new Intl.NumberFormat('vi-VN').format(val) + ' đ';
   };
 
   const formatPercent = (val?: number | null) => {
-    if (val === null || val === undefined) return '—';
+    if (!isFiniteNumber(val)) return '—';
     const prefix = val > 0 ? '+' : '';
     return `${prefix}${val.toFixed(1)}%`;
   };
@@ -157,7 +166,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
             <div>
               <p className="text-[11px] font-mono text-slate-400 uppercase">Điểm Chiến Lược</p>
               <p className={`text-3xl font-black font-mono ${signalStyle.scoreText}`}>
-                {currentRec.score !== null ? `${currentRec.score}/100` : 'N/A'}
+                {isFiniteNumber(currentRec.score) ? `${currentRec.score}/100` : 'N/A'}
               </p>
             </div>
             <div>
@@ -177,7 +186,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
               Kế Hoạch Giá & Tỷ Lệ R:R
             </span>
             <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60">
-              R:R = 1 : {currentRec.riskReward ?? 'N/A'}
+              R:R = 1 : {isPositiveFiniteNumber(currentRec.riskReward) ? currentRec.riskReward : 'N/A'}
             </span>
           </div>
 
@@ -198,7 +207,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-rose-950/30 border border-rose-800/40">
               <div className="flex items-center gap-1.5 text-rose-400">
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Cắt lỗ ({formatPercent(- (currentRec.potentialDownside ?? 0))})</span>
+                <span>Cắt lỗ ({formatPercent(isFiniteNumber(currentRec.potentialDownside) ? -currentRec.potentialDownside : null)})</span>
               </div>
               <span className="font-bold text-rose-400">{formatVND(currentRec.stopLoss)}</span>
             </div>
@@ -207,7 +216,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
           <div className="pt-2 flex items-center justify-between text-[11px] font-mono text-slate-400">
             <span className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
-              Nắm giữ: ~{currentRec.holdingPeriod} ngày
+              {isFiniteNumber(currentRec.holdingPeriod) ? `Nắm giữ: ~${currentRec.holdingPeriod} ngày` : 'Nắm giữ: —'}
             </span>
             <span className="text-slate-300 font-medium">Lô chuẩn 100 CP</span>
           </div>
@@ -234,12 +243,12 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
               <div key={item.label} className="space-y-1">
                 <div className="flex items-center justify-between text-xs font-mono">
                   <span className="text-slate-400">{item.label}</span>
-                  <span className="font-bold text-slate-200">{item.val !== null ? `${item.val}/100` : 'N/A'}</span>
+                  <span className="font-bold text-slate-200">{isFiniteNumber(item.val) ? `${item.val}/100` : 'N/A'}</span>
                 </div>
                 <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className={`h-full ${item.color} rounded-full transition-all duration-500`}
-                    style={{ width: `${item.val ?? 0}%` }}
+                    style={{ width: `${isFiniteNumber(item.val) ? item.val : 0}%` }}
                   />
                 </div>
               </div>
@@ -310,7 +319,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
                 {currentRec.evidence.map((ev, idx) => (
                   <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
                     <td className="py-2.5 px-3 font-semibold text-white">{ev.metric}</td>
-                    <td className="py-2.5 px-3 text-emerald-400 font-bold">{ev.value}</td>
+                    <td className="py-2.5 px-3 text-emerald-400 font-bold">{ev.value ?? 'N/A'}</td>
                     <td className="py-2.5 px-3 text-slate-400">{ev.period ?? 'N/A'}</td>
                     <td className="py-2.5 px-3 text-slate-300">{ev.source}</td>
                     <td className="py-2.5 px-3 text-slate-400 max-w-xs truncate">{ev.calculation ?? 'N/A'}</td>

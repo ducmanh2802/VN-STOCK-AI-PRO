@@ -5,6 +5,7 @@ import { getFullStockDetail } from '../services/market/stockDetailService';
 import { StockChartDataBundle } from '../services/market/stockHistory';
 import { TimeframeOption } from '../types/stockDetail';
 import type { MoneyFlowResult } from '../lib/analysis/moneyFlow/MoneyFlowEngine';
+import type { Order } from '../lib/trading/types/trading';
 // PHASE 8.5C — real market data types (type-only imports: no server code bundled into the client)
 import type { VpsNormalizedFundamentals, VpsNormalizedQuote } from '../services/market/providers/vps/types';
 import type { QuoteCrossCheck } from '../services/market/realMarketDataService';
@@ -470,13 +471,13 @@ export function useTradingPositions() {
 }
 
 export function useTradingOrders() {
-  return useQuery<any[]>({
+  return useQuery<Order[] | null>({
     queryKey: TRADING_KEYS.orders,
     queryFn: async () => {
       const res = await fetch('/api/trading/orders');
       if (!res.ok) throw new Error('Failed to fetch trading orders');
       const json = await res.json();
-      return json.data || [];
+      return json.data;
     },
     refetchInterval: 5 * 1000,
   });
@@ -526,7 +527,7 @@ export function useTradingRiskMetrics() {
 export function usePlaceTradingOrder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { symbol: string; side: 'BUY' | 'SELL'; quantity: number; orderType: 'MARKET' | 'LIMIT' }) => {
+    mutationFn: async (payload: { symbol: string; side: 'BUY' | 'SELL'; quantity: number; orderType: 'MARKET' | 'LIMIT'; limitPrice?: number }) => {
       const res = await fetch('/api/trading/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
