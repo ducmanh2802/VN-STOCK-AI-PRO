@@ -250,10 +250,10 @@ export function WatchlistPage({
       s.changePercent,
       s.volume,
       s.tradingValue,
-      s.rsi,
-      s.pe || '',
-      s.roe || '',
-      s.fairValue,
+      s.rsi ?? '',
+      s.pe ?? '',
+      s.roe ?? '',
+      s.fairValue ?? '',
       computeUpsidePercent(s.price, s.fairValue)?.toFixed(2) ?? '',
       s.aiScore,
       s.trend,
@@ -302,7 +302,7 @@ ${sortedStocks
   .slice(0, 10)
   .map(
     (s) =>
-      `• ${s.symbol.padEnd(4)}: ${formatVND(s.price).padStart(7)} VND (${formatPercent(s.changePercent).padStart(7)}) | AI Score: ${s.aiScore} | FV: ${formatVND(s.fairValue)}`
+      `• ${s.symbol.padEnd(4)}: ${formatVND(s.price).padStart(7)} VND (${formatPercent(s.changePercent).padStart(7)}) | AI Score: ${s.aiScore} | FV: ${s.fairValue != null ? formatVND(s.fairValue) : '—'}`
   )
   .join('\n')}
 --------------------------------------------------

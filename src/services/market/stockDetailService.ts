@@ -44,58 +44,37 @@ export async function getFullStockDetail(symbol: string): Promise<FullStockDetai
   const meta = VIETNAM_STOCKS_UNIVERSE.find((m) => m.symbol === normalized);
 
   // 1. Fetch Real Fundamentals from VPS
-  let fundamentals = {
-    pe: 12.5,
-    pb: 1.6,
-    eps: Math.round(price / 12.5),
-    roe: 16.5,
-    roa: 7.2,
-    dividendYield: 3.5,
-    debtToEquity: 0.65,
-    revenueGrowthYoY: 15.2,
-    profitGrowthYoY: 20.4,
-    netMargin: 14.8,
-    grossMargin: 25.2,
-    sharesOutstanding: 1_000_000_000,
+  let vpsFund;
+  try {
+    vpsFund = await vpsMarketDataProvider.getFundamentals(normalized, price);
+  } catch (err) {
+    // Missing fundamentals: fail-closed, preserve null/unavailable status
+    return null;
+  }
+
+  if (!vpsFund || !vpsFund.metrics) {
+    return null;
+  }
+
+  const m = vpsFund.metrics;
+  const fundamentals = {
+    pe: m.pe,
+    pb: m.pb,
+    eps: m.eps,
+    roe: m.roe,
+    roa: m.roa,
+    dividendYield: m.dividendYield,
+    debtToEquity: m.debtToEquity,
+    revenueGrowthYoY: m.revenueGrowthYoY,
+    profitGrowthYoY: m.profitGrowthYoY,
+    netMargin: m.netMargin,
+    grossMargin: m.grossMargin,
+    sharesOutstanding: m.sharesOutstanding,
     marketCapBillion: baseSummary.marketCap,
   };
 
-  try {
-    const vpsFund = await vpsMarketDataProvider.getFundamentals(normalized, price);
-    if (vpsFund && vpsFund.metrics) {
-      const m = vpsFund.metrics;
-      fundamentals = {
-        pe: m.pe || fundamentals.pe,
-        pb: m.pb || fundamentals.pb,
-        eps: m.eps || Math.round(price / (m.pe || 12.5)),
-        roe: m.roe || fundamentals.roe,
-        roa: m.roa || fundamentals.roa,
-        dividendYield: m.dividendYield || 3.5,
-        debtToEquity: m.debtToEquity || 0.65,
-        revenueGrowthYoY: m.revenueGrowthYoY || 15.2,
-        profitGrowthYoY: m.profitGrowthYoY || 20.4,
-        netMargin: m.netMargin || 14.8,
-        grossMargin: m.grossMargin || 25.2,
-        sharesOutstanding: m.sharesOutstanding || Math.round((baseSummary.marketCap * 1e9) / price),
-        marketCapBillion: baseSummary.marketCap,
-      };
-    }
-  } catch (err) {
-    // Graceful fallback to computed fundamentals if VPS baseinfo is temporarily unreachable
-  }
-
   // 2. Fetch Real Historical Candles from KBS
-  let high52Week = Math.round(price * 1.25);
-  let low52Week = Math.round(price * 0.75);
-  let avgVolume20D = Math.max(100_000, Math.round(baseSummary.volume * 0.9));
-  let ma20 = Math.round(price * 0.98);
-  let ma50 = Math.round(price * 0.95);
-  let ma200 = Math.round(price * 0.90);
-  let rsi = baseSummary.rsi || 52;
-  let pivotHigh = baseSummary.high || price;
-  let pivotLow = baseSummary.low || price;
-  let pivotClose = price;
-
+  let bars;
   try {
     const now = new Date();
     const oneYearAgo = new Date();
@@ -103,34 +82,38 @@ export async function getFullStockDetail(symbol: string): Promise<FullStockDetai
     const startDate = oneYearAgo.toISOString().split('T')[0];
     const endDate = now.toISOString().split('T')[0];
 
-    const bars = await KbsHistoricalProvider.getDailyHistory(normalized, startDate, endDate, { timeoutMs: 4000 });
-    if (bars && bars.length > 0) {
-      const closes = bars.map((b) => b.close);
-      const highs = bars.map((b) => b.high);
-      const lows = bars.map((b) => b.low);
-      const volumes = bars.map((b) => b.volume);
-
-      high52Week = Math.max(...highs);
-      low52Week = Math.min(...lows);
-
-      const recentVolumes = volumes.slice(-20);
-      if (recentVolumes.length > 0) {
-        avgVolume20D = Math.round(recentVolumes.reduce((a, b) => a + b, 0) / recentVolumes.length);
-      }
-
-      ma20 = calculateSMA(closes, 20) ?? ma20;
-      ma50 = calculateSMA(closes, 50) ?? ma50;
-      ma200 = calculateSMA(closes, 200) ?? ma200;
-      rsi = computeCanonicalRSI(closes, bars.map((b) => b.date));
-
-      const lastBar = bars[bars.length - 1];
-      pivotHigh = lastBar.high;
-      pivotLow = lastBar.low;
-      pivotClose = lastBar.close;
-    }
+    bars = await KbsHistoricalProvider.getDailyHistory(normalized, startDate, endDate, { timeoutMs: 4000 });
   } catch (err) {
-    // KBS historical unreachable, proceed with quote-derived levels
+    // KBS historical unreachable: fail-closed, preserve null/unavailable status
+    return null;
   }
+
+  if (!bars || bars.length === 0) {
+    return null;
+  }
+
+  const closes = bars.map((b) => b.close);
+  const highs = bars.map((b) => b.high);
+  const lows = bars.map((b) => b.low);
+  const volumes = bars.map((b) => b.volume);
+
+  const high52Week = Math.max(...highs);
+  const low52Week = Math.min(...lows);
+
+  const recentVolumes = volumes.slice(-20);
+  const avgVolume20D = recentVolumes.length > 0
+    ? Math.round(recentVolumes.reduce((a, b) => a + b, 0) / recentVolumes.length)
+    : baseSummary.volume;
+
+  const ma20 = calculateSMA(closes, 20);
+  const ma50 = calculateSMA(closes, 50);
+  const ma200 = calculateSMA(closes, 200);
+  const rsi = computeCanonicalRSI(closes, bars.map((b) => b.date));
+
+  const lastBar = bars[bars.length - 1];
+  const pivotHigh = lastBar.high;
+  const pivotLow = lastBar.low;
+  const pivotClose = lastBar.close;
 
   // 3. Derive Floor Trader Pivot Points
   const p = Math.round((pivotHigh + pivotLow + pivotClose) / 3);
@@ -141,8 +124,8 @@ export async function getFullStockDetail(symbol: string): Promise<FullStockDetai
   const r3 = Math.round(pivotHigh + 2 * (p - pivotLow));
   const s3 = Math.round(pivotLow - 2 * (pivotHigh - p));
 
-  const nearestSupport = s1 > 0 && s1 < price ? s1 : ma20 < price ? ma20 : Math.round(price * 0.95);
-  const nearestResistance = r1 > price ? r1 : Math.round(price * 1.05);
+  const nearestSupport = s1 > 0 && s1 < price ? s1 : (ma20 != null && ma20 < price ? ma20 : s1 > 0 ? s1 : price);
+  const nearestResistance = r1 > price ? r1 : (r2 > price ? r2 : price);
 
   const targetPrice1 = Math.round(price * 1.15);
   const targetPrice2 = Math.round(price * 1.25);
@@ -162,8 +145,11 @@ export async function getFullStockDetail(symbol: string): Promise<FullStockDetai
   const company = meta?.companyName || baseSummary.companyName;
 
   const executiveThesis = `${company} (${normalized}) là doanh nghiệp hàng đầu trong nhóm ngành ${sector}, sở hữu vị thế cạnh tranh vững chắc và dòng tiền kinh doanh ổn định.`;
-  const technicalThesis = `Cổ phiếu đang vận động quanh vùng giá ${price.toLocaleString('vi-VN')} đ với hỗ trợ gần nhất tại ${nearestSupport.toLocaleString('vi-VN')} đ (MA20: ${ma20.toLocaleString('vi-VN')} đ) và chỉ báo RSI(14) đạt ${rsi}.`;
-  const fundamentalThesis = `Định giá P/E hiện tại ở mức ${fundamentals.pe.toFixed(1)}x, P/B ${fundamentals.pb.toFixed(1)}x và tỷ suất sinh lời ROE ${fundamentals.roe.toFixed(1)}% tạo nền tảng định giá hấp dẫn cho tầm nhìn trung - dài hạn.`;
+  const technicalThesis = `Cổ phiếu đang vận động quanh vùng giá ${price.toLocaleString('vi-VN')} đ với hỗ trợ gần nhất tại ${nearestSupport.toLocaleString('vi-VN')} đ${ma20 != null ? ` (MA20: ${ma20.toLocaleString('vi-VN')} đ)` : ''} và chỉ báo RSI(14) đạt ${rsi}.`;
+  const peText = fundamentals.pe != null && fundamentals.pe > 0 ? `P/E hiện tại ở mức ${fundamentals.pe.toFixed(1)}x` : 'P/E đang cập nhật';
+  const pbText = fundamentals.pb != null && fundamentals.pb > 0 ? `P/B ${fundamentals.pb.toFixed(1)}x` : 'P/B đang cập nhật';
+  const roeText = fundamentals.roe != null && fundamentals.roe > 0 ? `ROE ${fundamentals.roe.toFixed(1)}%` : 'ROE đang cập nhật';
+  const fundamentalThesis = `Định giá ${peText}, ${pbText} và tỷ suất sinh lời ${roeText} tạo nền tảng định giá hấp dẫn cho tầm nhìn trung - dài hạn.`;
   const macroThesis = `Hưởng lợi từ định hướng phục hồi kinh tế vĩ mô, giải ngân vốn đầu tư công và chính sách ổn định tiền tệ của Ngân hàng Nhà nước Việt Nam.`;
   const keyRisks = [
     'Biến động tỷ giá và lãi suất liên ngân hàng trong ngắn hạn',

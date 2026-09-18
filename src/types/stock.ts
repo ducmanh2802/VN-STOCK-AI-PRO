@@ -2,6 +2,8 @@ export type MarketExchange = 'HOSE' | 'HNX' | 'UPCOM';
 
 export type StockTrend = 'UPTREND' | 'DOWNTREND' | 'SIDEWAY';
 
+export type StockSummaryDataStatus = 'AVAILABLE' | 'PARTIAL' | 'UNAVAILABLE';
+
 export interface StockSummary {
   symbol: string;
   companyName: string;
@@ -16,18 +18,19 @@ export interface StockSummary {
   high: number;
   low: number;
   refPrice: number;
-  ceilingPrice: number;
-  floorPrice: number;
+  ceilingPrice: number | null;
+  floorPrice: number | null;
   marketCap: number; // in billion VND
-  pe: number;
-  pb: number;
-  roe: number;
-  rsi: number;
+  pe: number | null;
+  pb: number | null;
+  roe: number | null;
+  rsi: number | null;
   trend: StockTrend;
   aiScore: number; // 0 - 100
-  fairValue: number;
+  fairValue: number | null;
   sparkline: number[];
   isDemo?: boolean;
+  dataStatus?: StockSummaryDataStatus;
 }
 
 export interface TopMover {

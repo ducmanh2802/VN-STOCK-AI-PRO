@@ -234,14 +234,14 @@ export const WatchlistPreviewWidget: React.FC<WatchlistPreviewWidgetProps> = ({
                       <td className="py-2.5 px-2 text-center font-mono">
                         <span
                           className={`font-semibold ${
-                            stock.rsi > 70
+                            stock.rsi != null && stock.rsi > 70
                               ? 'text-terminal-down'
-                              : stock.rsi < 30
+                              : stock.rsi != null && stock.rsi < 30
                               ? 'text-terminal-up'
                               : 'text-terminal-text-secondary'
                           }`}
                         >
-                          {stock.rsi.toFixed(1)}
+                          {stock.rsi != null ? stock.rsi.toFixed(1) : '—'}
                         </span>
                       </td>
 

@@ -166,14 +166,14 @@ export function WatchlistWidget({
                       <td className="py-2.5 px-3 text-center font-semibold">
                         <span
                           className={
-                            stock.rsi >= 70
+                            stock.rsi != null && stock.rsi >= 70
                               ? 'text-terminal-ref'
-                              : stock.rsi <= 35
+                              : stock.rsi != null && stock.rsi <= 35
                               ? 'text-terminal-floor'
                               : 'text-terminal-text-secondary'
                           }
                         >
-                          {stock.rsi}
+                          {stock.rsi != null ? stock.rsi : '—'}
                         </span>
                       </td>
 

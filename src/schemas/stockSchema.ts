@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const MarketExchangeSchema = z.enum(['HOSE', 'HNX', 'UPCOM']);
 export const StockTrendSchema = z.enum(['UPTREND', 'DOWNTREND', 'SIDEWAY']);
+export const StockSummaryDataStatusSchema = z.enum(['AVAILABLE', 'PARTIAL', 'UNAVAILABLE']);
 
 export const StockSummarySchema = z.object({
   symbol: z.string().min(1).max(10),
@@ -17,18 +18,19 @@ export const StockSummarySchema = z.object({
   high: z.number().nonnegative(),
   low: z.number().nonnegative(),
   refPrice: z.number().nonnegative(),
-  ceilingPrice: z.number().nonnegative(),
-  floorPrice: z.number().nonnegative(),
+  ceilingPrice: z.number().nonnegative().nullable(),
+  floorPrice: z.number().nonnegative().nullable(),
   marketCap: z.number().nonnegative(),
-  pe: z.number(),
-  pb: z.number(),
-  roe: z.number(),
-  rsi: z.number(),
+  pe: z.number().nonnegative().nullable(),
+  pb: z.number().nonnegative().nullable(),
+  roe: z.number().nullable(),
+  rsi: z.number().min(0).max(100).nullable(),
   trend: StockTrendSchema,
   aiScore: z.number().min(0).max(100),
-  fairValue: z.number().nonnegative(),
+  fairValue: z.number().nonnegative().nullable(),
   sparkline: z.array(z.number()),
   isDemo: z.boolean().optional(),
+  dataStatus: StockSummaryDataStatusSchema.optional(),
 });
 
 export const TopMoverSchema = z.object({

@@ -3,18 +3,18 @@
  * a non-finite input (null/undefined/NaN/±Infinity) is UNAVAILABLE and must
  * never be rendered as a fabricated numeric value ("NaN", "Infinity", "0").
  */
-function isFiniteValue(value: number): boolean {
+function isFiniteValue(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
 const UNAVAILABLE = '--';
 
-export function formatVND(value: number): string {
+export function formatVND(value: number | null | undefined): string {
   if (!isFiniteValue(value)) return UNAVAILABLE;
   return new Intl.NumberFormat('vi-VN').format(Math.round(value));
 }
 
-export function formatNumber(value: number, decimals?: number): string {
+export function formatNumber(value: number | null | undefined, decimals?: number): string {
   if (!isFiniteValue(value)) return UNAVAILABLE;
   if (decimals !== undefined) {
     return new Intl.NumberFormat('vi-VN', {
@@ -25,7 +25,7 @@ export function formatNumber(value: number, decimals?: number): string {
   return new Intl.NumberFormat('vi-VN').format(value);
 }
 
-export function formatIndexPoint(value: number): string {
+export function formatIndexPoint(value: number | null | undefined): string {
   if (!isFiniteValue(value)) return UNAVAILABLE;
   return new Intl.NumberFormat('vi-VN', {
     minimumFractionDigits: 2,
@@ -33,19 +33,19 @@ export function formatIndexPoint(value: number): string {
   }).format(value);
 }
 
-export function formatPercent(value: number, includeSign = true): string {
+export function formatPercent(value: number | null | undefined, includeSign = true): string {
   if (!isFiniteValue(value)) return UNAVAILABLE;
   const sign = value > 0 && includeSign ? '+' : '';
   return `${sign}${value.toFixed(2)}%`;
 }
 
-export function formatPointChange(value: number, includeSign = true): string {
+export function formatPointChange(value: number | null | undefined, includeSign = true): string {
   if (!isFiniteValue(value)) return UNAVAILABLE;
   const sign = value > 0 && includeSign ? '+' : '';
   return `${sign}${value.toFixed(2)}`;
 }
 
-export function formatVolume(val: number): string {
+export function formatVolume(val: number | null | undefined): string {
   if (!isFiniteValue(val)) return UNAVAILABLE;
   if (val >= 1_000_000_000) {
     return `${(val / 1_000_000_000).toFixed(2)}B`;
@@ -59,7 +59,7 @@ export function formatVolume(val: number): string {
   return new Intl.NumberFormat('vi-VN').format(val);
 }
 
-export function formatBillionVND(val: number): string {
+export function formatBillionVND(val: number | null | undefined): string {
   if (!isFiniteValue(val)) return UNAVAILABLE;
   return `${new Intl.NumberFormat('vi-VN', {
     maximumFractionDigits: 1,

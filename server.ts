@@ -301,7 +301,16 @@ async function startServer() {
       const latestDaily = await PriceRepository.getLatestDaily(stock.id);
       const latestRatios = await FundamentalRepository.getLatestRatios(stock.id);
 
-      const currentPrice = latestDaily ? Number(latestDaily.close) : 100000;
+      const rawClose = latestDaily?.close != null ? Number(latestDaily.close) : NaN;
+      if (!Number.isFinite(rawClose) || rawClose <= 0) {
+        return res.status(404).json({
+          symbol: req.params.symbol,
+          dataStatus: 'DATA_UNAVAILABLE',
+          error: 'Dữ liệu giá không khả dụng cho phân tích định giá',
+        });
+      }
+
+      const currentPrice = rawClose;
       const eps = latestRatios?.eps ? Number(latestRatios.eps) : null;
       const bvps = latestRatios?.bvps ? Number(latestRatios.bvps) : null;
 

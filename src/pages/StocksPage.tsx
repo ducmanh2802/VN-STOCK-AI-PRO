@@ -199,9 +199,11 @@ export function StocksPage({
                         {formatBillionVND(stock.marketCap)}
                       </td>
 
-                      <td className="py-3 px-3 text-center text-terminal-text-secondary">{stock.pe}x</td>
+                      <td className="py-3 px-3 text-center text-terminal-text-secondary">
+                        {stock.pe != null ? `${stock.pe}x` : '—'}
+                      </td>
                       <td className="py-3 px-3 text-center text-terminal-up font-medium">
-                        {stock.roe}%
+                        {stock.roe != null ? `${stock.roe}%` : '—'}
                       </td>
 
                       <td className="py-3 px-3 text-center">

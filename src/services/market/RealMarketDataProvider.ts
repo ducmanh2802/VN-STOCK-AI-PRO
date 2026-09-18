@@ -79,8 +79,8 @@ export class RealMarketDataProvider implements MarketDataProvider {
         const changePercent = quote?.changePercent ?? 0;
         const volume = quote?.volume ?? 0;
         const tradingValue = Number(((quote?.totalValue ?? price * volume) / 1e9).toFixed(2));
-        const ceilingPrice = quote?.ceilingPrice ?? Math.round(refPrice * 1.07);
-        const floorPrice = quote?.floorPrice ?? Math.round(refPrice * 0.93);
+        const ceilingPrice = quote?.ceilingPrice ?? null;
+        const floorPrice = quote?.floorPrice ?? null;
         const open = quote?.open ?? refPrice;
         const high = quote?.high ?? Math.max(price, open);
         const low = quote?.low ?? Math.min(price, open);
@@ -113,13 +113,13 @@ export class RealMarketDataProvider implements MarketDataProvider {
           ceilingPrice,
           floorPrice,
           marketCap: Number((price * 1_000_000 / 1e9).toFixed(1)), // Estimated cap in tỷ VND
-          pe: 12.5,
-          pb: 1.6,
-          roe: 16.8,
-          rsi: changePercent > 2 ? 65 : changePercent < -2 ? 35 : 50,
+          pe: null,
+          pb: null,
+          roe: null,
+          rsi: null,
           trend,
           aiScore,
-          fairValue: Math.round(price * 1.15),
+          fairValue: null,
           sparkline: [
             Math.round(refPrice * 0.99),
             open,
@@ -129,6 +129,7 @@ export class RealMarketDataProvider implements MarketDataProvider {
             price,
           ],
           isDemo: false,
+          dataStatus: 'PARTIAL',
         };
 
         this.cachedSummaries.set(meta.symbol, summary);
@@ -158,8 +159,8 @@ export class RealMarketDataProvider implements MarketDataProvider {
     const vn30Adv = vn30Stocks.filter((s) => s.change > 0).length;
     const vn30Dec = vn30Stocks.filter((s) => s.change < 0).length;
     const vn30Unc = vn30Stocks.filter((s) => s.change === 0).length;
-    const vn30Ceil = vn30Stocks.filter((s) => s.price >= s.ceilingPrice && s.ceilingPrice > 0).length;
-    const vn30Floor = vn30Stocks.filter((s) => s.price <= s.floorPrice && s.floorPrice > 0).length;
+    const vn30Ceil = vn30Stocks.filter((s) => s.ceilingPrice != null && s.ceilingPrice > 0 && s.price >= s.ceilingPrice).length;
+    const vn30Floor = vn30Stocks.filter((s) => s.floorPrice != null && s.floorPrice > 0 && s.price <= s.floorPrice).length;
 
     const vn30AvgChangePct = vn30Stocks.length > 0
       ? vn30Stocks.reduce((sum, s) => sum + s.changePercent, 0) / vn30Stocks.length
@@ -177,8 +178,8 @@ export class RealMarketDataProvider implements MarketDataProvider {
     const hoseAdv = hoseStocks.filter((s) => s.change > 0).length;
     const hoseDec = hoseStocks.filter((s) => s.change < 0).length;
     const hoseUnc = hoseStocks.filter((s) => s.change === 0).length;
-    const hoseCeil = hoseStocks.filter((s) => s.price >= s.ceilingPrice && s.ceilingPrice > 0).length;
-    const hoseFloor = hoseStocks.filter((s) => s.price <= s.floorPrice && s.floorPrice > 0).length;
+    const hoseCeil = hoseStocks.filter((s) => s.ceilingPrice != null && s.ceilingPrice > 0 && s.price >= s.ceilingPrice).length;
+    const hoseFloor = hoseStocks.filter((s) => s.floorPrice != null && s.floorPrice > 0 && s.price <= s.floorPrice).length;
 
     const hoseAvgChangePct = hoseStocks.length > 0
       ? hoseStocks.reduce((sum, s) => sum + s.changePercent, 0) / hoseStocks.length
@@ -481,18 +482,19 @@ export class RealMarketDataProvider implements MarketDataProvider {
         high: quote.high,
         low: quote.low,
         refPrice: quote.refPrice ?? quote.price,
-        ceilingPrice: quote.ceilingPrice ?? Math.round(quote.price * 1.07),
-        floorPrice: quote.floorPrice ?? Math.round(quote.price * 0.93),
+        ceilingPrice: quote.ceilingPrice ?? null,
+        floorPrice: quote.floorPrice ?? null,
         marketCap: Number((quote.price * 1_000_000 / 1e9).toFixed(1)),
-        pe: 12.0,
-        pb: 1.5,
-        roe: 15.0,
-        rsi: 50,
+        pe: null,
+        pb: null,
+        roe: null,
+        rsi: null,
         trend: quote.changePercent > 0 ? 'UPTREND' : quote.changePercent < 0 ? 'DOWNTREND' : 'SIDEWAY',
         aiScore: 60,
-        fairValue: Math.round(quote.price * 1.15),
+        fairValue: null,
         sparkline: [quote.price, quote.price],
         isDemo: false,
+        dataStatus: 'PARTIAL',
       };
       return summary;
     } catch {
@@ -506,8 +508,8 @@ export class RealMarketDataProvider implements MarketDataProvider {
     const advances = all.filter((s) => s.change > 0).length;
     const declines = all.filter((s) => s.change < 0).length;
     const unchanged = all.filter((s) => s.change === 0).length;
-    const ceilings = all.filter((s) => s.price >= s.ceilingPrice && s.ceilingPrice > 0).length;
-    const floors = all.filter((s) => s.price <= s.floorPrice && s.floorPrice > 0).length;
+    const ceilings = all.filter((s) => s.ceilingPrice != null && s.ceilingPrice > 0 && s.price >= s.ceilingPrice).length;
+    const floors = all.filter((s) => s.floorPrice != null && s.floorPrice > 0 && s.price <= s.floorPrice).length;
     const totalStocks = all.length;
 
     const advVal = all.filter((s) => s.change > 0).reduce((sum, s) => sum + s.tradingValue, 0);
@@ -526,8 +528,8 @@ export class RealMarketDataProvider implements MarketDataProvider {
         advances: list.filter((s) => s.change > 0).length,
         declines: list.filter((s) => s.change < 0).length,
         unchanged: list.filter((s) => s.change === 0).length,
-        ceilings: list.filter((s) => s.price >= s.ceilingPrice && s.ceilingPrice > 0).length,
-        floors: list.filter((s) => s.price <= s.floorPrice && s.floorPrice > 0).length,
+        ceilings: list.filter((s) => s.ceilingPrice != null && s.ceilingPrice > 0 && s.price >= s.ceilingPrice).length,
+        floors: list.filter((s) => s.floorPrice != null && s.floorPrice > 0 && s.price <= s.floorPrice).length,
       };
     };
 
@@ -557,8 +559,8 @@ export class RealMarketDataProvider implements MarketDataProvider {
           advances: vn30List.filter((s) => s.change > 0).length,
           declines: vn30List.filter((s) => s.change < 0).length,
           unchanged: vn30List.filter((s) => s.change === 0).length,
-          ceilings: vn30List.filter((s) => s.price >= s.ceilingPrice && s.ceilingPrice > 0).length,
-          floors: vn30List.filter((s) => s.price <= s.floorPrice && s.floorPrice > 0).length,
+          ceilings: vn30List.filter((s) => s.ceilingPrice != null && s.ceilingPrice > 0 && s.price >= s.ceilingPrice).length,
+          floors: vn30List.filter((s) => s.floorPrice != null && s.floorPrice > 0 && s.price <= s.floorPrice).length,
         },
         hnx: getBreakdown('HNX'),
         upcom: getBreakdown('UPCOM'),
@@ -639,7 +641,9 @@ export class RealMarketDataProvider implements MarketDataProvider {
     const topStocks = sorted.slice(0, 6);
 
     return topStocks.map((s, idx) => {
-      const upside = Number((((s.fairValue - s.price) / s.price) * 100).toFixed(1));
+      const upside = s.fairValue != null && s.price > 0
+        ? Number((((s.fairValue - s.price) / s.price) * 100).toFixed(1))
+        : 0;
       const stopLoss = Math.round(s.price * 0.94);
       let signalType: AITopSignal['signalType'] = 'BUY';
       let signalLabel = 'Khuyến nghị MUA';
@@ -666,17 +670,19 @@ export class RealMarketDataProvider implements MarketDataProvider {
         aiScore: s.aiScore,
         confidence: Math.min(95, s.aiScore + 5),
         currentPrice: s.price,
-        targetPrice: s.fairValue,
+        targetPrice: s.fairValue ?? s.price,
         stopLossPrice: stopLoss,
-        upsidePercent: upside > 0 ? upside : 12.5,
+        upsidePercent: upside > 0 ? upside : 0,
         riskRewardRatio: '1 : 2.8',
         timeframe: 'Trung hạn (1 - 3 tháng)',
         catalysts: [
           'Dòng tiền khớp lệnh chủ động vượt trung bình 20 phiên',
-          'Vùng hỗ trợ kỹ thuật vững chắc và định giá hấp dẫn',
+          'Vùng hỗ trợ kỹ thuật vững chắc và biến động tích cực',
           'Triển vọng tăng trưởng lợi nhuận quý đạt kỳ vọng cao',
         ],
-        technicalSummary: `Giá đang vận động tích cực trên đường MA20 ngày với chỉ báo RSI quanh mức ${s.rsi}.`,
+        technicalSummary: s.rsi != null
+          ? `Giá đang vận động tích cực trên đường MA20 ngày với chỉ báo RSI quanh mức ${s.rsi}.`
+          : 'Tín hiệu phân tích kỹ thuật dựa trên dòng tiền và xu hướng biến động giá.',
         updatedAt: new Date().toISOString(),
         isDemo: false,
       };
