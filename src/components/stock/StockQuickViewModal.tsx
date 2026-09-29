@@ -129,8 +129,8 @@ export function StockQuickViewModal({
               {formatBillionVND(stock.marketCap)}
             </div>
             <div className="text-xs text-terminal-text-muted font-mono">
-              P/E: <span className="text-terminal-text-secondary">{stock.pe}x</span> | P/B:{' '}
-              <span className="text-terminal-text-secondary">{stock.pb}x</span>
+              P/E: <span className="text-terminal-text-secondary">{stock.pe != null ? `${stock.pe}x` : '—'}</span> | P/B:{' '}
+              <span className="text-terminal-text-secondary">{stock.pb != null ? `${stock.pb}x` : '—'}</span>
             </div>
           </div>
 
@@ -143,7 +143,7 @@ export function StockQuickViewModal({
               size="sm"
             />
             <div className="text-xs text-terminal-text-muted font-mono">
-              ROE: <span className="text-terminal-up font-medium">{stock.roe}%</span>
+              ROE: <span className="text-terminal-up font-medium">{stock.roe != null ? `${stock.roe}%` : '—'}</span>
             </div>
           </div>
         </div>
@@ -153,7 +153,7 @@ export function StockQuickViewModal({
           <Card variant="subtle" density="compact" className="space-y-2">
             <CardHeader className="flex items-center justify-between pb-1.5 border-b border-terminal-border/80">
               <span className="text-xs font-semibold text-terminal-text-secondary uppercase tracking-wider">
-                Tín hiệu Kỹ thuật (DEMO)
+                Tín hiệu Kỹ thuật
               </span>
               <Badge variant={trendBadgeVariant} size="xs" withDot>
                 {stock.trend}
@@ -163,7 +163,9 @@ export function StockQuickViewModal({
               <div className="grid grid-cols-3 gap-2 text-center text-xs mt-1">
                 <div className="p-2 rounded bg-terminal-bg border border-terminal-border">
                   <div className="text-terminal-text-muted mb-0.5">RSI (14)</div>
-                  <div className="font-mono font-bold text-terminal-text-primary">{stock.rsi}</div>
+                  <div className="font-mono font-bold text-terminal-text-primary">
+                    {stock.rsi != null ? stock.rsi : '—'}
+                  </div>
                 </div>
                 <div className="p-2 rounded bg-terminal-bg border border-terminal-border">
                   <div className="text-terminal-text-muted mb-0.5">Giá tham chiếu</div>
@@ -182,7 +184,7 @@ export function StockQuickViewModal({
           <Card variant="subtle" density="compact" className="space-y-2">
             <CardHeader className="flex items-center justify-between pb-1.5 border-b border-terminal-border/80">
               <span className="text-xs font-semibold text-terminal-text-secondary uppercase tracking-wider">
-                Định giá ước tính (DEMO)
+                Định giá ước tính
               </span>
               <span className="inline-flex items-center gap-1 text-xs text-terminal-accent">
                 <ShieldCheck className="w-3.5 h-3.5" />
@@ -193,12 +195,16 @@ export function StockQuickViewModal({
               <div className="grid grid-cols-2 gap-2 text-xs mt-1">
                 <div className="p-2 rounded bg-terminal-bg border border-terminal-border">
                   <div className="text-terminal-text-muted mb-0.5">Giá trị hợp lý</div>
-                  <div className="font-mono font-bold text-terminal-text-primary">{formatVND(stock.fairValue)}</div>
+                  <div className="font-mono font-bold text-terminal-text-primary">
+                    {stock.fairValue != null ? formatVND(stock.fairValue) : '—'}
+                  </div>
                 </div>
                 <div className="p-2 rounded bg-terminal-bg border border-terminal-border">
                   <div className="text-terminal-text-muted mb-0.5">Biên an toàn / Upside</div>
                   <div className="font-mono font-bold text-terminal-up">
-                    +{(((stock.fairValue - stock.price) / stock.price) * 100).toFixed(1)}%
+                    {stock.fairValue != null && stock.price > 0
+                      ? `${(((stock.fairValue - stock.price) / stock.price) * 100) >= 0 ? '+' : ''}${(((stock.fairValue - stock.price) / stock.price) * 100).toFixed(1)}%`
+                      : '—'}
                   </div>
                 </div>
               </div>

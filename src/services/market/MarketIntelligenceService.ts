@@ -6,12 +6,13 @@
  */
 
 import { VIETNAM_STOCKS_UNIVERSE } from './stockUniverse.ts';
-import { getHistoricalStockData, MarketDataUnavailableError } from './realMarketDataService.ts';
+import { getHistoricalStockData } from './realMarketDataService.ts';
 import { cacheGet, cacheSet } from './marketDataCache.ts';
 import {
   MarketIntelligenceSnapshotBuilder,
   type ConstituentCandleData,
   type MarketIntelligenceSnapshot,
+  type DataFreshnessStatus,
 } from '../../lib/analysis/market/index.ts';
 import type { CandlePoint } from '../../lib/indicators/types.ts';
 
@@ -21,6 +22,7 @@ const SNAPSHOT_CACHE_TTL_MS = 60_000; // 1 minute TTL
 export class MarketIntelligenceService {
   /**
    * Retrieves or computes the canonical MarketIntelligenceSnapshot using real market data.
+   * Strictly fail-closed: Never synthesizes fake benchmark prices when index feed is unavailable.
    */
   public static async getSnapshot(options?: {
     forceRefresh?: boolean;
@@ -36,6 +38,10 @@ export class MarketIntelligenceService {
         return cached;
       }
     }
+
+    const now = Date.now();
+    const fetchedAt = new Date(now).toISOString();
+    let latestSourceTime: number | null = null;
 
     // 1. Determine symbols to fetch
     const symbolsToFetch = options?.universeSubset
@@ -62,6 +68,15 @@ export class MarketIntelligenceService {
                 sectorId: meta?.sectorId,
                 candles: stockData.candles,
               });
+
+              // Track latest source bar timestamp
+              const lastCandle = stockData.candles[stockData.candles.length - 1];
+              if (lastCandle && lastCandle.time) {
+                const barTs = new Date(lastCandle.time).getTime();
+                if (!isNaN(barTs) && (latestSourceTime === null || barTs > latestSourceTime)) {
+                  latestSourceTime = barTs;
+                }
+              }
             }
           } catch (e) {
             // Fail closed on individual stock: omitted from constituentData, reported in coverage
@@ -71,76 +86,52 @@ export class MarketIntelligenceService {
     }
 
     // 3. Attempt to fetch benchmark candles (VN-INDEX / VN30)
-    // If specific index symbol is not directly served as a single stock candle feed,
-    // we construct a robust market benchmark from the constituent basket (VN30 equal-weight).
+    // Strictly fail closed: If index symbol is unavailable, set indexCandles to []
+    // NEVER synthesize fake index prices by averaging constituent baskets.
     let indexCandles: CandlePoint[] = [];
     try {
       const vnIndexData = await getHistoricalStockData('VNINDEX', '3M');
-      if (vnIndexData && vnIndexData.candles.length > 0) {
+      if (vnIndexData && vnIndexData.candles && vnIndexData.candles.length > 0) {
         indexCandles = vnIndexData.candles;
+        const lastIndexBar = indexCandles[indexCandles.length - 1];
+        if (lastIndexBar && lastIndexBar.time) {
+          const indexTs = new Date(lastIndexBar.time).getTime();
+          if (!isNaN(indexTs) && (latestSourceTime === null || indexTs > latestSourceTime)) {
+            latestSourceTime = indexTs;
+          }
+        }
       }
     } catch {
-      // Fallback: Build synthetic equal-weighted benchmark from valid VN30 constituents
-      indexCandles = this.buildConstituentIndex(constituentData);
+      // Real index candle data is unavailable: fail closed, indexCandles remains empty.
+      indexCandles = [];
     }
 
-    if (indexCandles.length === 0) {
-      indexCandles = this.buildConstituentIndex(constituentData);
+    // 4. Derive PR-01 freshness status
+    let dataFreshness: DataFreshnessStatus = 'CURRENT';
+    if (constituentData.length === 0) {
+      dataFreshness = 'UNAVAILABLE';
+    } else {
+      const totalExpected = symbolsToFetch.length;
+      const coverageRatio = totalExpected > 0 ? constituentData.length / totalExpected : 0;
+      if (coverageRatio < 0.5) {
+        dataFreshness = 'STALE';
+      }
     }
 
-    // 4. Build snapshot
+    // 5. Build canonical snapshot
     const snapshot = MarketIntelligenceSnapshotBuilder.build({
       indexCandles,
       constituents: constituentData,
       universeName: options?.universeSubset ? 'CUSTOM_SUBSET' : 'VIETNAM_ALL',
+      dataFreshness,
+      fetchedAt,
+      sourceTimestamp: latestSourceTime,
     });
 
-    // 5. Cache result if valid
+    // 6. Cache result if valid
     cacheSet(cacheKey, snapshot, SNAPSHOT_CACHE_TTL_MS);
 
     return snapshot;
   }
-
-  /**
-   * Helper to construct a synthetic aggregate index series when direct index OHLCV feed is unavailable.
-   */
-  private static buildConstituentIndex(constituents: ConstituentCandleData[]): CandlePoint[] {
-    if (constituents.length === 0) return [];
-
-    const dateMap = new Map<
-      string,
-      { opens: number[]; highs: number[]; lows: number[]; closes: number[]; volumes: number[] }
-    >();
-
-    for (const item of constituents) {
-      for (const c of item.candles) {
-        const dateKey = String(c.time);
-        if (!dateMap.has(dateKey)) {
-          dateMap.set(dateKey, { opens: [], highs: [], lows: [], closes: [], volumes: [] });
-        }
-        const bucket = dateMap.get(dateKey)!;
-        bucket.opens.push(c.open);
-        bucket.highs.push(c.high);
-        bucket.lows.push(c.low);
-        bucket.closes.push(c.close);
-        bucket.volumes.push(c.volume);
-      }
-    }
-
-    const sortedDates = Array.from(dateMap.keys()).sort();
-    const avg = (arr: number[]) => (arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
-    const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
-
-    return sortedDates.map((date) => {
-      const b = dateMap.get(date)!;
-      return {
-        time: date,
-        open: Number(avg(b.opens).toFixed(2)),
-        high: Number(avg(b.highs).toFixed(2)),
-        low: Number(avg(b.lows).toFixed(2)),
-        close: Number(avg(b.closes).toFixed(2)),
-        volume: sum(b.volumes),
-      };
-    });
-  }
 }
+

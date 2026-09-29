@@ -130,6 +130,9 @@ export class RealMarketDataProvider implements MarketDataProvider {
           ],
           isDemo: false,
           dataStatus: 'PARTIAL',
+          dataFreshness: 'CURRENT',
+          fetchedAt: new Date(now).toISOString(),
+          sourceTimestamp: null,
         };
 
         this.cachedSummaries.set(meta.symbol, summary);
@@ -140,7 +143,10 @@ export class RealMarketDataProvider implements MarketDataProvider {
       return results;
     } catch (err) {
       if (this.cachedSummaries.size > 0) {
-        return Array.from(this.cachedSummaries.values());
+        return Array.from(this.cachedSummaries.values()).map((s) => ({
+          ...s,
+          dataFreshness: 'STALE' as const,
+        }));
       }
       throw err;
     }
@@ -495,6 +501,9 @@ export class RealMarketDataProvider implements MarketDataProvider {
         sparkline: [quote.price, quote.price],
         isDemo: false,
         dataStatus: 'PARTIAL',
+        dataFreshness: 'CURRENT',
+        fetchedAt: new Date().toISOString(),
+        sourceTimestamp: null,
       };
       return summary;
     } catch {

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { StockSummarySchema } from '../stockSchema';
 import { StockSummary } from '../../types/stock';
 import { formatVND, formatPercent, formatNumber } from '../../utils/formatters';
@@ -205,10 +205,39 @@ describe('PR-01B: Fail-Closed Nullable Metric Formatting', () => {
 describe('PR-01B: RealMarketDataProvider Output Contract', () => {
   it('verifies that StockSummary produced by provider has null fundamentals and passes schema without synthetic fabrication', async () => {
     const { RealMarketDataProvider } = await import('../../services/market/RealMarketDataProvider');
-    const provider = new RealMarketDataProvider();
+    const { vpsMarketDataProvider } = await import('../../services/market/providers/VPSMarketDataProvider');
 
-    // Mock getQuote from VPS to return real quote structure
+    // Deterministic VPS quote response (real shape)
+    const spy = vi.spyOn(vpsMarketDataProvider, 'getQuotes').mockResolvedValueOnce([
+      {
+        symbol: 'HPG',
+        price: 28500,
+        previousClose: 28000,
+        refPrice: 28000,
+        change: 500,
+        changePercent: 1.78,
+        volume: 15000000,
+        totalValue: 427500000000,
+        open: 28200,
+        high: 28700,
+        low: 28100,
+        ceilingPrice: 29950,
+        floorPrice: 26050,
+        source: 'VPS',
+        status: 'LIVE',
+        dataStatus: 'LIVE',
+        fetchedAt: new Date().toISOString(),
+        freshnessMs: 500,
+        marketTimestamp: null,
+        timestamp: Date.now(),
+      },
+    ]);
+
+    const provider = new RealMarketDataProvider();
     const detail = await provider.getStockDetail('HPG');
+    spy.mockRestore();
+
+    expect(detail).not.toBeNull();
     if (detail) {
       // Must pass schema
       const validated = StockSummarySchema.parse(detail);

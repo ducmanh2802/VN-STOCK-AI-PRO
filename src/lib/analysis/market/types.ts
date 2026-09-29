@@ -6,6 +6,9 @@
  */
 
 import type { CandlePoint } from '../../indicators/types.ts';
+import type { DataFreshnessStatus } from '../../../types/stock.ts';
+
+export type { DataFreshnessStatus };
 
 // ------------------------------------------------------------------
 // 1. MARKET REGIME TYPES
@@ -218,6 +221,9 @@ export interface VolumeFlowIntelligenceResult {
 
 export interface MarketIntelligenceSnapshot {
   timestamp: string;
+  dataFreshness: DataFreshnessStatus;
+  fetchedAt: string;
+  sourceTimestamp: number | null;
   market: 'VIETNAM_EQUITIES';
   regime: MarketRegimeResult;
   breadth: MarketBreadthResult;

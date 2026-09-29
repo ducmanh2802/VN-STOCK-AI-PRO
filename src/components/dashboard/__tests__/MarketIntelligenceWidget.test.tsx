@@ -7,6 +7,9 @@ import type { MarketIntelligenceSnapshot } from '../../../lib/analysis/market/ty
 describe('MarketIntelligenceWidget (Dashboard Step 1)', () => {
   const mockSnapshot: MarketIntelligenceSnapshot = {
     timestamp: '2026-03-20T10:00:00.000Z',
+    dataFreshness: 'CURRENT',
+    fetchedAt: '2026-03-20T10:00:00.000Z',
+    sourceTimestamp: 1774000800000,
     market: 'VIETNAM_EQUITIES',
     regime: {
       regime: 'BULL_TREND',

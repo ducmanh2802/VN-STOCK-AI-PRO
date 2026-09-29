@@ -22,6 +22,7 @@ import type {
   MarketRecoveryStrengthResult,
   BreakdownRiskLevel,
   RecoveryStrengthStage,
+  DataFreshnessStatus,
 } from './types.ts';
 
 export interface MarketIntelligenceSnapshotInput {
@@ -30,6 +31,9 @@ export interface MarketIntelligenceSnapshotInput {
   constituents: readonly ConstituentCandleData[];
   asOf?: string;
   universeName?: string;
+  dataFreshness?: DataFreshnessStatus;
+  fetchedAt?: string;
+  sourceTimestamp?: number | null;
 }
 
 export class MarketIntelligenceSnapshotBuilder {
@@ -45,6 +49,9 @@ export class MarketIntelligenceSnapshotBuilder {
       constituents,
       asOf = new Date().toISOString(),
       universeName = 'VIETNAM_EQUITIES',
+      dataFreshness: explicitFreshness,
+      fetchedAt = asOf,
+      sourceTimestamp: explicitSourceTs,
     } = input;
 
     const allWarnings: string[] = [];
@@ -418,8 +425,32 @@ export class MarketIntelligenceSnapshotBuilder {
       };
     }
 
+    // 8. Freshness & Timestamp Semantics
+    let derivedFreshness: DataFreshnessStatus = explicitFreshness ?? 'CURRENT';
+    if (!explicitFreshness) {
+      if (constituents.length === 0 || validSymbols === 0) {
+        derivedFreshness = 'UNAVAILABLE';
+      } else if (isFailClosed) {
+        derivedFreshness = 'STALE';
+      } else {
+        derivedFreshness = 'CURRENT';
+      }
+    }
+
+    let derivedSourceTimestamp: number | null = explicitSourceTs ?? null;
+    if (derivedSourceTimestamp === null && indexCandles && indexCandles.length > 0) {
+      const lastCandle = indexCandles[indexCandles.length - 1];
+      const parsed = new Date(lastCandle.time).getTime();
+      if (!isNaN(parsed)) {
+        derivedSourceTimestamp = parsed;
+      }
+    }
+
     return {
       timestamp: asOf,
+      dataFreshness: derivedFreshness,
+      fetchedAt,
+      sourceTimestamp: derivedSourceTimestamp,
       market: 'VIETNAM_EQUITIES',
       regime,
       breadth,

@@ -169,7 +169,11 @@ export function useStockDetail(symbol: string | null) {
     queryKey: MARKET_KEYS.stockDetail(symbol || ''),
     queryFn: async () => {
       if (!symbol) return null;
-      return marketService.getStockDetail(symbol);
+      const data = await marketService.getStockDetail(symbol);
+      if (process.env.NODE_ENV !== 'production' && data) {
+        StockSummarySchema.parse(data);
+      }
+      return data;
     },
     enabled: Boolean(symbol),
   });

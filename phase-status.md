@@ -17,3 +17,9 @@
 | Phase 19.5.7 | Trading UI / Order Hardening & Canonical Paper-Trading Integration | COMPLETED |
 | Phase 19.6 | Authoritative Financial Document Pipeline | COMPLETED |
 | Phase 19.7 | Authoritative Financial Facts Integration | COMPLETED |
+| PR-01A | Fail-Closed Valuation & Invariants | COMPLETED |
+| PR-01B | StockSummary Nullable/Status Contract Unblock | COMPLETED |
+| PR-01C | Data Contract Integration Audit | COMPLETED |
+| PR-01D | Data Freshness & Availability Integrity Audit | COMPLETED |
+| PR-01E | End-to-End Pipeline & UI Hardening Certification | COMPLETED |
+| Phase 20 | Market Intelligence Foundation | COMPLETED |

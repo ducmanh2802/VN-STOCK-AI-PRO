@@ -4,6 +4,8 @@ export type StockTrend = 'UPTREND' | 'DOWNTREND' | 'SIDEWAY';
 
 export type StockSummaryDataStatus = 'AVAILABLE' | 'PARTIAL' | 'UNAVAILABLE';
 
+export type DataFreshnessStatus = 'CURRENT' | 'STALE' | 'UNAVAILABLE' | 'INVALID';
+
 export interface StockSummary {
   symbol: string;
   companyName: string;
@@ -31,6 +33,9 @@ export interface StockSummary {
   sparkline: number[];
   isDemo?: boolean;
   dataStatus?: StockSummaryDataStatus;
+  dataFreshness?: DataFreshnessStatus;
+  fetchedAt?: string;
+  sourceTimestamp?: string | number | null;
 }
 
 export interface TopMover {

@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const MarketExchangeSchema = z.enum(['HOSE', 'HNX', 'UPCOM']);
 export const StockTrendSchema = z.enum(['UPTREND', 'DOWNTREND', 'SIDEWAY']);
 export const StockSummaryDataStatusSchema = z.enum(['AVAILABLE', 'PARTIAL', 'UNAVAILABLE']);
+export const DataFreshnessStatusSchema = z.enum(['CURRENT', 'STALE', 'UNAVAILABLE', 'INVALID']);
 
 export const StockSummarySchema = z.object({
   symbol: z.string().min(1).max(10),
@@ -31,6 +32,9 @@ export const StockSummarySchema = z.object({
   sparkline: z.array(z.number()),
   isDemo: z.boolean().optional(),
   dataStatus: StockSummaryDataStatusSchema.optional(),
+  dataFreshness: DataFreshnessStatusSchema.optional(),
+  fetchedAt: z.string().optional(),
+  sourceTimestamp: z.union([z.string(), z.number()]).nullable().optional(),
 });
 
 export const TopMoverSchema = z.object({
