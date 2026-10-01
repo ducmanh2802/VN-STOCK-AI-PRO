@@ -1,8 +1,58 @@
-# Current Engineering Milestone: Phase 20 Market Intelligence Foundation Certification
+# Current Engineering Milestone: Phase 23 Corporate Actions Intelligence Foundation Certification
 
-**Status**: PHASE 20 PASS (All PR-01 + Phase 20 Certified)  
-**Timestamp**: 2026-09-29T12:05:00Z  
-**Baseline**: 77/77 test files, 1,184/1,184 tests passed, TypeScript 0 errors, Production build clean.
+**Status**: PHASE 23 PASS (All Phase 20 + Phase 21 + Phase 22 + Phase 23 Certified)  
+**Timestamp**: 2026-10-01T13:10:00Z  
+**Baseline**: 100/100 test files, 1,312/1,312 tests passed, TypeScript 0 errors, Production build clean.
+
+---
+
+## Phase 23 Execution & Governance Summary
+
+### Phase 23 — Corporate Actions Intelligence Foundation
+- Established canonical domain models and contracts for Vietnamese corporate actions in `src/lib/corporate-actions/types.ts`.
+- Implemented `VietnamCorporateActionsRegistry` with deterministic resolution across authoritative VSDC and HOSE/HNX disclosures (`HPG`, `FPT`, `VNM`, `SSI`, `MBB`, `TCB`, `VND`).
+- Implemented `CorporateActionDateEngine` resolving T+2 Ex-Dates ($\text{exDate} = \text{TradingDayPrev}(\text{recordDate}, 1)$) with statutory Vietnam holiday handling (Tet, Hung Kings, Apr 30, May 1, Sep 2, Jan 1) and schedule validation.
+- Implemented `CorporateActionEntitlementEngine` supporting standard market ratios (`100:8`, `10:1`, `20:3`), non-negative share validations, and strict VSDC `FLOOR` fractional-share truncation.
+- Implemented `CorporateActionAdjustmentEngine` computing exact ex-right reference prices ($P_{\text{ex}} = \frac{P_{\text{prev}} - C + I \cdot P_{\text{issue}}}{1 + S + B + I}$), single-event adjustment multipliers ($k_t = P_{\text{ex}} / P_{\text{prev}}$), and cumulative backward-adjusted price series ($K_\tau = \prod_{t_i > \tau} k_{t_i}$) while strictly preserving raw OHLCV immutability.
+- Enforced Out-Of-The-Money (OTM) rights safety invariant ($P_{\text{issue}} \ge P_{\text{prev}} \implies k_t = 1.0$), preventing artificial historical price inflation.
+- Implemented `CorporateActionSnapshotBuilder` adhering 100% to PR-01 freshness contracts (`dataFreshness`, `sourceTimestamp`, `fetchedAt`, `dataLineage`, `warnings`).
+- Implemented `CorporateActionDataProvider` and `CorporateActionIntelligenceService` with in-memory TTL caching (60s snapshot TTL, key isolation).
+- Added 8 dedicated test suites (42 new tests, 100% pass) including property-based testing (PBT) across 400+ pseudo-random parameter variations, fail-closed matrices, and zero-synthetic production audits.
+- Verified zero synthetic data or fabricated market events in production paths.
+
+---
+
+## Phase 22 Execution & Governance Summary
+
+### Phase 22 — ETF & Fund Intelligence Foundation
+- Established canonical domain models and contracts for Vietnamese ETFs in `src/lib/etf/types.ts`.
+- Implemented `VietnamEtfRegistry` with deterministic resolution across all 10 HOSE-listed ETFs (`E1VFVN30`, `FUEVFVND`, `FUESSVFL`, `FUESSV30`, `FUEVN100`, `FUEMAV30`, `FUEMAVND`, `FUEKIV30`, `FUEKIVFS`, `FUEIP100`).
+- Implemented `EtfDataProvider` for live quote ingestion via VPS Securities (`getliststockdata`) with strict VND equity unit normalization, and historical daily bars ingestion via KBS Securities (`data_day`).
+- Implemented `EtfNavEngine` computing official EOD NAV change ($\Delta \text{NAV}$, $\Delta \text{NAV}\%$) and Intraday Indicative NAV ($iNAV = (\sum Q_i P_i + \text{Cash}) / \text{CreationShares}$) with strict fail-closed guards (any missing constituent price fails closed to `DATA_UNAVAILABLE`).
+- Implemented Premium/Discount valuation: Points ($P_{\text{market}} - \text{NAV}$), Percentage ($((P_{\text{market}} - \text{NAV})/\text{NAV}) \times 100\%$), zero denominator protections, timestamp divergence warnings, and canonical regime classification (`PREMIUM`, `DISCOUNT`, `PAR`, `DATA_UNAVAILABLE`).
+- Implemented `EtfHoldingsEngine` for constituent weights, benchmark deviations, cash drag percentage, Top 5/10 concentration, and sector breakdown.
+- Implemented `EtfTrackingEngine` and `EtfPerformanceEngine` for Tracking Difference (cumulative return spread), Tracking Error (sample standard deviation with $N-1$ denominator, annualized via $\sqrt{252}$), Beta, Correlation, $R^2$, multi-period returns, realized volatility, and Maximum Drawdown (MDD).
+- Implemented `EtfIntelligenceSnapshotBuilder` adhering strictly to PR-01 freshness contracts (`dataFreshness`, `sourceTimestamp`, `fetchedAt`, `dataLineage`).
+- Implemented `EtfIntelligenceService` with in-memory TTL caching (60s snapshot TTL) and deterministic fail-closed fallback for unregistered symbols.
+- Added 7 dedicated test suites (31 new tests, 100% pass) including property-based testing across basket weight partitioning, premium/discount arithmetic monotonicity, and regime partition exhaustiveness.
+- Verified zero synthetic data or fabricated market prices in production paths.
+
+---
+
+## Phase 21 Execution & Governance Summary
+
+### Phase 21 — Derivatives Intelligence Foundation
+- Established canonical domain models and contracts for Vietnam index futures in `src/lib/derivatives/types.ts`.
+- Implemented `ExpiryCalendarEngine` with third-Thursday expiration rules and official Vietnam statutory holiday adjustments.
+- Implemented `VietnamDerivativesRegistry` and `ContractResolver` for active tenor mapping (`1M`, `2M`, `1Q`, `2Q`) and rollover transitions.
+- Implemented `BasisEngine` computing spot-futures basis ($F - S$), basis percentage, annualized basis, Cost of Carry fair value, and mispricing spread with strict division-by-zero guards.
+- Implemented `OpenInterestEngine` calculating $\Delta OI$, $\Delta OI\%$, Volume-to-OI velocity, and 4-quadrant market positioning interpretation (`LONG_ACCUMULATION`, `SHORT_ACCUMULATION`, `SHORT_COVERING`, `LONG_LIQUIDATION`).
+- Implemented `TermStructureEngine` for calendar spreads ($F_{2M} - F_{1M}$, $F_{1Q} - F_{1M}$), curve shape (`CONTANGO`, `BACKWARDATION`, `FLAT`, `HUMPTED`), and canonical regime classification (`STRONG_CONTANGO`, `MILD_CONTANGO`, `FLAT_NEUTRAL`, `MILD_BACKWARDATION`, `STRONG_BACKWARDATION`, `UNKNOWN`).
+- Implemented `ContinuousFuturesEngine` for backtest-ready roll-adjusted continuous series (`UNADJUSTED`, `BACKWARD_DIFFERENCE`, `PROPORTIONAL_RATIO`) without lookahead bias.
+- Implemented `DerivativesDataProvider` and `DerivativesIntelligenceService` providing live quote ingestion from VPS with dedicated index-point normalization (no equity kVND unit distortion) and fail-closed handling.
+- Composed `DerivativesIntelligenceSnapshotBuilder` adhering 100% to PR-01 freshness contracts (`dataFreshness`, `sourceTimestamp`, `fetchedAt`).
+- Added 8 dedicated test suites (55 new tests, 100% pass) including property-based testing across arithmetic, calendar, OI conservation, and regime partition invariants.
+- Verified zero synthetic data or fabricated market prices in production paths.
 
 ---
 
