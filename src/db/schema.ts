@@ -733,3 +733,85 @@ export const alertsRelations = relations(alerts, ({ one }) => ({
     references: [stocks.id],
   }),
 }));
+
+// ==========================================
+// 21. FINANCIAL_FACTS_V2 (Phase 24 — append-only versioned financial facts)
+// ==========================================
+// Additive, append-only store. It does NOT alter or replace the legacy
+// financial_statements table (which remains authoritative for existing flows).
+// Distinct filings/versions coexist; duplicates are prevented by the unique
+// filing index; `value = NULL` means UNAVAILABLE (never 0).
+export const financialFactsV2 = pgTable(
+  'financial_facts_v2',
+  {
+    id: serial('id').primaryKey(),
+    symbol: text('symbol').notNull(),
+    metric: text('metric').notNull(),
+    statementType: text('statement_type').notNull(), // INCOME_STATEMENT | BALANCE_SHEET | CASH_FLOW
+    reportType: text('report_type').notNull(), // CONSOLIDATED | SEPARATE
+    periodId: text('period_id').notNull(), // e.g. Q1-2024, FY2024, TTM-2024-Q4
+    periodType: text('period_type').notNull(),
+    fiscalYear: integer('fiscal_year').notNull(),
+    quarter: integer('quarter'),
+    periodStart: date('period_start').notNull(),
+    periodEnd: date('period_end').notNull(),
+    value: numeric('value', { precision: 24, scale: 4 }),
+    currency: text('currency').notNull(),
+    unit: text('unit').notNull(),
+    audited: boolean('audited').default(false).notNull(),
+    auditStatus: text('audit_status').notNull(), // AUDITED | REVIEWED | UNAUDITED
+    restatementStatus: text('restatement_status').default('ORIGINAL').notNull(),
+    restatementVersion: integer('restatement_version').default(0).notNull(),
+    reportId: text('report_id').notNull(),
+    statementId: text('statement_id').notNull(),
+    publicationDate: date('publication_date'),
+    source: text('source').notNull(),
+    sourceTier: text('source_tier').notNull(),
+    freshness: text('freshness').notNull(), // CURRENT | STALE | UNAVAILABLE | INVALID
+    validationStatus: text('validation_status').notNull(),
+    unavailableReason: text('unavailable_reason'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('fin_facts_v2_filing_idx').on(
+      table.symbol,
+      table.statementType,
+      table.reportType,
+      table.periodId,
+      table.metric,
+      table.source,
+      table.reportId,
+      table.publicationDate
+    ),
+    index('fin_facts_v2_symbol_period_idx').on(table.symbol, table.periodId),
+  ]
+);
+
+// ==========================================
+// 22. EARNINGS_CALENDAR (Phase 24 — earnings/report dates)
+// ==========================================
+// reportDate = NULL means UNKNOWN (never fabricated). Status: ANNOUNCED|EXPECTED|UNKNOWN.
+export const earningsCalendar = pgTable(
+  'earnings_calendar',
+  {
+    id: serial('id').primaryKey(),
+    symbol: text('symbol').notNull(),
+    periodId: text('period_id').notNull(),
+    periodType: text('period_type').notNull(),
+    fiscalYear: integer('fiscal_year').notNull(),
+    reportDate: date('report_date'),
+    status: text('status').notNull(),
+    source: text('source'),
+    sourceTier: text('source_tier'),
+    publicationTimestamp: timestamp('publication_timestamp'),
+    freshness: text('freshness').notNull(),
+    reasonCode: text('reason_code'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('earnings_calendar_symbol_period_source_idx').on(table.symbol, table.periodId, table.source),
+    index('earnings_calendar_symbol_idx').on(table.symbol),
+  ]
+);
+
