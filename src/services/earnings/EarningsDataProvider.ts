@@ -79,17 +79,13 @@ function statementTypeOf(source: FinancialStatementType): EarningsStatementType 
   }
 }
 
-const FRESHNESS_RANK: Readonly<Record<DataFreshnessStatus, number>> = {
-  CURRENT: 0,
-  STALE: 1,
-  UNAVAILABLE: 2,
-  INVALID: 3,
-};
-
-/** Combines freshnesses with INVALID > UNAVAILABLE > STALE > CURRENT dominance. */
+/** Combines freshnesses with INVALID > CURRENT > STALE > UNAVAILABLE hierarchy. */
 export function combineFreshness(statuses: readonly DataFreshnessStatus[]): DataFreshnessStatus {
   if (statuses.length === 0) return 'UNAVAILABLE';
-  return statuses.reduce((worst, s) => (FRESHNESS_RANK[s] > FRESHNESS_RANK[worst] ? s : worst), 'CURRENT');
+  if (statuses.some((s) => s === 'INVALID')) return 'INVALID';
+  if (statuses.some((s) => s === 'CURRENT')) return 'CURRENT';
+  if (statuses.some((s) => s === 'STALE')) return 'STALE';
+  return 'UNAVAILABLE';
 }
 
 export class EarningsDataProvider {

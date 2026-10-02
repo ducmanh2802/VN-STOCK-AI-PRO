@@ -283,10 +283,13 @@ export class FinancialPeriodEngine {
   }
 
   /** True when `b` is the immediately preceding discrete quarter of `a` (QoQ). */
-  public static isQuarterOverQuarterPair(a: FinancialPeriod, b: FinancialPeriod): boolean {
-    if (!this.isComparable(a, b)) return false;
-    const ai = a.fiscalYear * 4 + ((a.quarter ?? 1) - 1);
-    const bi = b.fiscalYear * 4 + ((b.quarter ?? 1) - 1);
+  public static isQuarterOverQuarterPair(a: FinancialPeriod | null, b: FinancialPeriod | null): boolean {
+    if (!a || !b) return false;
+    if (a.accumulation !== 'DISCRETE' || b.accumulation !== 'DISCRETE') return false;
+    if (a.quarter === null || b.quarter === null) return false;
+    if (!/^Q[1-4]$/.test(a.type) || !/^Q[1-4]$/.test(b.type)) return false;
+    const ai = a.fiscalYear * 4 + (a.quarter - 1);
+    const bi = b.fiscalYear * 4 + (b.quarter - 1);
     return ai - bi === 1;
   }
 }
