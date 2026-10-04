@@ -4,3 +4,4 @@
  */
 
 export * from './PolicyIntelligenceService.ts';
+export * from './CapitalCycleDataProvider.ts';

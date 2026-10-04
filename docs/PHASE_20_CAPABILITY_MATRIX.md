@@ -185,9 +185,16 @@ TOTAL CAPABILITIES AUDITED: 70
 4. **Phase 23**: Corporate Actions Engine (Dividends, Splits, Rights Issues, Historical Adjustments).
 5. **Phase 24**: Earnings & Event Intelligence (Quarterly Financials, Earnings Surprise, Accrual Metrics).
 6. **Phase 25**: Strategy Factory (Universal strategy abstraction for Multi-Asset signals).
-7. **Phase 26**: Backtesting Lab (Multi-Asset Backtest, Walk-Forward, Monte Carlo, Generalization).
+7. **Phase 26**: Industry Capital Cycle & Policy Intelligence (Government Policy, Strategic Projects, Evidence-Tiered Beneficiaries, Backlog Conversion, Capital Cycle Classification, Legal/Governance Events, Policy-to-Valuation Evidence Graph).
 8. **Phase 27**: Portfolio Intelligence (Covariance Matrix, Factor Exposure, Multi-Asset Allocation).
 9. **Phase 28**: Full Multi-Asset Quant Platform Integration.
+
+> **Roadmap reconciliation note (Phase 26):** An earlier revision of this
+> document listed Phase 26 as "Backtesting Lab". That entry was a **superseded
+> historical roadmap definition** and is intentionally retired here. Backtesting
+> Lab is **NOT** Phase 26 and is not implemented as part of Phase 26. The active
+> Phase 26 scope is Industry Capital Cycle & Policy Intelligence, matching the
+> implementation under `src/lib/capital-cycle/` and `src/services/capital-cycle/`.
 
 ---
 

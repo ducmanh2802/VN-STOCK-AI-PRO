@@ -8,3 +8,4 @@ export * from './WatchlistRepository.ts';
 export * from './PortfolioRepository.ts';
 export * from './MoneyFlowRepository.ts';
 export * from './EarningsFactsRepository.ts';
+export * from './CapitalCycleRepository.ts';
