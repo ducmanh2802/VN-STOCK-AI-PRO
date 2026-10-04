@@ -7,6 +7,7 @@
 
 import type {
   CentralBankPolicy,
+  DataFreshnessStatus,
   MacroMetricRecord,
   MacroRadarSnapshot,
 } from './types.ts';
@@ -49,14 +50,19 @@ export class MacroSnapshotBuilder {
     const impactChains = MacroImpactEngine.getCausalChains();
     const sectorSensitivities = MacroSensitivityEngine.getAllSensitivities();
     const upcomingEvents = MacroCalendarEngine.getEvents();
-    const activeAlerts = MacroAlertEngine.evaluateAlerts(params.metrics);
+    const activeAlerts = MacroAlertEngine.evaluateAlerts(params.metrics, { asOfDate, evaluatedAt });
 
     const sources = Array.from(new Set(params.metrics.map((m) => m.source)));
+
+    // Fail-closed (P27-D4-legacy): snapshot freshness derives from the input
+    // metrics (regime freshness is engine-derived the same way). STALE is never
+    // masked by CURRENT.
+    const dataFreshness = deriveSnapshotFreshness(params.metrics);
 
     return Object.freeze({
       asOfDate,
       evaluatedAt,
-      dataFreshness: 'CURRENT',
+      dataFreshness,
       benchmarkRadar: Object.freeze(benchmarkRadar),
       allMetrics: Object.freeze([...params.metrics]),
       centralBanks: Object.freeze([...centralBanks]),
@@ -75,8 +81,7 @@ export class MacroSnapshotBuilder {
 
   /**
    * Returns canonical Central Bank policy stances
-   */
-  public static getDefaultCentralBanks(): readonly CentralBankPolicy[] {
+   */  public static getDefaultCentralBanks(): readonly CentralBankPolicy[] {
     return [
       {
         code: 'FED',
@@ -100,7 +105,8 @@ export class MacroSnapshotBuilder {
         previousRate: 4.50,
         lastDecisionDate: '2026-08-20',
         lastAction: 'HOLD',
-        stance: 'ACCOMMODATIVE' as any,
+        // P27-D12-legacy: ACCOMMODATIVE is a first-class stance (was `as any` cast).
+        stance: 'ACCOMMODATIVE',
         nextMeetingDate: null,
         summaryVi: 'NHNN duy trì chính sách tiền tệ nới lỏng linh hoạt, ưu tiên tăng trưởng tín dụng hỗ trợ sản xuất kinh doanh và ổn định tỷ giá.',
         source: 'Ngân hàng Nhà nước Việt Nam',
@@ -150,4 +156,19 @@ export class MacroSnapshotBuilder {
       },
     ];
   }
+}
+
+/**
+ * Derives snapshot freshness from input metrics (P27-D4-legacy):
+ * empty => UNAVAILABLE, any INVALID => INVALID, all CURRENT => CURRENT,
+ * otherwise STALE.
+ */
+function deriveSnapshotFreshness(
+  metrics: readonly { freshness: DataFreshnessStatus }[]
+): DataFreshnessStatus {
+  if (metrics.length === 0) return 'UNAVAILABLE';
+  if (metrics.some((m) => m.freshness === 'INVALID')) return 'INVALID';
+  if (metrics.every((m) => m.freshness === 'CURRENT')) return 'CURRENT';
+  if (metrics.some((m) => m.freshness === 'CURRENT' || m.freshness === 'STALE')) return 'STALE';
+  return 'UNAVAILABLE';
 }

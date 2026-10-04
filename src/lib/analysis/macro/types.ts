@@ -45,6 +45,7 @@ export type CentralBankStance =
   | 'HAWKISH'
   | 'NEUTRAL'
   | 'DOVISH'
+  | 'ACCOMMODATIVE'
   | 'UNCHANGED'
   | 'UNKNOWN';
 

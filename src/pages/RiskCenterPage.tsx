@@ -25,6 +25,7 @@ import {
   type RiskMetric,
 } from '../hooks/useMarketQueries';
 import { LoadingState } from '../components/ui/LoadingState';
+import { LearnThis } from '../components/learning/LearningWidgets';
 
 export const RiskCenterPage: React.FC = () => {
   const [stressScenario, setStressScenario] = useState<'mild' | 'moderate' | 'severe'>('moderate');
@@ -105,6 +106,7 @@ export const RiskCenterPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <LearnThis feature="RiskCenter" />
           <Button variant="outline" size="sm" onClick={handleRefresh} leftIcon={RefreshCw}>
             Kiểm tra an toàn (Audit)
           </Button>

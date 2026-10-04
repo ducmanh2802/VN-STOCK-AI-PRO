@@ -16,6 +16,7 @@ import { InvestmentHorizon, HORIZON_LABELS, RecommendationSignal } from '../type
 import { useRecommendationRankings } from '../hooks/useMarketQueries';
 import { StockRecommendationsView } from '../components/stock/StockRecommendationsView';
 import { RankingsTable } from './recommendations/RankingsTable';
+import { LearnThis } from '../components/learning/LearningWidgets';
 import {
   makeRankingSorter,
   RankingSortKey,
@@ -108,6 +109,7 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({ onSele
           <p className="text-[11px] text-terminal-text-muted max-w-[42rem] font-sans leading-relaxed">
             Hệ thống xếp hạng và chấm điểm chiến lược đa khung thời gian (StrategyScorer + SignalEngine + RiskRewardEngine) dựa trên dữ liệu giao dịch thực tế từ KBS & VPS.
           </p>
+          <LearnThis feature="Recommendations" />
         </div>
 
         {/* Horizon Tabs */}

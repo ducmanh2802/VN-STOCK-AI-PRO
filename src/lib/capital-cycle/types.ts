@@ -266,6 +266,12 @@ export interface CompanyBacklogSummary {
   readonly symbol: string;
   readonly asOfDate: string;
   readonly totalConfirmedBacklogVnd: number | null;
+  /**
+   * Segregated unaudited disclosures (P26-P2-4): company-disclosed but
+   * unaudited backlog (IR decks, press releases). Reported for transparency;
+   * NEVER included in confirmed totals, coverage, or conversion.
+   */
+  readonly totalUnauditedDisclosedBacklogVnd: number | null;
   readonly totalUnverifiedBacklogVnd: number | null;
   readonly trailingTwelveMonthsRevenueVnd: number | null;
   readonly bookToBillRatio: number | null;         // Backlog mới ký / Doanh thu ghi nhận TTM

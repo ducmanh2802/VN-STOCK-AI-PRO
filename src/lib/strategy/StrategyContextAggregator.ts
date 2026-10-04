@@ -36,6 +36,15 @@ export interface BuildStrategyContextOptions {
   readonly macroRegimeSnapshotOverride?: StrategyContext['macroRegimeSnapshot'];
 }
 
+/**
+ * Resolves the derivatives underlying index from a futures symbol.
+ * Fail-closed routing (P25-P2-1): VN100 index futures are evaluated on the
+ * VN100 underlying, never silently on VN30. Exported for unit testing.
+ */
+export function resolveDerivativesUnderlying(symbol: string): 'VN30' | 'VN100' {
+  return symbol.trim().toUpperCase().startsWith('VN100F') ? 'VN100' : 'VN30';
+}
+
 export class StrategyContextAggregator {
   /**
    * Aggregates relevant intelligence snapshots for the specified symbol & asset class.
@@ -74,9 +83,10 @@ export class StrategyContextAggregator {
     }
 
     if (!derivativesSnapshot && (assetClass === 'DERIVATIVE' || assetClass === 'CROSS_ASSET')) {
+      const underlying = resolveDerivativesUnderlying(symbol);
       fetchPromises.push(
         DerivativesIntelligenceService.getSnapshot({
-          underlying: 'VN30',
+          underlying,
           forceRefresh: options.forceRefresh,
           asOfDate,
         })
@@ -169,24 +179,27 @@ export class StrategyContextAggregator {
       await Promise.all(fetchPromises);
     }
 
-    // Lookahead Protection Verification
+    // Lookahead Protection Verification (P25-P2-3): compare FULL instants, not
+    // calendar dates, so an intraday-future snapshot on the same asOfDate is
+    // still rejected. Date-only asOfDate fields keep date-level comparison
+    // (they denote end-of-day attribution, not publication instants).
     const lookaheadViolations: string[] = [];
 
-    if (marketSnapshot?.timestamp && marketSnapshot.timestamp.slice(0, 10) > asOfDate) {
+    if (marketSnapshot?.timestamp && isInstantAfter(marketSnapshot.timestamp, evaluatedAt)) {
       lookaheadViolations.push(
-        `Market snapshot timestamp (${marketSnapshot.timestamp.slice(0, 10)}) > evaluation date (${asOfDate})`
+        `Market snapshot timestamp (${marketSnapshot.timestamp}) > evaluation instant (${evaluatedAt})`
       );
     }
 
-    if (derivativesSnapshot?.timestamp && derivativesSnapshot.timestamp.slice(0, 10) > asOfDate) {
+    if (derivativesSnapshot?.timestamp && isInstantAfter(derivativesSnapshot.timestamp, evaluatedAt)) {
       lookaheadViolations.push(
-        `Derivatives snapshot timestamp (${derivativesSnapshot.timestamp.slice(0, 10)}) > evaluation date (${asOfDate})`
+        `Derivatives snapshot timestamp (${derivativesSnapshot.timestamp}) > evaluation instant (${evaluatedAt})`
       );
     }
 
-    if (etfSnapshot?.timestamp && etfSnapshot.timestamp.slice(0, 10) > asOfDate) {
+    if (etfSnapshot?.timestamp && isInstantAfter(etfSnapshot.timestamp, evaluatedAt)) {
       lookaheadViolations.push(
-        `ETF snapshot timestamp (${etfSnapshot.timestamp.slice(0, 10)}) > evaluation date (${asOfDate})`
+        `ETF snapshot timestamp (${etfSnapshot.timestamp}) > evaluation instant (${evaluatedAt})`
       );
     }
 
@@ -233,4 +246,17 @@ export class StrategyContextAggregator {
       lookaheadDetails: Object.freeze(lookaheadViolations),
     });
   }
+}
+
+/**
+ * True when instant `a` is strictly after instant `b`.
+ * Prefers epoch comparison for parseable ISO instants; falls back to
+ * lexicographic comparison for non-standard stamps. Unparseable inputs never
+ * report lookahead (fail-safe: engine-level publication filters decide).
+ */
+function isInstantAfter(a: string, b: string): boolean {
+  const ta = Date.parse(a);
+  const tb = Date.parse(b);
+  if (Number.isFinite(ta) && Number.isFinite(tb)) return ta > tb;
+  return a > b;
 }

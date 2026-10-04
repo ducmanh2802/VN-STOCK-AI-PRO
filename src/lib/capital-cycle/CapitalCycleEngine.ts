@@ -37,10 +37,11 @@ export class CapitalCycleEngine {
 
   /**
    * Evaluates drivers to determine the deterministic capital cycle stage.
+   * Fail-closed: UNKNOWN carries a null score (never a plottable neutral 50).
    */
   public static classifyStage(drivers: IndustryCycleDrivers): {
     stage: CapitalCycleStage;
-    cycleScore: number;
+    cycleScore: number | null;
     observations: string[];
   } {
     const observations: string[] = [];
@@ -126,10 +127,19 @@ export class CapitalCycleEngine {
       };
     }
 
-    // 6. Check for Early Cycle
+    // 6. Check for Early Cycle (P26-P2-3): a lone policy signal never asserts
+    // a cycle stage. EARLY_CYCLE requires strong policy support (>= 60) PLUS at
+    // least one independent corroborating driver (slack capacity, public
+    // investment flow, healthy order intake, or a known capex trend).
+    const hasCorroboration =
+      (industryCapacityUtilizationPercent !== null && industryCapacityUtilizationPercent < 75) ||
+      publicInvestmentVelocity !== null ||
+      (industryBookToBillRatio !== null && industryBookToBillRatio >= 1.0) ||
+      (privateCapexTrend !== null && privateCapexTrend !== 'UNKNOWN');
     if (
-      (policySupportScore !== null && policySupportScore >= 60) ||
-      (industryCapacityUtilizationPercent !== null && industryCapacityUtilizationPercent < 70)
+      policySupportScore !== null &&
+      policySupportScore >= 60 &&
+      hasCorroboration
     ) {
       observations.push('Early cycle turnaround supported by government policy initiatives despite low capacity utilization.');
       return {
@@ -143,7 +153,8 @@ export class CapitalCycleEngine {
     observations.push('Insufficient metric signals to establish conclusive capital cycle stage.');
     return {
       stage: 'UNKNOWN',
-      cycleScore: 50,
+      // Fail-closed (P26-P2-1): no plottable neutral score on missing data.
+      cycleScore: null,
       observations,
     };
   }

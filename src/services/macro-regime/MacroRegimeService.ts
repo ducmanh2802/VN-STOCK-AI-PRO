@@ -16,6 +16,12 @@ import {
   type MacroObservation,
   type MacroRegimeSnapshot,
 } from '../../lib/macro-regime/index.ts';
+import {
+  DrizzleMacroRegimeDataSource,
+  toSnapshotRow,
+  type MacroRegimeDataSource,
+} from './MacroRegimeDataProvider.ts';
+import { MacroRepository } from '../../lib/db/MacroRepository.ts';
 
 const CACHE_KEY_PREFIX = 'MACRO_REGIME_SNAPSHOT';
 const CACHE_TTL_MS = 60_000; // 60s cache
@@ -24,11 +30,21 @@ export interface GetMacroRegimeSnapshotOptions {
   readonly asOfDate?: string;
   readonly forceRefresh?: boolean;
   readonly observationsOverride?: readonly MacroObservation[];
+  /** Injected real-data source (defaults to the DB-backed provider). */
+  readonly dataSource?: MacroRegimeDataSource;
 }
 
 export class MacroRegimeService {
+  private static readonly defaultDataSource: MacroRegimeDataSource = new DrizzleMacroRegimeDataSource();
+
   /**
    * Retrieves or builds the canonical MacroRegimeSnapshot.
+   *
+   * REAL DATA ONLY (P27-D2): observations resolve through the injected data
+   * source (default: persisted `macro_observations`). An empty or unreachable
+   * store yields an empty observation set and the orchestrator fails closed
+   * to UNKNOWN / UNAVAILABLE — frozen samples are never served as production
+   * data.
    */
   public static async getSnapshot(
     options?: GetMacroRegimeSnapshotOptions
@@ -43,7 +59,7 @@ export class MacroRegimeService {
       }
     }
 
-    const observations = options?.observationsOverride ?? this.getCanonicalMacroObservations(asOfDate);
+    const observations = options?.observationsOverride ?? (await this.resolveObservations(asOfDate, options?.dataSource));
     const snapshot = MacroRegimeOrchestrator.buildSnapshot({
       observations,
       asOfDate,
@@ -51,187 +67,34 @@ export class MacroRegimeService {
 
     if (!options?.observationsOverride) {
       cacheSet(cacheKey, snapshot, CACHE_TTL_MS);
+      // Best-effort persistence (P27-D8): snapshots with real content are
+      // appended to `macro_regime_snapshots`. Failures never break reads, and
+      // UNKNOWN snapshots (no content) are never persisted.
+      if (snapshot.dataFreshness === 'CURRENT' || snapshot.dataFreshness === 'STALE') {
+        await this.persistSnapshot(snapshot);
+      }
     }
     return snapshot;
   }
 
-  /**
-   * Returns canonical statutory macroeconomic observations for Vietnam.
-   */
-  public static getCanonicalMacroObservations(asOfDate: string): readonly MacroObservation[] {
-    const retrievalDate = asOfDate;
+  private static async resolveObservations(
+    asOfDate: string,
+    dataSource?: MacroRegimeDataSource
+  ): Promise<readonly MacroObservation[]> {
+    const source = dataSource ?? this.defaultDataSource;
+    try {
+      const result = await source.fetchObservations({ asOfDate });
+      return result.observations;
+    } catch {
+      return [];
+    }
+  }
 
-    return [
-      {
-        metricCode: 'VN_GDP_GROWTH',
-        observationDate: '2026-09-30',
-        publicationDate: '2026-09-29',
-        retrievalDate,
-        value: 6.82,
-        unit: '% YoY',
-        source: 'Tổng cục Thống kê (GSO)',
-        sourceTier: 'TIER_1_STATUTORY',
-        revisionVersion: 0,
-        frequency: 'QUARTERLY',
-        periodId: '2026-Q3',
-        validationStatus: 'VALID',
-        freshnessStatus: 'CURRENT',
-        notes: 'Tăng trưởng GDP thực tế quý 3/2026',
-      },
-      {
-        metricCode: 'VN_CPI',
-        observationDate: '2026-09-30',
-        publicationDate: '2026-09-29',
-        retrievalDate,
-        value: 3.45,
-        unit: '% YoY',
-        source: 'Tổng cục Thống kê (GSO)',
-        sourceTier: 'TIER_1_STATUTORY',
-        revisionVersion: 0,
-        frequency: 'MONTHLY',
-        periodId: '2026-09',
-        validationStatus: 'VALID',
-        freshnessStatus: 'CURRENT',
-        notes: 'Chỉ số giá tiêu dùng bình quân tháng 9/2026',
-      },
-      {
-        metricCode: 'VN_CORE_CPI',
-        observationDate: '2026-09-30',
-        publicationDate: '2026-09-29',
-        retrievalDate,
-        value: 2.71,
-        unit: '% YoY',
-        source: 'Tổng cục Thống kê (GSO)',
-        sourceTier: 'TIER_1_STATUTORY',
-        revisionVersion: 0,
-        frequency: 'MONTHLY',
-        periodId: '2026-09',
-        validationStatus: 'VALID',
-        freshnessStatus: 'CURRENT',
-        notes: 'Lạm phát cơ bản loại trừ lương thực và năng lượng',
-      },
-      {
-        metricCode: 'VN_PMI',
-        observationDate: '2026-09-30',
-        publicationDate: '2026-10-01',
-        retrievalDate,
-        value: 51.5,
-        unit: 'Points',
-        source: 'S&P Global Vietnam Manufacturing PMI',
-        sourceTier: 'TIER_2_EXCHANGE',
-        revisionVersion: 0,
-        frequency: 'MONTHLY',
-        periodId: '2026-09',
-        validationStatus: 'VALID',
-        freshnessStatus: 'CURRENT',
-        notes: 'Chỉ số nhà quản trị mua hàng ngành sản xuất',
-      },
-      {
-        metricCode: 'SBV_REFINANCING_RATE',
-        observationDate: '2026-09-30',
-        publicationDate: '2026-09-30',
-        retrievalDate,
-        value: 4.50,
-        unit: '%',
-        source: 'Ngân hàng Nhà nước Việt Nam (SBV)',
-        sourceTier: 'TIER_1_STATUTORY',
-        revisionVersion: 0,
-        frequency: 'EVENT_DRIVEN',
-        validationStatus: 'VALID',
-        freshnessStatus: 'CURRENT',
-        notes: 'Lãi suất tái cấp vốn điều hành',
-      },
-      {
-        metricCode: 'VN_DEPOSIT_RATE',
-        observationDate: '2026-09-30',
-        publicationDate: '2026-09-30',
-        retrievalDate,
-        value: 4.95,
-        unit: '%',
-        source: 'SBV / Big 4 Bank Survey',
-        sourceTier: 'TIER_1_STATUTORY',
-        revisionVersion: 0,
-        frequency: 'MONTHLY',
-        periodId: '2026-09',
-        validationStatus: 'VALID',
-        freshnessStatus: 'CURRENT',
-        notes: 'Lãi suất tiền gửi bình quân 12 tháng',
-      },
-      {
-        metricCode: 'USD_VND',
-        observationDate: '2026-09-30',
-        publicationDate: '2026-09-30',
-        retrievalDate,
-        value: 24860,
-        unit: 'VND',
-        source: 'SBV / Vietcombank',
-        sourceTier: 'TIER_1_STATUTORY',
-        revisionVersion: 0,
-        frequency: 'DAILY',
-        validationStatus: 'VALID',
-        freshnessStatus: 'CURRENT',
-        notes: 'Tỷ giá USD/VND liên ngân hàng',
-      },
-      {
-        metricCode: 'US_DXY',
-        observationDate: '2026-09-30',
-        publicationDate: '2026-09-30',
-        retrievalDate,
-        value: 102.8,
-        unit: 'Points',
-        source: 'Intercontinental Exchange (ICE)',
-        sourceTier: 'TIER_2_EXCHANGE',
-        revisionVersion: 0,
-        frequency: 'DAILY',
-        validationStatus: 'VALID',
-        freshnessStatus: 'CURRENT',
-        notes: 'Chỉ số US Dollar Index',
-      },
-      {
-        metricCode: 'US_10Y_YIELD',
-        observationDate: '2026-09-30',
-        publicationDate: '2026-09-30',
-        retrievalDate,
-        value: 4.08,
-        unit: '%',
-        source: 'US Treasury',
-        sourceTier: 'TIER_1_STATUTORY',
-        revisionVersion: 0,
-        frequency: 'DAILY',
-        validationStatus: 'VALID',
-        freshnessStatus: 'CURRENT',
-        notes: 'Lợi suất trái phiếu chính phủ Mỹ 10 năm',
-      },
-      {
-        metricCode: 'US_2Y_YIELD',
-        observationDate: '2026-09-30',
-        publicationDate: '2026-09-30',
-        retrievalDate,
-        value: 3.96,
-        unit: '%',
-        source: 'US Treasury',
-        sourceTier: 'TIER_1_STATUTORY',
-        revisionVersion: 0,
-        frequency: 'DAILY',
-        validationStatus: 'VALID',
-        freshnessStatus: 'CURRENT',
-        notes: 'Lợi suất trái phiếu chính phủ Mỹ 2 năm',
-      },
-      {
-        metricCode: 'GLOBAL_VIX',
-        observationDate: '2026-09-30',
-        publicationDate: '2026-09-30',
-        retrievalDate,
-        value: 18.2,
-        unit: 'Points',
-        source: 'CBOE',
-        sourceTier: 'TIER_2_EXCHANGE',
-        revisionVersion: 0,
-        frequency: 'DAILY',
-        validationStatus: 'VALID',
-        freshnessStatus: 'CURRENT',
-        notes: 'Chỉ số biến động CBOE VIX',
-      },
-    ];
+  private static async persistSnapshot(snapshot: MacroRegimeSnapshot): Promise<void> {
+    try {
+      await MacroRepository.appendSnapshot(toSnapshotRow(snapshot));
+    } catch {
+      // Best-effort only: persistence failures must never break snapshot reads.
+    }
   }
 }

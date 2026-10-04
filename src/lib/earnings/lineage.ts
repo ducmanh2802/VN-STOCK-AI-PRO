@@ -16,6 +16,37 @@ export interface LineageOverrides {
 }
 
 /**
+ * Merges already-computed statement lineages (P24-D12): unions all sources and
+ * carries the statement context of the first lineage that names a source.
+ * Used by derived engines (margins, quality) so snapshot provenance is never
+ * silently emptied.
+ */
+export function mergeLineages(
+  lineages: readonly (EarningsLineage | null | undefined)[],
+  engine: string,
+  calculationVersion?: string
+): EarningsLineage {
+  const sources = new Set<string>();
+  for (const l of lineages) {
+    if (!l) continue;
+    for (const s of l.sources ?? []) sources.add(s);
+  }
+  const primary = lineages.find((l) => l && (l.sources?.length ?? 0) > 0) ?? null;
+  return {
+    sources: Array.from(sources).sort(),
+    engine,
+    calculationVersion: calculationVersion ?? EARNINGS_CALCULATION_VERSION,
+    statementId: primary?.statementId ?? null,
+    reportId: primary?.reportId ?? null,
+    periodStart: primary?.periodStart ?? null,
+    periodEnd: primary?.periodEnd ?? null,
+    publicationDate: primary?.publicationDate ?? null,
+    auditStatus: primary?.auditStatus ?? null,
+    restatementVersion: primary?.restatementVersion ?? null,
+  };
+}
+
+/**
  * Builds a lineage object from one or more source facts. The FIRST fact that
  * carries statement-level metadata is used as the statement context.
  */

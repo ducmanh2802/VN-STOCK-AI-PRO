@@ -15,7 +15,7 @@ import type {
   EarningsQualityResult,
   IncomeStatement,
 } from './types.ts';
-import { buildLineage } from './lineage.ts';
+import { mergeLineages } from './lineage.ts';
 import { finite, pctChange, round, safeDivide } from './helpers.ts';
 
 export interface EarningsQualityInput {
@@ -120,7 +120,12 @@ export class EarningsQualityEngine {
       adjustedForRestatement: input.adjustedForRestatement === true,
       warnings: Object.freeze([...warnings]),
       reasons: Object.freeze({ ...reasons }),
-      lineage: buildLineage([], { engine: 'EarningsQualityEngine' }),
+      // P24-D12: propagate input statement provenance instead of empty sources.
+      lineage: mergeLineages(
+        [income.lineage, cashFlow.lineage, balanceSheet.lineage,
+          input.previousBalanceSheet?.lineage, input.previousIncome?.lineage],
+        'EarningsQualityEngine'
+      ),
     });
   }
 

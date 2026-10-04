@@ -25,6 +25,12 @@ export class MacroNormalizer {
 
   /**
    * Filters and normalizes a collection of observations up to the publication cutoff date.
+   *
+   * Source-integrity gate (P27-D1): TIER_4_UNVERIFIED observations can never
+   * enter deterministic models, and SUSPECT / INVALID observations are excluded
+   * from scoring. Such rows are dropped (counted as integrity rejections), so a
+   * poisoned or unverified feed degrades to UNKNOWN rather than a fabricated
+   * regime.
    */
   public static filterAndNormalize(
     observations: readonly MacroObservation[],
@@ -33,11 +39,15 @@ export class MacroNormalizer {
     normalizedList: NormalizedMacroObservation[];
     rejectedLookaheadCount: number;
     lookaheadViolations: string[];
+    rejectedIntegrityCount: number;
+    integrityViolations: string[];
   } {
     const asOfDate = options?.asOfDate ?? new Date().toISOString().slice(0, 10);
     const normalizedList: NormalizedMacroObservation[] = [];
     const lookaheadViolations: string[] = [];
     let rejectedLookaheadCount = 0;
+    const integrityViolations: string[] = [];
+    let rejectedIntegrityCount = 0;
 
     // Deduplicate by metricCode + observationDate + revisionVersion (take latest valid revision)
     const latestRevisionMap = new Map<string, MacroObservation>();
@@ -49,6 +59,20 @@ export class MacroNormalizer {
           `Metric ${obs.metricCode} (${obs.periodId || obs.observationDate}) publicationDate (${obs.publicationDate}) > asOfDate (${asOfDate})`
         );
         rejectedLookaheadCount++;
+        continue;
+      }
+
+      // 1b. Source-integrity gate (P27-D1): unverified / suspect / invalid
+      // observations never enter deterministic models.
+      if (
+        obs.sourceTier === 'TIER_4_UNVERIFIED' ||
+        obs.validationStatus === 'SUSPECT' ||
+        obs.validationStatus === 'INVALID'
+      ) {
+        integrityViolations.push(
+          `Metric ${obs.metricCode} (${obs.periodId || obs.observationDate}) excluded from models: tier=${obs.sourceTier} validation=${obs.validationStatus}`
+        );
+        rejectedIntegrityCount++;
         continue;
       }
 
@@ -107,6 +131,8 @@ export class MacroNormalizer {
       normalizedList,
       rejectedLookaheadCount,
       lookaheadViolations,
+      rejectedIntegrityCount,
+      integrityViolations,
     };
   }
 

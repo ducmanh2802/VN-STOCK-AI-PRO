@@ -65,7 +65,14 @@ export class EpsEngine {
       .sort((a, b) => a.exDate.localeCompare(b.exDate));
     let multiplier = 1;
     for (const e of relevant) {
-      const ratio = CorporateActionEntitlementEngine.parseRatio(e.rawRatioExpression);
+      // Fail-closed (P24-D1): Phase 23 parseRatio throws on malformed ratios.
+      // An unparseable corporate-action ratio must yield null, never a crash.
+      let ratio: { ratioDecimal: number };
+      try {
+        ratio = CorporateActionEntitlementEngine.parseRatio(e.rawRatioExpression);
+      } catch {
+        return null;
+      }
       const per = 1 + ratio.ratioDecimal;
       const m = e.effect === 'INCREASE' ? per : 1 / per;
       if (!Number.isFinite(m) || m <= 0) return null;
@@ -100,8 +107,11 @@ export class EpsEngine {
     if (params.corporateActions && params.corporateActions.length > 0 && weightedShares !== null && weightedShares > 0) {
       const multiplier = this.cumulativeShareMultiplier(params.corporateActions, period.periodEnd);
       if (multiplier === null) {
-        comparableShares = weightedShares;
-        adjustedBasicEps = basicEps;
+        // Fail-closed (P24-D9): an invalid corporate-action ratio invalidates the
+        // adjusted share base — never silently reuse the unadjusted base.
+        comparableShares = null;
+        adjustedBasicEps = null;
+        if (!reason) reason = 'VALUE_NON_FINITE';
       } else {
         comparableShares = round(weightedShares * multiplier, 0);
         adjustedBasicEps =

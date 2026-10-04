@@ -24,10 +24,13 @@ export const BALANCE_METRIC_ALIASES: Readonly<Record<string, readonly string[]>>
   otherCurrentAssets: ['OTHER_CURRENT_ASSETS'],
   totalCurrentAssets: ['TOTAL_CURRENT_ASSETS', 'CURRENT_ASSETS'],
   totalAssets: ['TOTAL_ASSETS'],
-  currentLiabilities: ['CURRENT_LIABILITIES', 'TOTAL_CURRENT_LIABILITIES'],
+  // Fail-closed (P24-D5): short-term vs total current liabilities use DISTINCT
+  // keys. A filing that reports only one of them leaves the other null — the
+  // engines never copy one field into the other.
+  currentLiabilities: ['CURRENT_LIABILITIES'],
   shortTermDebt: ['SHORT_TERM_DEBT'],
   otherCurrentLiabilities: ['OTHER_CURRENT_LIABILITIES'],
-  totalCurrentLiabilities: ['TOTAL_CURRENT_LIABILITIES', 'CURRENT_LIABILITIES'],
+  totalCurrentLiabilities: ['TOTAL_CURRENT_LIABILITIES'],
   longTermDebt: ['LONG_TERM_DEBT'],
   totalLiabilities: ['TOTAL_LIABILITIES', 'LIABILITIES'],
   totalEquity: ['TOTAL_EQUITY', 'EQUITY'],

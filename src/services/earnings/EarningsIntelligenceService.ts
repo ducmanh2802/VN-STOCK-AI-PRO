@@ -96,7 +96,7 @@ export class EarningsIntelligenceService {
     }
 
     // 2. Determine the latest period present for the requested report type.
-    const periods = this.distinctPeriods(allFacts, reportType);
+    const periods = this.distinctPeriods(allFacts, sym, reportType);
     const latestPeriod = periods.length > 0 ? periods[periods.length - 1] : null;
     if (!latestPeriod) {
       return this.emptySnapshot(sym, asOfDate, reportType, fetchedAt, [
@@ -137,10 +137,10 @@ export class EarningsIntelligenceService {
       {
         symbol: sym,
         currentPeriod: latestPeriod,
-        revenueSeries: this.seriesFor(store, reportType, ['NET_REVENUE', 'REVENUE']),
-        netProfitSeries: this.seriesFor(store, reportType, ['NET_PROFIT']),
-        parentNetProfitSeries: this.seriesFor(store, reportType, ['PARENT_NET_PROFIT', 'NET_PROFIT_ATTRIBUTABLE_TO_PARENT']),
-        epsSeries: this.epsSeries(store, reportType, periods, options?.weightedShares ?? null),
+        revenueSeries: this.seriesFor(store, sym, reportType, ['NET_REVENUE', 'REVENUE']),
+        netProfitSeries: this.seriesFor(store, sym, reportType, ['NET_PROFIT']),
+        parentNetProfitSeries: this.seriesFor(store, sym, reportType, ['PARENT_NET_PROFIT', 'NET_PROFIT_ATTRIBUTABLE_TO_PARENT']),
+        epsSeries: this.epsSeries(store, sym, reportType, periods, options?.weightedShares ?? null),
       },
       latestFacts
     );
@@ -173,6 +173,7 @@ export class EarningsIntelligenceService {
       symbol: sym,
       asOfDate,
       fetchedAt,
+      sourceTimestamp: maxSourceTimestamp(allFacts),
       reportType,
       period: latestPeriod,
       income,
@@ -191,10 +192,14 @@ export class EarningsIntelligenceService {
 
   private static distinctPeriods(
     facts: readonly CanonicalFinancialFact[],
+    sym: string,
     reportType: EarningsReportType
   ): FinancialPeriod[] {
+    const upper = sym.trim().toUpperCase();
     const map = new Map<string, FinancialPeriod>();
     for (const f of facts) {
+      // Fail-closed (P24-D3): never mix facts across symbols.
+      if (f.symbol.toUpperCase() !== upper) continue;
       if (f.reportType !== reportType) continue;
       map.set(f.period.id, f.period);
     }
@@ -217,9 +222,12 @@ export class EarningsIntelligenceService {
     periodId: string,
     store: RestatementEngine
   ): CanonicalFinancialFact[] {
+    const upper = sym.trim().toUpperCase();
     const scoped = store
       .getAll()
-      .filter((f) => f.reportType === reportType && f.period.id === periodId);
+      // Fail-closed (P24-D3): the symbol parameter is authoritative; facts from
+      // any other symbol are excluded to prevent cross-symbol contamination.
+      .filter((f) => f.symbol.toUpperCase() === upper && f.reportType === reportType && f.period.id === periodId);
     const byMetric = new Map<string, CanonicalFinancialFact[]>();
     for (const f of scoped) {
       const list = byMetric.get(f.metric) ?? [];
@@ -237,13 +245,17 @@ export class EarningsIntelligenceService {
   /** Deterministic period-value series across the first available metric alias. */
   private static seriesFor(
     store: RestatementEngine,
+    sym: string,
     reportType: EarningsReportType,
     metrics: readonly string[]
   ): PeriodValue[] {
+    const upper = sym.trim().toUpperCase();
     const points: PeriodValue[] = [];
     const seen = new Set<string>();
     for (const metric of metrics) {
-      const scoped = store.getAll().filter((f) => f.reportType === reportType && f.metric === metric);
+      const scoped = store.getAll().filter(
+        (f) => f.symbol.toUpperCase() === upper && f.reportType === reportType && f.metric === metric
+      );
       const byPeriod = new Map<string, CanonicalFinancialFact>();
       for (const f of scoped) {
         const prev = byPeriod.get(f.period.id);
@@ -261,13 +273,14 @@ export class EarningsIntelligenceService {
 
   private static epsSeries(
     store: RestatementEngine,
+    sym: string,
     reportType: EarningsReportType,
     periods: readonly FinancialPeriod[],
     weightedShares: number | null
   ): PeriodValue[] {
     if (weightedShares === null || weightedShares <= 0) return [];
     return periods.map((period) => {
-      const facts = this.latestFactsFor('', reportType, period.id, store);
+      const facts = this.latestFactsFor(sym, reportType, period.id, store);
       const income = IncomeStatementEngine.normalize(facts, period, reportType);
       const profit = income.parentNetProfit ?? income.netProfit;
       return { period, value: profit === null ? null : Number((profit / weightedShares).toFixed(2)) };
@@ -294,4 +307,19 @@ export class EarningsIntelligenceService {
       dataFreshness: 'UNAVAILABLE',
     });
   }
+}
+
+/**
+ * Latest source publication instant across facts, as epoch millis.
+ * Fail-closed (P24-D6): null when no fact carries a parseable publication date.
+ */
+function maxSourceTimestamp(facts: readonly CanonicalFinancialFact[]): number | null {
+  let max: number | null = null;
+  for (const f of facts) {
+    if (!f.publicationDate) continue;
+    const t = Date.parse(f.publicationDate);
+    if (!Number.isFinite(t)) continue;
+    if (max === null || t > max) max = t;
+  }
+  return max;
 }

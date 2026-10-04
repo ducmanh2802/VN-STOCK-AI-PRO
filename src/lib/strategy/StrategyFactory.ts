@@ -51,12 +51,28 @@ export class StrategyFactory {
     this.registry.set('DIVIDEND_CAPTURE', dividendCapture);
   }
 
+  private static readonly canonicalIds: ReadonlySet<string> = new Set([
+    'STRATEGY_EQUITY_EARNINGS_MOMENTUM',
+    'STRATEGY_DERIVATIVES_BASIS_ARBITRAGE',
+    'STRATEGY_ETF_NAV_ARBITRAGE',
+    'STRATEGY_CROSS_ASSET_REGIME_ADAPTIVE',
+    'STRATEGY_EQUITY_DIVIDEND_CAPTURE',
+  ]);
+
   /**
    * Registers a new or custom MultiAssetStrategy into the factory.
+   * Fail-closed (P25-P2-2): canonical Phase 25 strategy IDs are immutable —
+   * registration refuses to overwrite them so certified generators cannot be
+   * hijacked at runtime.
    */
   public static register(strategy: MultiAssetStrategy): void {
     if (!strategy.id || typeof strategy.id !== 'string') {
       throw new Error('Strategy must have a valid non-empty string ID');
+    }
+    if (this.canonicalIds.has(strategy.id)) {
+      throw new Error(
+        `StrategyFactory.register: refusal to overwrite canonical strategy '${strategy.id}' (fail-closed).`
+      );
     }
     this.registry.set(strategy.id, strategy);
   }

@@ -14,6 +14,7 @@ import {
 import { Button } from '../components/ui/Button';
 import { MetricCard } from '../components/ui/MetricCard';
 import { DataStatusBadge } from '../components/ui/DataStatusBadge';
+import { LearnThis } from '../components/learning/LearningWidgets';
 
 interface EndpointHealth {
   name: string;
@@ -132,6 +133,7 @@ export const DataStatusPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <LearnThis feature="DataStatus" />
           <Button
             variant="outline"
             size="sm"

@@ -4,3 +4,4 @@
  */
 
 export * from './MacroRegimeService.ts';
+export * from './MacroRegimeDataProvider.ts';

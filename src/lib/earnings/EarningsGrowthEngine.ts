@@ -182,14 +182,26 @@ export class EarningsGrowthEngine {
 
     const lineage: EarningsLineage = buildLineage(facts, { engine: 'EarningsGrowthEngine' });
 
+    // Fail-closed (P24-D10): TTM windows are aligned to a COMMON end quarter —
+    // the earlier of the two series' latest quarters — so the snapshot never
+    // implies revenue and profit cover the same window when they do not.
+    const revenueEnd = this.latestQuarter(params.revenueSeries);
+    const profitEnd = this.latestQuarter(params.netProfitSeries);
+    const commonEnd =
+      revenueEnd && profitEnd
+        ? FinancialPeriodEngine.compare(revenueEnd, profitEnd) <= 0
+          ? revenueEnd
+          : profitEnd
+        : null;
+
     return Object.freeze({
       symbol: params.symbol.trim().toUpperCase(),
       revenue: pick(params.revenueSeries),
       netProfit: pick(params.netProfitSeries),
       parentNetProfit: pick(params.parentNetProfitSeries),
       eps: pick(params.epsSeries),
-      ttmRevenue: this.ttm(params.revenueSeries)?.value ?? null,
-      ttmNetProfit: this.ttm(params.netProfitSeries)?.value ?? null,
+      ttmRevenue: commonEnd ? this.ttmValue(params.revenueSeries, commonEnd) : null,
+      ttmNetProfit: commonEnd ? this.ttmValue(params.netProfitSeries, commonEnd) : null,
       lineage,
     });
   }

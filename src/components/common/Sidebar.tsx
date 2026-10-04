@@ -67,6 +67,14 @@ export const navigationStructure: NavGroup[] = [
     ],
   },
   {
+    groupName: 'LEARN',
+    items: [
+      { id: 'learn', label: 'Learn', icon: BookOpen, badge: 'NEW', badgeVariant: 'success' },
+      { id: 'learn-path', label: 'Paths', icon: Layers },
+      { id: 'practice-lab', label: 'Practice Lab', icon: FlaskConical },
+    ],
+  },
+  {
     groupName: 'TRADING',
     items: [
       { id: 'strategy-lab', label: 'Strategies', icon: FlaskConical },

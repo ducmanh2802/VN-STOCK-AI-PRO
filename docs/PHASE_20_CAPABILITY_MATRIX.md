@@ -195,6 +195,18 @@ TOTAL CAPABILITIES AUDITED: 70
 > Lab is **NOT** Phase 26 and is not implemented as part of Phase 26. The active
 > Phase 26 scope is Industry Capital Cycle & Policy Intelligence, matching the
 > implementation under `src/lib/capital-cycle/` and `src/services/capital-cycle/`.
+>
+> > **Roadmap reconciliation note (Phase 27, 2026-10-04 certification):** the
+> > as-built code labels Macro Regime & Economic Cycle Intelligence
+> > (`src/lib/macro-regime/`, `src/services/macro-regime/`,
+> > `src/lib/db/MacroRepository.ts`, `drizzle/0002_phase27_macro.sql`) as
+> > Phase 27. Matrix-scope **Portfolio Intelligence** (covariance matrix,
+> > portfolio factor-exposure aggregation, mean-variance / Black-Litterman
+> > allocation) remains **unimplemented** and is tracked as remaining work; it
+> > is NOT substituted by macro-regime code (different domain: economic-cycle
+> > context vs. portfolio construction math). The `VERSION='v1.0.0-phase27'`
+> > markers on macro-regime files are retained to avoid churn; this note is the
+> > authoritative scope record.
 
 ---
 

@@ -92,7 +92,10 @@ export class RestatementEngine {
     if (versions.length > 0) {
       version = Math.max(...versions.map((v) => v.restatementVersion)) + 1;
       if (status === 'ORIGINAL') {
-        const priorLatest = versions[versions.length - 1];
+        // Fail-closed (P24-D11): compare against the authoritative latest
+        // (tier/status/publication/version precedence), not insertion order,
+        // so interleaved tier filings classify ORIGINAL->RESTATED/AMENDED correctly.
+        const priorLatest = RestatementEngine.pickLatest(versions) ?? versions[versions.length - 1];
         const changed = finite(fact.value) !== finite(priorLatest.value);
         status = changed ? 'RESTATED' : 'AMENDED';
       }

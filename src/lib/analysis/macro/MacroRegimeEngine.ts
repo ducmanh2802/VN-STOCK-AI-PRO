@@ -16,11 +16,16 @@
  *   - Missing inputs fail closed to neutral/unknown without hallucinating numbers
  */
 
-import type { MacroMetricRecord, MacroRegimeResult, MacroRegimeType } from './types.ts';
+import type { DataFreshnessStatus, MacroMetricRecord, MacroRegimeResult, MacroRegimeType } from './types.ts';
 
 export class MacroRegimeEngine {
   /**
    * Calculates the Macro Market Regime based on real macro indicators.
+   *
+   * Fail-closed (P27-D2-legacy): when NO metric carries a usable value the
+   * result is UNKNOWN with zero confidence and UNAVAILABLE freshness. The
+   * neutral-prior sub-scores are structural defaults, never measurements —
+   * no regime call is made from an empty feed.
    */
   public static calculateRegime(
     metrics: readonly MacroMetricRecord[],
@@ -106,6 +111,31 @@ export class MacroRegimeEngine {
       foreignFlowScore * 0.10
     );
 
+    const subScores = {
+      liquidity: liquidityScore,
+      interestRates: ratesScore,
+      fxPressure: fxScore,
+      commodities: commoditiesScore,
+      globalRisk: globalRiskScore,
+      foreignFlow: foreignFlowScore,
+    };
+    const derivedFreshness = deriveMetricsFreshness(metrics);
+
+    // Fail-closed gate: empty feed => UNKNOWN (scores below are neutral priors only).
+    const hasAnyValue = metrics.some((m) => m.value !== null && Number.isFinite(m.value));
+    if (!hasAnyValue) {
+      return {
+        regime: 'UNKNOWN',
+        score: 50,
+        confidence: 0,
+        subScores,
+        keyFactorsVi: ['Không có dữ liệu vĩ mô khả dụng — chưa thể xác định chu kỳ (fail-closed).'],
+        rationaleVi: 'Thiếu dữ liệu đầu vào từ tất cả các kênh quan sát vĩ mô.',
+        asOfDate,
+        freshness: 'UNAVAILABLE',
+      };
+    }
+
     // Classify Regime
     let regime: MacroRegimeType = 'NEUTRAL';
     const keyFactors: string[] = [];
@@ -157,18 +187,25 @@ export class MacroRegimeEngine {
       regime,
       score: compositeScore,
       confidence: Math.round(Math.min(100, Math.max(60, metrics.length * 8))),
-      subScores: {
-        liquidity: liquidityScore,
-        interestRates: ratesScore,
-        fxPressure: fxScore,
-        commodities: commoditiesScore,
-        globalRisk: globalRiskScore,
-        foreignFlow: foreignFlowScore,
-      },
+      subScores,
       keyFactorsVi: keyFactors,
       rationaleVi,
       asOfDate,
-      freshness: 'CURRENT',
+      // Fail-closed (P27-D4-legacy): freshness derives from inputs, never hardcoded.
+      freshness: derivedFreshness,
     };
   }
+}
+
+/**
+ * Derives aggregate freshness across input metrics (P27-D4-legacy):
+ * empty => UNAVAILABLE, any INVALID => INVALID, all CURRENT => CURRENT,
+ * otherwise STALE. STALE is never masked by CURRENT.
+ */
+function deriveMetricsFreshness(metrics: readonly { freshness: DataFreshnessStatus }[]): DataFreshnessStatus {
+  if (metrics.length === 0) return 'UNAVAILABLE';
+  if (metrics.some((m) => m.freshness === 'INVALID')) return 'INVALID';
+  if (metrics.every((m) => m.freshness === 'CURRENT')) return 'CURRENT';
+  if (metrics.some((m) => m.freshness === 'CURRENT' || m.freshness === 'STALE')) return 'STALE';
+  return 'UNAVAILABLE';
 }

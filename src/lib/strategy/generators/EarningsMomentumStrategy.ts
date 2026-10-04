@@ -118,6 +118,19 @@ export class EarningsMomentumStrategy
       );
     }
 
+    // 2b. Stale upstream guard (P25-P1-1): stale earnings never drive momentum.
+    if (earnings.dataFreshness === 'STALE') {
+      return UniversalSignalNormalizer.failClosed(
+        this.id,
+        this.assetClass,
+        context.symbol,
+        'EARNINGS_DATA_STALE',
+        lineage,
+        ['Phase 24 EarningsSnapshot is STALE — momentum signal withheld (fail-closed)'],
+        'STALE'
+      );
+    }
+
     const revGrowth = earnings.growth?.revenue?.percent ?? null;
     const profitGrowth = earnings.growth?.netProfit?.percent ?? null;
     const cfoRatio = earnings.earningsQuality?.cashConversion ?? null;

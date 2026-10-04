@@ -61,9 +61,17 @@ export class BeneficiaryMappingEngine {
     let totalConfirmedValue: number | null = null;
 
     for (const b of beneficiaries) {
-      // 1. Lookahead check
-      const pubDate = b.provenance.publicationDate || b.awardDate || asOfDate;
-      if (pubDate > asOfDate) {
+      // 1. Lookahead check (P26-P3-1/P3-2): undated records are excluded, and
+      // a future award date rejects the record even when publication predates
+      // the snapshot — an un-awarded contract is not historical backlog.
+      const pubDate = b.provenance.publicationDate || b.awardDate || null;
+      if (!pubDate) {
+        lookaheadViolations.push(
+          `Beneficiary mapping for ${b.symbol} on ${b.projectId} has no publication or award date — excluded (fail-closed)`
+        );
+        continue;
+      }
+      if (pubDate > asOfDate || (b.awardDate && b.awardDate > asOfDate)) {
         lookaheadViolations.push(
           `Beneficiary mapping for ${b.symbol} on ${b.projectId} (${pubDate}) > asOfDate (${asOfDate})`
         );

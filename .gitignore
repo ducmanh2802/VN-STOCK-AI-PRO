@@ -7,6 +7,10 @@ coverage/
 .env*
 !.env.example
 
+# Deployment-local Firebase web configuration (contains a project API key).
+# Template is committed as firebase-applet-config.example.json — never commit the real file.
+firebase-applet-config.json
+
 # WIP recovery backup (not part of the build)
 _wip_backup/
 .tmp/

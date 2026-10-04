@@ -106,6 +106,19 @@ export class EtfNavArbitrageStrategy
       );
     }
 
+    // 2b. Stale upstream guard (P25-P1-1): stale NAV never drives arbitrage.
+    if (etf.dataFreshness === 'STALE') {
+      return UniversalSignalNormalizer.failClosed(
+        this.id,
+        this.assetClass,
+        context.symbol,
+        'ETF_DATA_STALE',
+        lineage,
+        ['Phase 22 EtfIntelligenceSnapshot is STALE — NAV signal withheld (fail-closed)'],
+        'STALE'
+      );
+    }
+
     const nav = etf.nav.navPerShare;
     const premiumDiscount = etf.premiumDiscount.premiumDiscountPercent;
     const currentPrice = etf.quote.price ?? context.currentPrice ?? null;
@@ -139,7 +152,9 @@ export class EtfNavArbitrageStrategy
           assetClass: this.assetClass,
           symbol: context.symbol,
           direction: 'HOLD',
-          conviction: 10,
+          // P25-P3-2: defensive no-edge HOLD carries zero conviction, consistent
+          // with every other no-edge HOLD in the factory.
+          conviction: 0,
           timeInForce: 'SWING',
           dataFreshness: etf.dataFreshness,
           reasonCode: 'EXCESSIVE_TRACKING_ERROR',

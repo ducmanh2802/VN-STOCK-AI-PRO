@@ -23,6 +23,7 @@ import type {
   RestatementSelection,
 } from './types.ts';
 import { EARNINGS_CALCULATION_VERSION, EARNINGS_ENGINE_NAME } from './helpers.ts';
+import { mergeLineages } from './lineage.ts';
 
 export interface BuildSnapshotInput {
   readonly symbol: string;
@@ -61,15 +62,6 @@ export class EarningsSnapshotBuilder {
     ];
     const hasAnyData = parts.some((p) => p !== null && p !== undefined);
 
-    const sources = new Set<string>();
-    for (const p of parts) {
-      const l = (p as { lineage?: EarningsLineage } | null | undefined)?.lineage;
-      if (l?.sources) for (const s of l.sources) sources.add(s);
-    }
-    for (const rs of input.restatements ?? []) {
-      if (rs.latest?.source) sources.add(rs.latest.source);
-    }
-
     const warnings: string[] = [...(input.additionalWarnings ?? [])];
     if (!hasAnyData) {
       warnings.push('No canonical financial facts were available for the requested symbol/period.');
@@ -82,12 +74,21 @@ export class EarningsSnapshotBuilder {
 
     const freshness: DataFreshnessStatus = input.dataFreshness ?? (hasAnyData ? 'CURRENT' : 'UNAVAILABLE');
 
+    // P24-D7/D12: enrich snapshot provenance from already-computed parts
+    // (statement IDs, report IDs, publication dates, audit status) instead of
+    // shipping sources-only lineage.
+    const enrichedLineage: EarningsLineage = mergeLineages(
+      [
+        ...parts.map((p) => (p as { lineage?: EarningsLineage } | null | undefined)?.lineage),
+        ...(input.restatements ?? []).map((rs) => rs.latest?.lineage),
+      ],
+      this.ENGINE_NAME,
+      this.CALCULATION_VERSION
+    );
     const lineage: EarningsLineage = {
-      sources: Array.from(sources).sort(),
-      engine: this.ENGINE_NAME,
-      calculationVersion: this.CALCULATION_VERSION,
-      periodStart: input.period?.periodStart ?? null,
-      periodEnd: input.period?.periodEnd ?? null,
+      ...enrichedLineage,
+      periodStart: input.period?.periodStart ?? enrichedLineage.periodStart,
+      periodEnd: input.period?.periodEnd ?? enrichedLineage.periodEnd,
     };
 
     return Object.freeze({
@@ -109,6 +110,8 @@ export class EarningsSnapshotBuilder {
       calendar: Object.freeze([...(input.calendar ?? [])]),
       warnings: Object.freeze(warnings),
       lineage,
+      // PR-01 canonical key (P24-D7); alias of the enriched lineage above.
+      dataLineage: lineage,
     });
   }
 }

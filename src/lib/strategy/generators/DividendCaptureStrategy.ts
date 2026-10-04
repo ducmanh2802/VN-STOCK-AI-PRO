@@ -101,6 +101,19 @@ export class DividendCaptureStrategy
       );
     }
 
+    // 2b. Stale upstream guard (P25-P1-1): stale events never drive capture.
+    if (corp.dataFreshness === 'STALE') {
+      return UniversalSignalNormalizer.failClosed(
+        this.id,
+        this.assetClass,
+        context.symbol,
+        'CORPORATE_ACTIONS_STALE',
+        lineage,
+        ['Phase 23 CorporateActionIntelligenceSnapshot is STALE — dividend signal withheld (fail-closed)'],
+        'STALE'
+      );
+    }
+
     const currentPrice = context.currentPrice ?? null;
     const actions = [...(corp.upcomingEvents ?? []), ...(corp.historicalEvents ?? [])];
 
@@ -154,10 +167,23 @@ export class DividendCaptureStrategy
     }
 
     const cashAmount = eligibleAction.cashAmountVnd;
-    const dividendYield =
-      currentPrice !== null && currentPrice > 0
-        ? (cashAmount / currentPrice) * 100
-        : (cashAmount / 10_000) * 100;
+    // Fail-closed (P25-P1-2): yield requires a real current price. A missing
+    // price never falls back to a fabricated denominator (previously 10_000 VND).
+    if (currentPrice === null || currentPrice <= 0) {
+      return UniversalSignalNormalizer.failClosed(
+        this.id,
+        this.assetClass,
+        context.symbol,
+        'CURRENT_PRICE_UNAVAILABLE',
+        lineage,
+        [
+          `Eligible dividend ${cashAmount.toLocaleString()} VND/share (ex ${eligibleAction.dates.exDate}) ` +
+            'cannot be sized without a current price — signal withheld (fail-closed)',
+        ],
+        corp.dataFreshness
+      );
+    }
+    const dividendYield = (cashAmount / currentPrice) * 100;
 
     const notes: string[] = [
       `Dividend: ${cashAmount.toLocaleString()} VND/share`,

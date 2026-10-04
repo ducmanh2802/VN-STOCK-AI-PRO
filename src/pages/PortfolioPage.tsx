@@ -32,6 +32,7 @@ import {
   useTradingStatus,
 } from '../hooks/useMarketQueries';
 import { LoadingState } from '../components/ui/LoadingState';
+import { LearnThis } from '../components/learning/LearningWidgets';
 import {
   UNAVAILABLE,
   isFiniteNumber,
@@ -115,6 +116,7 @@ export const PortfolioPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <LearnThis feature="Portfolio" />
           <Button
             variant="outline"
             size="sm"

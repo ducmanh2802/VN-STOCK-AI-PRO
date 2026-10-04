@@ -130,8 +130,12 @@ export class StrategyIntelligenceService {
       options.parameters
     );
 
-    // 6. Cache valid result (60s TTL)
-    cacheSet(cacheKey, signal, CACHE_TTL_MS);
+    // 6. Cache CURRENT result only (P25-P3-3, 60s TTL). Fail-closed signals
+    // (UNAVAILABLE / INVALID / STALE) are never cached: caching them would
+    // poison the key for 60s after the upstream feed heals.
+    if (signal.dataFreshness === 'CURRENT') {
+      cacheSet(cacheKey, signal, CACHE_TTL_MS);
+    }
 
     return signal;
   }

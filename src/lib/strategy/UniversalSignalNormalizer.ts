@@ -6,8 +6,9 @@
  * Invariants:
  *   - Strict bounding: 0 <= conviction <= 100.
  *   - NaN, Infinity, negative values are clamped safely.
- *   - Fail-closed dominance: if dataFreshness is UNAVAILABLE or INVALID,
+ *   - Fail-closed dominance: if dataFreshness is UNAVAILABLE, INVALID or STALE,
  *     signal is forced to HOLD (or FLAT for derivatives) with conviction = 0.
+ *     STALE inputs never produce tradable signals (P25-P1-1).
  *   - Price safety: targetPrice and stopLoss must be strictly positive and finite.
  */
 
@@ -74,7 +75,10 @@ export class UniversalSignalNormalizer {
    */
   public static normalize(input: UnnormalizedSignalInput): StrategySignal {
     const rawFreshness: DataFreshnessStatus = input.dataFreshness ?? 'CURRENT';
-    const isFailClosed = rawFreshness === 'UNAVAILABLE' || rawFreshness === 'INVALID';
+    // Fail-closed (P25-P1-1): STALE joins UNAVAILABLE/INVALID. A stale upstream
+    // snapshot must never flow through as a tradable LONG/SHORT/CLOSE signal.
+    const isFailClosed =
+      rawFreshness === 'UNAVAILABLE' || rawFreshness === 'INVALID' || rawFreshness === 'STALE';
 
     if (isFailClosed) {
       const safeDirection: SignalDirection =
@@ -91,7 +95,7 @@ export class UniversalSignalNormalizer {
         stopLoss: null,
         timeInForce: input.timeInForce ?? 'SWING',
         dataFreshness: rawFreshness,
-        reasonCode: input.reasonCode ?? 'DATA_UNAVAILABLE',
+        reasonCode: input.reasonCode ?? (rawFreshness === 'STALE' ? 'STALE_DATA_UNAVAILABLE' : 'DATA_UNAVAILABLE'),
         notes: input.notes ? Object.freeze([...input.notes]) : Object.freeze([]),
         lineage: Object.freeze({ ...input.lineage }),
       });

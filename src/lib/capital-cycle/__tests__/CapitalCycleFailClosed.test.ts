@@ -67,7 +67,8 @@ describe('Phase 26 — Fail-Closed Integrity Matrix', () => {
     });
 
     expect(result.stage).toBe('UNKNOWN');
-    expect(result.cycleScore).toBe(50);
+    // Remediated (P26-P2-1): UNKNOWN carries a null score — never a plottable 50.
+    expect(result.cycleScore).toBeNull();
   });
 
   it('fails closed to CRITICAL_VERIFIED_GOVERNANCE_EVENT when Level 4 criminal action is active', () => {

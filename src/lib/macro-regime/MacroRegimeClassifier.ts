@@ -46,11 +46,34 @@ export class MacroRegimeClassifier {
   public static readonly VERSION = 'v1.0.0-phase27';
 
   /**
+   * Required macro metric registry (P27-D6): the 9 metric codes the five
+   * sub-state engines report as missing when absent. Coverage is measured
+   * against this FIXED reportable set — never an ad-hoc denominator.
+   * Coincident/secondary codes (IIP, retail, export, FDI, core CPI, US 2Y,
+   * OMO) enhance scoring but do not affect coverage accounting.
+   */
+  public static readonly REQUIRED_METRIC_CODES: readonly string[] = [
+    'VN_GDP_GROWTH',
+    'VN_PMI',
+    'VN_CPI',
+    'SBV_REFINANCING_RATE',
+    'VN_DEPOSIT_RATE',
+    'US_DXY',
+    'USD_VND',
+    'US_10Y_YIELD',
+    'GLOBAL_VIX',
+  ];
+
+  /**
    * Evaluates data coverage quality before classification.
+   * Thresholds match the MacroDataCoverage contract exactly (P27-D6):
+   * FULL = 100%, SUFFICIENT >= 75%, PARTIAL 50–74%, INSUFFICIENT < 50%
+   * (non-empty), UNAVAILABLE = no data. The GDP+CPI joint gate is retained:
+   * without both core metrics no confident cycle call is possible.
    */
   public static evaluateCoverage(
     missingMetrics: readonly string[],
-    totalExpectedMetrics: number = 8
+    totalExpectedMetrics: number = MacroRegimeClassifier.REQUIRED_METRIC_CODES.length
   ): MacroDataCoverage {
     const presentCount = Math.max(0, totalExpectedMetrics - missingMetrics.length);
     const ratio = presentCount / totalExpectedMetrics;
@@ -58,9 +81,9 @@ export class MacroRegimeClassifier {
     if (missingMetrics.includes('VN_GDP_GROWTH') && missingMetrics.includes('VN_CPI')) {
       return 'INSUFFICIENT';
     }
-    if (ratio >= 0.85) return 'FULL';
-    if (ratio >= 0.65) return 'SUFFICIENT';
-    if (ratio >= 0.40) return 'PARTIAL';
+    if (ratio >= 1.0) return 'FULL';
+    if (ratio >= 0.75) return 'SUFFICIENT';
+    if (ratio >= 0.5) return 'PARTIAL';
     if (ratio > 0) return 'INSUFFICIENT';
     return 'UNAVAILABLE';
   }

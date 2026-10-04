@@ -1030,5 +1030,254 @@ export const macroRegimeSnapshots = pgTable(
   ]
 );
 
+// ==========================================
+// 29. INSTRUMENTS (DATA-01 — Canonical Instrument Identity)
+// ==========================================
+export const instruments = pgTable(
+  'instruments',
+  {
+    id: serial('id').primaryKey(),
+    instrumentId: text('instrument_id').notNull().unique(),
+    symbol: text('symbol').notNull(),
+    exchange: text('exchange').notNull(),
+    assetClass: text('asset_class').notNull(),
+    currency: text('currency').default('VND').notNull(),
+    country: text('country').default('VN').notNull(),
+    sector: text('sector'),
+    industry: text('industry'),
+    status: text('status').default('ACTIVE').notNull(),
+    validFrom: date('valid_from').notNull(),
+    validTo: date('valid_to'),
+    isin: text('isin'),
+    previousSymbols: text('previous_symbols').default('[]').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('instruments_id_idx').on(table.instrumentId),
+    index('instruments_symbol_idx').on(table.symbol),
+    index('instruments_status_idx').on(table.status),
+    index('instruments_valid_from_idx').on(table.validFrom),
+  ]
+);
+
+// ==========================================
+// 30. CORPORATE_ACTION_EVENTS (DATA-02 — Persistent Corporate Actions)
+// ==========================================
+export const corporateActionEvents = pgTable(
+  'corporate_action_events',
+  {
+    id: serial('id').primaryKey(),
+    eventId: text('event_id').notNull().unique(),
+    instrumentId: text('instrument_id').notNull(),
+    kind: text('kind').notNull(),
+    status: text('status').notNull(),
+    announcementDate: date('announcement_date'),
+    recordDate: date('record_date'),
+    exDate: date('ex_date'),
+    paymentDate: date('payment_date'),
+    effectiveDate: date('effective_date'),
+    ratioOld: numeric('ratio_old', { precision: 18, scale: 6 }),
+    ratioNew: numeric('ratio_new', { precision: 18, scale: 6 }),
+    cashAmountVnd: numeric('cash_amount_vnd', { precision: 18, scale: 2 }),
+    issuePriceVnd: numeric('issue_price_vnd', { precision: 18, scale: 2 }),
+    symbolChangeFrom: text('symbol_change_from'),
+    symbolChangeTo: text('symbol_change_to'),
+    source: text('source').notNull(),
+    sourceTier: text('source_tier').notNull(),
+    dataVersion: text('data_version').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('cae_event_id_idx').on(table.eventId),
+    index('cae_instrument_idx').on(table.instrumentId),
+    index('cae_ex_date_idx').on(table.exDate),
+    index('cae_kind_idx').on(table.kind),
+  ]
+);
+
+// ==========================================
+// 31. DECISION_JOURNAL (DECISION-01/05 — append-only decision records)
+// ==========================================
+export const decisionJournal = pgTable(
+  'decision_journal',
+  {
+    id: serial('id').primaryKey(),
+    decisionId: text('decision_id').notNull().unique(),
+    instrumentId: text('instrument_id').notNull(),
+    asOfDate: date('as_of_date').notNull(),
+    decisionType: text('decision_type').notNull(),
+    decisionStatus: text('decision_status').notNull(),
+    evidence: text('evidence').notNull(),
+    thesisId: text('thesis_id'),
+    confidence: numeric('confidence', { precision: 5, scale: 2 }),
+    dataQuality: text('data_quality').notNull(),
+    provenance: text('provenance').notNull(),
+    failCode: text('fail_code'),
+    notes: text('notes').notNull(),
+    version: text('version').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('decision_journal_id_idx').on(table.decisionId),
+    index('decision_journal_instrument_idx').on(table.instrumentId),
+    index('decision_journal_asof_idx').on(table.asOfDate),
+  ]
+);
+
+// ==========================================
+// 32. DECISION_REVIEWS (DECISION-05 — append-only reviews)
+// ==========================================
+export const decisionReviews = pgTable(
+  'decision_reviews',
+  {
+    id: serial('id').primaryKey(),
+    reviewId: text('review_id').notNull().unique(),
+    decisionId: text('decision_id').notNull(),
+    originalDecision: text('original_decision').notNull(),
+    originalEvidence: text('original_evidence').notNull(),
+    actualOutcome: text('actual_outcome'),
+    whatChanged: text('what_changed').notNull(),
+    whatWasCorrect: text('what_was_correct').notNull(),
+    whatWasWrong: text('what_was_wrong').notNull(),
+    lessons: text('lessons').notNull(),
+    newDecision: text('new_decision'),
+    reviewedAt: timestamp('reviewed_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('decision_reviews_id_idx').on(table.reviewId),
+    index('decision_reviews_decision_idx').on(table.decisionId),
+  ]
+);
+
+// ==========================================
+// 33. RESEARCH_EXPERIMENTS (RESEARCH-01 — append-only experiments)
+// ==========================================
+export const researchExperiments = pgTable(
+  'research_experiments',
+  {
+    id: serial('id').primaryKey(),
+    experimentId: text('experiment_id').notNull().unique(),
+    name: text('name').notNull(),
+    strategy: text('strategy').notNull(),
+    strategyVersion: text('strategy_version').notNull(),
+    universe: text('universe').notNull(),
+    startDate: date('start_date').notNull(),
+    endDate: date('end_date').notNull(),
+    dataVersion: text('data_version').notNull(),
+    parameters: text('parameters').notNull(),
+    seed: integer('seed'),
+    fingerprint: text('fingerprint').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('research_exp_id_idx').on(table.experimentId),
+    index('research_exp_strategy_idx').on(table.strategy),
+  ]
+);
+
+// ==========================================
+// 34. RESEARCH_CERTIFICATIONS (RESEARCH-05 — append-only verdicts)
+// ==========================================
+export const researchCertifications = pgTable(
+  'research_certifications',
+  {
+    id: serial('id').primaryKey(),
+    experimentId: text('experiment_id').notNull().unique(),
+    verdict: text('verdict').notNull(),
+    manifest: text('manifest').notNull(),
+    warnings: text('warnings').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('research_cert_exp_idx').on(table.experimentId),
+    index('research_cert_verdict_idx').on(table.verdict),
+  ]
+);
+
+// ==========================================
+// 35. REPLAY_RUNS (PAPER REPLAY — append-only paper-only replay journal)
+// ==========================================
+export const replayRuns = pgTable(
+  'replay_runs',
+  {
+    id: serial('id').primaryKey(),
+    replayId: text('replay_id').notNull().unique(),
+    mode: text('mode').notNull(),
+    status: text('status').notNull(),
+    manifestFingerprint: text('manifest_fingerprint').notNull(),
+    manifest: text('manifest').notNull(),
+    startDate: date('start_date').notNull(),
+    endDate: date('end_date').notNull(),
+    initialCapital: numeric('initial_capital', { precision: 18, scale: 2 }).notNull(),
+    finalNav: numeric('final_nav', { precision: 18, scale: 2 }).notNull(),
+    returnPct: numeric('return_pct', { precision: 12, scale: 6 }),
+    strategyTradeCount: integer('strategy_trade_count').default(0).notNull(),
+    riskRejectionCount: integer('risk_rejection_count').default(0).notNull(),
+    executionRejectionCount: integer('execution_rejection_count').default(0).notNull(),
+    filledQuantity: integer('filled_quantity').default(0).notNull(),
+    accountingStatus: text('accounting_status').notNull(),
+    reconciliationStatus: text('reconciliation_status').notNull(),
+    limitations: text('limitations').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('replay_runs_id_idx').on(table.replayId),
+    index('replay_runs_status_idx').on(table.status),
+    index('replay_runs_mode_idx').on(table.mode),
+  ]
+);
 
 
+
+
+// ==========================================
+// PLATFORM FOUNDATION (0007) — IDENTITY
+// Platform-owned. Appended additively; no existing table is modified.
+// ==========================================
+export const platformUserAccount = pgTable(
+  'platform_user_account',
+  {
+    userId: text('user_id').primaryKey(),
+    status: text('status').notNull().default('ACTIVE'),
+    /** scrypt record only. Never plaintext. Null for external-ID accounts. */
+    passwordHash: text('password_hash'),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+    lastLoginAt: bigint('last_login_at', { mode: 'number' }),
+    disabledReason: text('disabled_reason'),
+  }
+);
+
+export const platformSessions = pgTable(
+  'platform_sessions',
+  {
+    sessionId: text('session_id').primaryKey(),
+    userId: text('user_id').notNull(),
+    /** sha256 of the bearer token. The raw token is never persisted. */
+    tokenHash: text('token_hash').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
+    revokedAt: bigint('revoked_at', { mode: 'number' }),
+    renewalCount: integer('renewal_count').notNull().default(0),
+    lastRenewedAt: bigint('last_renewed_at', { mode: 'number' }),
+  },
+  (table) => [index('platform_sessions_user_idx').on(table.userId), index('platform_sessions_expiry_idx').on(table.expiresAt)]
+);
+
+export const platformAuthEvents = pgTable(
+  'platform_auth_events',
+  {
+    id: serial('id').primaryKey(),
+    eventId: text('event_id').notNull().unique(),
+    eventType: text('event_type').notNull(),
+    userId: text('user_id'),
+    sessionId: text('session_id'),
+    occurredAt: bigint('occurred_at', { mode: 'number' }).notNull(),
+    outcome: text('outcome').notNull(),
+    /** JSON metadata. Secrets must never be written here. */
+    metadata: text('metadata').notNull().default('{}'),
+  },
+  (table) => [index('platform_auth_events_user_idx').on(table.userId), index('platform_auth_events_time_idx').on(table.occurredAt)]
+);

@@ -48,7 +48,10 @@ export class EvidenceGraphEngine {
       }
     };
 
-    // 1. Root Sector Node
+    // 1. Root Sector Node (structural query root — NOT statutory evidence).
+    // Fail-closed provenance (P26-P2-2): the sector node no longer claims
+    // TIER_1_STATUTORY/VALID provenance. It is explicitly marked as a
+    // system-generated structural node with provisional validation.
     const sectorNodeId = `SECTOR_${input.rootSectorId.toUpperCase()}`;
     addNode({
       nodeId: sectorNodeId,
@@ -58,11 +61,12 @@ export class EvidenceGraphEngine {
       attributes: { sectorId: input.rootSectorId },
       provenance: {
         source: 'SYSTEM_UNIVERSE',
-        sourceTier: 'TIER_1_STATUTORY',
+        sourceTier: 'TIER_4_UNVERIFIED',
         publicationDate: asOfDate,
         retrievalDate: asOfDate,
         freshness: 'CURRENT',
-        validationStatus: 'VALID',
+        validationStatus: 'PROVISIONAL',
+        verificationNotes: 'Structural query root — not statutory evidence and never a model input.',
       },
     });
 
@@ -148,11 +152,13 @@ export class EvidenceGraphEngine {
       });
     }
 
-    // 5. Backlog Nodes
+    // 5. Backlog Nodes (P26-P2-2): provenance is DERIVED from the real
+    // backlog items — never a synthesized ANNUAL_FILINGS/TIER_1 claim.
     if (input.backlogs) {
       for (const bl of input.backlogs) {
         const companyNodeId = `COMPANY_${bl.symbol.toUpperCase()}`;
         const backlogNodeId = `BACKLOG_${bl.symbol.toUpperCase()}`;
+        const derived = deriveBacklogProvenance(bl, asOfDate);
 
         addNode({
           nodeId: backlogNodeId,
@@ -164,14 +170,7 @@ export class EvidenceGraphEngine {
             bookToBill: bl.bookToBillRatio,
             coverageYears: bl.backlogCoverageYears,
           },
-          provenance: {
-            source: 'ANNUAL_FILINGS',
-            sourceTier: 'TIER_1_STATUTORY',
-            publicationDate: asOfDate,
-            retrievalDate: asOfDate,
-            freshness: bl.freshness,
-            validationStatus: 'VALID',
-          },
+          provenance: derived.provenance,
         });
 
         edges.push({
@@ -180,7 +179,7 @@ export class EvidenceGraphEngine {
           toNodeId: backlogNodeId,
           edgeType: 'GENERATES_BACKLOG',
           weight: 0.95,
-          evidenceTier: 'TIER_1_STATUTORY',
+          evidenceTier: derived.evidenceTier,
           confirmed: true,
         });
       }
@@ -223,7 +222,65 @@ export class EvidenceGraphEngine {
       asOfDate,
       nodes,
       edges,
-      isComplete: nodes.length > 0,
+      // Fail-closed (P26-P2-2): the structural sector root alone never marks
+      // the graph complete — at least one real evidence node is required.
+      isComplete: nodes.some((n) => n.nodeType !== 'SECTOR_NODE'),
     };
   }
+}
+
+const TIER_RANK: Record<string, number> = {
+  TIER_1_STATUTORY: 1,
+  TIER_2_EXCHANGE: 2,
+  TIER_3_SECONDARY: 3,
+  TIER_4_UNVERIFIED: 4,
+};
+
+/**
+ * Derives honest backlog-node provenance from the real backlog items
+ * (P26-P2-2). Source names the contributing filings; the tier is the weakest
+ * contributing tier; the publication date is the latest item publication.
+ */
+function deriveBacklogProvenance(
+  bl: CompanyBacklogSummary,
+  asOfDate: string
+): { provenance: EvidenceGraphNode['provenance']; evidenceTier: EvidenceGraphEdge['evidenceTier'] } {
+  const items = bl.items ?? [];
+  if (items.length === 0) {
+    return {
+      provenance: {
+        source: 'NO_BACKLOG_ITEMS',
+        sourceTier: 'TIER_4_UNVERIFIED',
+        publicationDate: asOfDate,
+        retrievalDate: asOfDate,
+        freshness: bl.freshness,
+        validationStatus: 'PROVISIONAL',
+        verificationNotes: 'Backlog summary without item-level evidence.',
+      },
+      evidenceTier: 'TIER_4_UNVERIFIED',
+    };
+  }
+  const sources = Array.from(new Set(items.map((i) => i.provenance.source))).sort();
+  const weakest = items.reduce((worst, i) => {
+    const rank = TIER_RANK[i.provenance.sourceTier] ?? 4;
+    return rank > (TIER_RANK[worst] ?? 4) ? i.provenance.sourceTier : worst;
+  }, items[0].provenance.sourceTier);
+  const latestPub = items
+    .map((i) => i.provenance.publicationDate)
+    .filter((d): d is string => !!d)
+    .sort()
+    .pop() ?? asOfDate;
+  const allValid = items.every((i) => i.provenance.validationStatus === 'VALID');
+  return {
+    provenance: {
+      source: sources.length === 1 ? sources[0] : `MULTIPLE_SOURCES(${sources.length})`,
+      sourceTier: weakest,
+      publicationDate: latestPub,
+      retrievalDate: asOfDate,
+      freshness: bl.freshness,
+      validationStatus: allValid ? 'VALID' : 'PROVISIONAL',
+      verificationNotes: `Derived from ${items.length} backlog item(s); not a primary filing.`,
+    },
+    evidenceTier: weakest,
+  };
 }

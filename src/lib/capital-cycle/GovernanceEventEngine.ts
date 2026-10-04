@@ -79,10 +79,14 @@ export class GovernanceEventEngine {
     const evaluationDate = asOfDate ?? new Date().toISOString().slice(0, 10);
     const sym = symbol.toUpperCase();
 
-    // Filter events as of evaluation date with lookahead protection
+    // Filter events as of evaluation date with lookahead protection.
+    // Fail-closed (P26-P3-1): undated records are excluded, never assumed current.
+    // NOTE (P26-P3-3 residual): CONCLUDED events are filtered by present status;
+    // without a conclusion timestamp they cannot be windowed historically.
     const activeEvents = events.filter((e) => {
       if (e.symbol.toUpperCase() !== sym) return false;
-      const pubDate = e.provenance.publicationDate || e.announcementDate || evaluationDate;
+      const pubDate = e.provenance.publicationDate || e.announcementDate || null;
+      if (!pubDate) return false;
       return pubDate <= evaluationDate && e.status !== 'CONCLUDED';
     });
 

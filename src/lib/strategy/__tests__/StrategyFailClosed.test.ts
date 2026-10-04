@@ -86,7 +86,7 @@ describe('Phase 25 — Strategy Fail-Closed Matrix', () => {
     expect(signal.reasonCode).toBe('LOOKAHEAD_DATA_REJECTED');
   });
 
-  it('fails closed when upstream snapshot dataFreshness is STALE or UNAVAILABLE', () => {
+  it('fails closed when upstream snapshot dataFreshness is UNAVAILABLE', () => {
     const staleEarnings = makeEarningsSnapshot({ dataFreshness: 'UNAVAILABLE' });
     const signal = StrategyFactory.evaluate('EARNINGS_MOMENTUM_QUALITY', {
       ...baseContext,

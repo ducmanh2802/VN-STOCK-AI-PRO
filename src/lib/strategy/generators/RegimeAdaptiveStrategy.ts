@@ -111,6 +111,19 @@ export class RegimeAdaptiveStrategy
       );
     }
 
+    // 2b. Stale upstream guard (P25-P1-1): stale regime never drives allocation.
+    if (market.dataFreshness === 'STALE') {
+      return UniversalSignalNormalizer.failClosed(
+        this.id,
+        this.assetClass,
+        context.symbol,
+        'MARKET_DATA_STALE',
+        lineage,
+        ['Phase 20 MarketIntelligenceSnapshot is STALE — regime signal withheld (fail-closed)'],
+        'STALE'
+      );
+    }
+
     const regime = market.regime.regime;
     const confidence = market.regime.confidence;
     const currentPrice = context.currentPrice ?? null;

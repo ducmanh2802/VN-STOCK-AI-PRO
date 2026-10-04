@@ -12,8 +12,20 @@ import type {
   IncomeStatement,
   MarginResult,
 } from './types.ts';
-import { buildLineage } from './lineage.ts';
+import { mergeLineages } from './lineage.ts';
 import { percentOf } from './helpers.ts';
+
+/**
+ * Margin output field -> source income-statement field for reason propagation
+ * (P24-D8). Margin keys (grossMargin/...) do not exist on IncomeStatement.reasons;
+ * without this map the original VALUE_NON_FINITE/period reasons were lost.
+ */
+const MARGIN_SOURCE_FIELD: Record<string, 'grossProfit' | 'operatingProfit' | 'ebitda' | 'netProfit'> = {
+  grossMargin: 'grossProfit',
+  operatingMargin: 'operatingProfit',
+  ebitdaMargin: 'ebitda',
+  netMargin: 'netProfit',
+};
 
 export class MarginEngine {
   public static normalize(income: IncomeStatement, cashFlow: CashFlowStatement): MarginResult {
@@ -26,7 +38,9 @@ export class MarginEngine {
         return null;
       }
       if (part === null) {
-        reasons[field] = income.reasons[field] ?? 'REQUIRED_LINE_ITEM_NOT_FOUND';
+        const sourceField = MARGIN_SOURCE_FIELD[field];
+        reasons[field] =
+          (sourceField ? income.reasons[sourceField] : undefined) ?? 'REQUIRED_LINE_ITEM_NOT_FOUND';
         return null;
       }
       return percentOf(part, revenue);
@@ -49,7 +63,8 @@ export class MarginEngine {
       netMargin: compute(income.netProfit, 'netMargin'),
       fcfMargin,
       reasons: Object.freeze({ ...reasons }),
-      lineage: buildLineage([], { engine: 'MarginEngine' }),
+      // P24-D12: propagate input statement provenance instead of empty sources.
+      lineage: mergeLineages([income.lineage, cashFlow.lineage], 'MarginEngine'),
     });
   }
 }

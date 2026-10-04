@@ -21,6 +21,9 @@ import {
   MoneyFlowEngine,
 } from './src/lib/analysis/index.ts';
 import { requireAuth, type AuthRequest } from './src/middleware/auth.ts';
+// PLATFORM FOUNDATION — platform layer mounts below product/feature routes.
+import { createPlatformRouter } from './src/lib/platform/api/createPlatformRouter.ts';
+import { correlationMiddleware, securityHeaders } from './src/middleware/platform/security.ts';
 import { getOrCreateUser } from './src/db/users.ts';
 // PHASE 8.5C — REAL market data (KBS historical OHLCV + VPS realtime/fundamentals)
 import {
@@ -48,12 +51,22 @@ async function startServer() {
 
   app.use(express.json());
 
+  // PLATFORM FOUNDATION — correlation ids + security headers for every route (§26/§28).
+  app.use(correlationMiddleware);
+  app.use(securityHeaders);
+
   // Paper-only process-local runtime. Portfolio/account state stays in PaperBroker.
   const tradingEngine = new TradingEngine({ broker: new PaperBroker() });
   app.use('/api/trading', createTradingApiRouter(tradingEngine));
 
   // Macroeconomic Intelligence layer (Phase 19.1)
   app.use('/api/macro', createMacroApiRouter());
+
+  // ========================================================
+  // PLATFORM FOUNDATION (identity/auth, authorization, audit, health)
+  // Mounts below feature routers; owns no financial semantics.
+  // ========================================================
+  app.use('/api/platform', createPlatformRouter());
 
   // ========================================================
   // API ROUTES (Backend Data Layer over PostgreSQL / Drizzle)

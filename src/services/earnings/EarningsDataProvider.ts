@@ -79,12 +79,14 @@ function statementTypeOf(source: FinancialStatementType): EarningsStatementType 
   }
 }
 
-/** Combines freshnesses with INVALID > CURRENT > STALE > UNAVAILABLE hierarchy. */
+/** Combines freshnesses with INVALID > STALE > CURRENT > UNAVAILABLE hierarchy. */
 export function combineFreshness(statuses: readonly DataFreshnessStatus[]): DataFreshnessStatus {
   if (statuses.length === 0) return 'UNAVAILABLE';
   if (statuses.some((s) => s === 'INVALID')) return 'INVALID';
-  if (statuses.some((s) => s === 'CURRENT')) return 'CURRENT';
+  // Fail-closed (P24-D14): STALE must never be masked by CURRENT. A snapshot
+  // containing any stale input is reported STALE, never CURRENT.
   if (statuses.some((s) => s === 'STALE')) return 'STALE';
+  if (statuses.some((s) => s === 'CURRENT')) return 'CURRENT';
   return 'UNAVAILABLE';
 }
 
@@ -108,7 +110,16 @@ export class EarningsDataProvider {
     let presentation: 'DIRECT' | 'INDIRECT' | 'UNKNOWN' = 'UNKNOWN';
 
     for (const res of results) {
-      const period = FinancialPeriodEngine.parse(res.period) ?? FinancialPeriodEngine.cumulative(res.fiscalYear, 'FY');
+      // Fail-closed (P24-D2): an unparseable document period is never replaced
+      // with a synthesized FY guess. The result is skipped with an explicit issue.
+      const parsedPeriod = FinancialPeriodEngine.parse(res.period);
+      if (!parsedPeriod) {
+        issues.push(
+          `Unparseable document period "${res.period}" for ${sym} — result skipped (fail-closed, no FY synthesis).`
+        );
+        continue;
+      }
+      const period = parsedPeriod;
       const reportType: EarningsReportType = res.reportType;
 
       for (const [metricKey, metric] of Object.entries(res.metrics)) {
@@ -118,7 +129,20 @@ export class EarningsDataProvider {
         if (metric.statementType === 'CASH_FLOW_DIRECT') presentation = 'DIRECT';
         else if (metric.statementType === 'CASH_FLOW_INDIRECT') presentation = 'INDIRECT';
 
-        const periodForMetric = FinancialPeriodEngine.parse(metric.period) ?? period;
+        // Fail-closed (P24-D2): a present-but-malformed metric period is skipped
+        // with an issue; only an ABSENT metric period inherits the document period.
+        let periodForMetric = period;
+        const rawMetricPeriod = metric.period?.trim() ?? '';
+        if (rawMetricPeriod !== '') {
+          const parsedMetricPeriod = FinancialPeriodEngine.parse(metric.period);
+          if (!parsedMetricPeriod) {
+            issues.push(
+              `Unparseable metric period "${metric.period}" for ${sym}/${metricKey} — metric skipped (fail-closed).`
+            );
+            continue;
+          }
+          periodForMetric = parsedMetricPeriod;
+        }
 
         const freshness: DataFreshnessStatus =
           metric.value === null

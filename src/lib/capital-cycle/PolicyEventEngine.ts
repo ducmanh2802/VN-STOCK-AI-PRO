@@ -91,8 +91,16 @@ export class PolicyEventEngine {
     let filteredCount = 0;
 
     for (const p of policies) {
-      // 1. Lookahead check: Published or announced date must not exceed asOfDate
-      const pubDate = p.provenance.publicationDate || p.announcementDate;
+      // 1. Lookahead check (P26-P3-1): published or announced date must not
+      // exceed asOfDate. Undated records are excluded — never assumed current.
+      const pubDate = p.provenance.publicationDate || p.announcementDate || null;
+      if (!pubDate) {
+        lookaheadViolations.push(
+          `Policy ${p.documentNumber} has no publication or announcement date — excluded (fail-closed)`
+        );
+        filteredCount++;
+        continue;
+      }
       if (pubDate > asOfDate) {
         lookaheadViolations.push(
           `Policy ${p.documentNumber} (${pubDate}) is after evaluation date (${asOfDate})`
@@ -119,12 +127,29 @@ export class PolicyEventEngine {
         }
       }
 
-      // 4. Status filter
+      // 4. Status filter (P26-P3-3): a policy inactive TODAY may still have
+      // been active at a historical asOfDate. Exclude an inactive-status
+      // policy only when (a) the snapshot is current (asOfDate >= today), or
+      // (b) its expiry demonstrably precedes the snapshot date. Historical
+      // snapshots use the effective/expiry window instead of today's status.
       if (activeOnly) {
         const inactiveStatuses: PolicyStatus[] = ['CANCELLED', 'EXPIRED', 'SUSPENDED'];
         if (inactiveStatuses.includes(p.status)) {
-          filteredCount++;
-          continue;
+          const today = new Date().toISOString().slice(0, 10);
+          const expiredBySnapshot = !!p.expiryDate && p.expiryDate <= asOfDate;
+          const snapshotIsCurrent = asOfDate >= today;
+          if (expiredBySnapshot || snapshotIsCurrent) {
+            filteredCount++;
+            continue;
+          }
+          const effectiveStart = p.effectiveDate || p.announcementDate || null;
+          const windowActive =
+            (!effectiveStart || effectiveStart <= asOfDate) &&
+            (!p.expiryDate || p.expiryDate > asOfDate);
+          if (!windowActive) {
+            filteredCount++;
+            continue;
+          }
         }
       }
 

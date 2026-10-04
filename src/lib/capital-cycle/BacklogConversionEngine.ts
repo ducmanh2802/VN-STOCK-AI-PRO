@@ -36,23 +36,35 @@ export class BacklogConversionEngine {
     const sym = symbol.toUpperCase();
 
     let totalConfirmedBacklog: number | null = null;
+    let totalUnauditedDisclosedBacklog: number | null = null;
     let totalUnverifiedBacklog: number | null = null;
 
     const filteredItems = items.filter((item) => {
       if (item.symbol.toUpperCase() !== sym) return false;
-      const pubDate = item.provenance.publicationDate || evaluationDate;
-      return pubDate <= evaluationDate;
+      // Fail-closed (P26-P3-1): undated records are excluded — never assumed
+      // current. The publication date is real evidence; the award date is an
+      // acceptable fallback; a missing both means the record cannot be placed
+      // in time and must not enter a historical total.
+      const pubDate = item.provenance.publicationDate || item.awardDate || null;
+      if (!pubDate) return false;
+      if (pubDate > evaluationDate) return false;
+      // Fail-closed (P26-P3-2): a future award date must not inflate a
+      // historical backlog total even when publication predates the snapshot.
+      if (item.awardDate && item.awardDate > evaluationDate) return false;
+      return true;
     });
 
     for (const item of filteredItems) {
       const val = item.remainingBacklogVnd ?? item.contractValueVnd;
       if (val === null || isNaN(val) || val < 0) continue;
 
-      if (
-        item.verificationType === 'CONTRACTED_VERIFIED' ||
-        item.verificationType === 'DISCLOSED_UNAUDITED'
-      ) {
+      if (item.verificationType === 'CONTRACTED_VERIFIED') {
         totalConfirmedBacklog = (totalConfirmedBacklog ?? 0) + val;
+      } else if (item.verificationType === 'DISCLOSED_UNAUDITED') {
+        // Segregated (P26-P2-4): unaudited IR-deck disclosures are reported
+        // separately and NEVER counted as confirmed backlog, coverage, or
+        // conversion input.
+        totalUnauditedDisclosedBacklog = (totalUnauditedDisclosedBacklog ?? 0) + val;
       } else {
         totalUnverifiedBacklog = (totalUnverifiedBacklog ?? 0) + val;
       }
@@ -102,6 +114,7 @@ export class BacklogConversionEngine {
       symbol: sym,
       asOfDate: evaluationDate,
       totalConfirmedBacklogVnd: totalConfirmedBacklog,
+      totalUnauditedDisclosedBacklogVnd: totalUnauditedDisclosedBacklog,
       totalUnverifiedBacklogVnd: totalUnverifiedBacklog,
       trailingTwelveMonthsRevenueVnd: ttmRevenueVnd,
       bookToBillRatio: bookToBill,

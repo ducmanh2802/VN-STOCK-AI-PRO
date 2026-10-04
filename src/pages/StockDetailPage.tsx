@@ -26,6 +26,7 @@ import { StockAIExplanation } from '../components/stock/StockAIExplanation';
 import { StockRecommendationsView } from '../components/stock/StockRecommendationsView';
 import { DataSourceBadge } from '../components/stock/DataSourceBadge';
 import { LoadingState } from '../components/ui/LoadingState';
+import { LearnThis } from '../components/learning/LearningWidgets';
 import { ErrorState } from '../components/ui/ErrorBoundary';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { CapitalAllocationEngine } from '../lib/analysis/capitalAllocation';
@@ -188,15 +189,20 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
       />
 
       {/* 1b. Real data-source indicator (PHASE 8.5C STEP 13) */}
-      <DataSourceBadge
-        historical={{ source: 'KBS', ok: Boolean(chartBundle) }}
-        realtime={{ source: 'VPS', ok: Boolean(quote), detail: quoteUnavailableReason ?? undefined }}
-        fundamentals={{
-          source: 'VPS',
-          ok: Boolean(realFundamentals),
-          detail: realFundamentalsUnavailableReason ?? undefined,
-        }}
-      />
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex-1 min-w-[240px]">
+          <DataSourceBadge
+            historical={{ source: 'KBS', ok: Boolean(chartBundle) }}
+            realtime={{ source: 'VPS', ok: Boolean(quote), detail: quoteUnavailableReason ?? undefined }}
+            fundamentals={{
+              source: 'VPS',
+              ok: Boolean(realFundamentals),
+              detail: realFundamentalsUnavailableReason ?? undefined,
+            }}
+          />
+        </div>
+        <LearnThis feature="StockDetail" />
+      </div>
 
       {/* 2. Price Summary — REAL VPS quote when available, explicit unavailable state otherwise */}
       {quote ? (

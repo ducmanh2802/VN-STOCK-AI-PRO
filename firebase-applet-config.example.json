@@ -1,0 +1,10 @@
+{
+  "projectId": "your-firebase-project-id",
+  "appId": "1:000000000000:web:0000000000000000000000",
+  "apiKey": "REPLACE_WITH_YOUR_FIREBASE_WEB_API_KEY",
+  "authDomain": "your-firebase-project-id.firebaseapp.com",
+  "firestoreDatabaseId": "your-firestore-database-id",
+  "storageBucket": "your-firebase-project-id.appspot.com",
+  "messagingSenderId": "000000000000",
+  "measurementId": "G-0000000000"
+}

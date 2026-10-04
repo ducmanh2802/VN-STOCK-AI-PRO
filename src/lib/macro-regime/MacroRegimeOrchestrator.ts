@@ -90,12 +90,13 @@ export class MacroRegimeOrchestrator {
       allObservationsVi: allObservations,
     });
 
-    // 4. Regime Transition Detection
+    // 4. Regime Transition Detection (P27-D9: a first-seen snapshot has
+    // persistence 1, not 2 — unknown prior persistence defaults to zero).
     const transition = RegimeTransitionEngine.detectTransition(
       classification.macroRegime,
       options.previousRegime ?? 'UNKNOWN',
       asOfDate,
-      options.priorPersistence ?? 1
+      options.priorPersistence ?? 0
     );
 
     const dataFreshness = MacroNormalizer.deriveAggregateFreshness(normalizedList);

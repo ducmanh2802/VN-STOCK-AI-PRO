@@ -110,6 +110,19 @@ export class FuturesBasisArbitrageStrategy
       );
     }
 
+    // 2b. Stale upstream guard (P25-P1-1): stale basis never drives arbitrage.
+    if (deriv.dataFreshness === 'STALE') {
+      return UniversalSignalNormalizer.failClosed(
+        this.id,
+        this.assetClass,
+        context.symbol,
+        'DERIVATIVES_DATA_STALE',
+        lineage,
+        ['Phase 21 DerivativesIntelligenceSnapshot is STALE — basis signal withheld (fail-closed)'],
+        'STALE'
+      );
+    }
+
     const basis = deriv.basis.basis; // F - S (index points)
     const spotPrice = deriv.spotQuote.price;
     const futuresPrice = deriv.quote.price ?? context.currentPrice ?? null;

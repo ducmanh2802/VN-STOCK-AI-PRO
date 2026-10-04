@@ -63,7 +63,14 @@ export interface FinancialPeriod {
   readonly type: FinancialPeriodType;
   /** Fiscal year the period belongs to (year of its `periodEnd` under a calendar FY). */
   readonly fiscalYear: number;
-  /** Quarter 1..4 for Q1..Q4, or null otherwise. */
+  /**
+   * Representative quarter 1..4 for discrete quarters Q1..Q4, and for
+   * cumulative windows the quarter in which the window ENDS
+   * (H1 -> 2, 9M -> 3, FY -> 4, YTD -> quarter of upToMonth); null only when
+   * the engine cannot determine a representative quarter (P24-D15).
+   * Comparability is decided by FinancialPeriodEngine.isComparable
+   * (type + accumulation + duration), never by this field alone.
+   */
   readonly quarter: 1 | 2 | 3 | 4 | null;
   /** Inclusive ISO date (YYYY-MM-DD). */
   readonly periodStart: string;
@@ -366,4 +373,11 @@ export interface EarningsSnapshot {
   readonly calendar: readonly EarningsCalendarEntry[];
   readonly warnings: readonly string[];
   readonly lineage: EarningsLineage;
+  /**
+   * PR-01 canonical lineage key (P24-D7). Populated by EarningsSnapshotBuilder
+   * with the same enriched statement context as `lineage`; `lineage` is
+   * retained for backward compatibility. Optional so previously persisted or
+   * test-constructed snapshots remain valid.
+   */
+  readonly dataLineage?: EarningsLineage;
 }

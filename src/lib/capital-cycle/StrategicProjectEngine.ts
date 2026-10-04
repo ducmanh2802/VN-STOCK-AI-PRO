@@ -85,7 +85,15 @@ export class StrategicProjectEngine {
     let totalApprovedCapex: number | null = null;
 
     for (const p of projects) {
-      const pubDate = p.provenance.publicationDate || asOfDate;
+      // Fail-closed (P26-P3-1): undated records are excluded with a violation,
+      // never assumed current.
+      const pubDate = p.provenance.publicationDate || null;
+      if (!pubDate) {
+        lookaheadViolations.push(
+          `Project ${p.projectCode} has no publication date — excluded (fail-closed)`
+        );
+        continue;
+      }
       if (pubDate > asOfDate) {
         lookaheadViolations.push(
           `Project ${p.projectCode} publication date (${pubDate}) > asOfDate (${asOfDate})`

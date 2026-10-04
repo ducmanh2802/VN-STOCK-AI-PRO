@@ -30,6 +30,11 @@ import { DataStatusPage } from './pages/DataStatusPage';
 import { RecommendationsPage } from './pages/RecommendationsPage';
 import { AIAnalystPage } from './pages/AIAnalystPage';
 import { StockDetailPage } from './pages/StockDetailPage';
+import { LearningDashboardPage } from './pages/LearningDashboardPage';
+import { LearningPathPage } from './pages/LearningPathPage';
+import { LearningLessonPage } from './pages/LearningLessonPage';
+import { PracticeLabPage } from './pages/PracticeLabPage';
+import { JournalPage } from './pages/JournalPage';
 import { PhasePlaceholderPage } from './pages/PhasePlaceholderPage';
 import { LoadingState } from './components/ui/LoadingState';
 import { ErrorState } from './components/ui/ErrorBoundary';
@@ -294,7 +299,17 @@ export default function App() {
                   />
                 )}
 
-                {['strategy-lab', 'backtest', 'fundamentals', 'news-macro', 'journal', 'settings'].includes(currentView) && (
+                {currentView === 'learn' && <LearningDashboardPage />}
+
+                {currentView === 'learn-path' && <LearningPathPage />}
+
+                {currentView === 'learn-lesson' && <LearningLessonPage />}
+
+                {currentView === 'practice-lab' && <PracticeLabPage />}
+
+                {currentView === 'journal' && <JournalPage />}
+
+                {['strategy-lab', 'backtest', 'fundamentals', 'news-macro', 'settings'].includes(currentView) && (
                   <PhasePlaceholderPage
                     view={currentView as any}
                     onBackToDashboard={() => setCurrentView('dashboard')}

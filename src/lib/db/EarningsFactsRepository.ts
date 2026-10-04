@@ -10,7 +10,7 @@
  * amended/restated filings are inserted as NEW rows with a new reportId.
  */
 
-import { and, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
 import { db } from '../../db/index.ts';
 import { financialFactsV2, earningsCalendar } from '../../db/schema.ts';
@@ -93,6 +93,8 @@ export class EarningsFactsRepository {
       .select()
       .from(earningsCalendar)
       .where(eq(earningsCalendar.symbol, symbol.toUpperCase()))
-      .orderBy(desc(earningsCalendar.fiscalYear));
+      // Fail-closed contract (P24-D4): earliest report date first; rows without
+      // a report date sort last (PostgreSQL ASC default is NULLS LAST).
+      .orderBy(asc(earningsCalendar.reportDate));
   }
 }
