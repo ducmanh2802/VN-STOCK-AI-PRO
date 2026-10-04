@@ -50,7 +50,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
     return (
       <div
         id="stock-price-summary"
-        className="p-4 rounded-xl bg-terminal-surface border border-amber-400/30 space-y-2"
+        className="p-4 rounded-sm bg-terminal-surface border border-amber-400/30 space-y-2"
       >
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
@@ -107,7 +107,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
   return (
     <div
       id="stock-price-summary"
-      className="p-4 rounded-xl bg-terminal-surface border border-terminal-border shadow-sm space-y-4"
+      className="p-4 rounded-sm bg-terminal-surface border border-terminal-border shadow-sm space-y-4"
     >
       {/* Top Banner: Big Price & Primary Metrics */}
       <div className="flex flex-wrap items-baseline justify-between gap-4 pb-3 border-b border-terminal-border/70">

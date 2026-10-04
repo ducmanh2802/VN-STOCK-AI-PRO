@@ -31,6 +31,15 @@ import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { CapitalAllocationEngine } from '../lib/analysis/capitalAllocation';
 import { normalizeVpsAnnualFundamentals } from '../lib/analysis/enterprise/financialFacts';
 
+export type StockDetailTab =
+  | 'overview'
+  | 'fundamentals'
+  | 'valuation'
+  | 'technical'
+  | 'flow'
+  | 'ai'
+  | 'risk';
+
 export interface StockDetailPageProps {
   symbol: string;
   isWatchlisted: boolean;
@@ -45,6 +54,20 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
   onBackToDashboard,
 }) => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>('3M');
+  const [activeTab, setActiveTab] = useState<StockDetailTab>('overview');
+
+  // Presentation-only view state. Each tab renders the same components over
+  // the same unchanged data; no fetching, calculation or availability
+  // semantics are altered.
+  const TABS: { id: StockDetailTab; label: string }[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'fundamentals', label: 'Fundamentals' },
+    { id: 'valuation', label: 'Valuation' },
+    { id: 'technical', label: 'Technical' },
+    { id: 'flow', label: 'Flow' },
+    { id: 'ai', label: 'AI Analysis' },
+    { id: 'risk', label: 'Risk' },
+  ];
 
   // Fetch complete stock details
   const {
@@ -108,7 +131,7 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
 
   if (isStockLoading) {
     return (
-      <div id="stock-detail-loading" className="py-16 space-y-6">
+      <div id="stock-detail-loading" className="py-8 space-y-4">
         <LoadingState
           variant="terminal"
           message={`Đang tải dữ liệu toàn diện cổ phiếu ${symbol} (Kỹ thuật, BCTC, Dòng tiền & AI định giá)...`}
@@ -119,10 +142,10 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
 
   if (stockError || !stock) {
     return (
-      <div id="stock-detail-error" className="py-12 space-y-6">
-        <div className="p-6 rounded-xl bg-terminal-surface border border-terminal-down/30 text-center space-y-4 max-w-lg mx-auto">
-          <AlertCircle className="w-10 h-10 text-terminal-down mx-auto" />
-          <h2 className="text-xl font-bold font-mono text-terminal-text-primary">
+      <div id="stock-detail-error" className="py-8 space-y-4">
+        <div className="w-full max-w-[32rem] mx-auto bg-terminal-surface border border-terminal-down/30 rounded p-5 text-center space-y-3">
+          <AlertCircle className="w-6 h-6 text-terminal-down mx-auto" />
+          <h2 className="text-[15px] font-semibold font-mono text-terminal-text-primary">
             Không tìm thấy thông tin mã {symbol}
           </h2>
           <p className="text-xs text-terminal-text-secondary">
@@ -220,63 +243,108 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
         isLoading={isChartLoading}
       />
       {!chartBundle && !isChartLoading && (
-        <div className="p-3 rounded-xl bg-terminal-surface border border-amber-400/30 text-[11px] text-amber-400 font-mono">
+        <div className="p-2.5 rounded-sm bg-terminal-surface border border-amber-400/30 text-[11px] text-amber-400 font-mono">
           Lịch sử giá thật (KBS) không khả dụng{chartUnavailableReason ? ` — ${chartUnavailableReason}` : ''}.
           Không hiển thị dữ liệu giả.
         </div>
       )}
 
-      {/* 5. Technical Indicators (Pre-calculated snapshot from REAL candles) */}
-      <StockTechnicalIndicators
-        snapshot={chartBundle?.snapshot || null}
-        currentPrice={quote?.lastPrice ?? chartBundle?.candles[chartBundle.candles.length - 1]?.close ?? 0}
-      />
-
-      {/* 5b. Real technical analysis engine result (Phase 8.4 / 8.5C) — real KBS data → StockAnalysisEngine */}
-      <StockAnalysisCard analysis={stockAnalysis} isLoading={isAnalysisLoading} />
-
-      {/* PHASE 17 — Multi-Horizon AI Recommendation Engine */}
-      <StockRecommendationsView symbol={symbol} />
-
-      {/* 2-Column Responsive Layout for Deep Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* 6. Fundamental Metrics (REAL VPS data, periods as provided by source) */}
-        <StockRealFundamentals
-          fundamentals={realFundamentals}
-          isLoading={isRealFundamentalsLoading && !realFundamentals}
-          unavailableReason={realFundamentalsUnavailableReason}
-        />
-
-        <StockCapitalAllocation analysis={capitalAllocation} />
-
-        {/* 6b. Legacy Phase 8.4 fundamental metrics (demo data — kept for UI continuity) */}
-        <StockFundamentals fundamentals={stock.fundamentals} />
-
-        {/* 7. Valuation */}
-        <StockValuation valuation={stock.valuation} />
-
-        {/* 8. Money Flow */}
-        <StockMoneyFlow moneyFlow={stock.moneyFlow} analysis={moneyFlowAnalysis} />
-
-        {/* 9. Support / Resistance */}
-        <StockSupportResistance
-          levels={stock.supportResistance}
-          currentPrice={stock.price}
-        />
+      {/* Sub-navigation: the panels below are grouped by research workflow.
+          Same components, same data, same availability semantics. */}
+      <div
+        role="tablist"
+        aria-label="Stock research sections"
+        className="flex items-center gap-0 border-b border-terminal-border overflow-x-auto"
+      >
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              id={`stock-tab-${tab.id}`}
+              role="tab"
+              type="button"
+              aria-selected={isActive}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3 py-1.5 text-[11px] font-mono whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                isActive
+                  ? 'border-terminal-accent text-terminal-text-primary'
+                  : 'border-transparent text-terminal-text-muted hover:text-terminal-text-secondary'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Full Width Bottom Panels */}
-      {/* 10. Risk / Reward */}
-      <StockRiskReward
-        riskReward={stock.riskReward}
-        currentPrice={stock.price}
-      />
+      <div className="pt-3" role="tabpanel" aria-labelledby={`stock-tab-${activeTab}`}>
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <StockSupportResistance
+              levels={stock.supportResistance}
+              currentPrice={stock.price}
+            />
+            <StockCapitalAllocation analysis={capitalAllocation} />
+          </div>
+        )}
 
-      {/* 11. AI Explanation */}
-      <StockAIExplanation
-        explanation={stock.aiExplanation}
-        symbol={stock.symbol}
-      />
+        {activeTab === 'fundamentals' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <StockRealFundamentals
+              fundamentals={realFundamentals}
+              isLoading={isRealFundamentalsLoading && !realFundamentals}
+              unavailableReason={realFundamentalsUnavailableReason}
+            />
+            {/* Legacy Phase 8.4 fundamental metrics (demo data — kept for UI continuity) */}
+            <StockFundamentals fundamentals={stock.fundamentals} />
+          </div>
+        )}
+
+        {activeTab === 'valuation' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <StockValuation valuation={stock.valuation} />
+          </div>
+        )}
+
+        {activeTab === 'technical' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {/* Pre-calculated snapshot from REAL candles */}
+            <StockTechnicalIndicators
+              snapshot={chartBundle?.snapshot || null}
+              currentPrice={quote?.lastPrice ?? chartBundle?.candles[chartBundle.candles.length - 1]?.close ?? 0}
+            />
+            {/* Real technical analysis engine result (Phase 8.4 / 8.5C) */}
+            <StockAnalysisCard analysis={stockAnalysis} isLoading={isAnalysisLoading} />
+          </div>
+        )}
+
+        {activeTab === 'flow' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <StockMoneyFlow moneyFlow={stock.moneyFlow} analysis={moneyFlowAnalysis} />
+          </div>
+        )}
+
+        {activeTab === 'ai' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {/* PHASE 17 — Multi-Horizon AI Recommendation Engine */}
+            <StockRecommendationsView symbol={symbol} />
+            <StockAIExplanation
+              explanation={stock.aiExplanation}
+              symbol={stock.symbol}
+            />
+          </div>
+        )}
+
+        {activeTab === 'risk' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <StockRiskReward
+              riskReward={stock.riskReward}
+              currentPrice={stock.price}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

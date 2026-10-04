@@ -59,33 +59,25 @@ export interface CardSkeletonProps extends React.HTMLAttributes<HTMLDivElement> 
 }
 
 export const CardSkeleton: React.FC<CardSkeletonProps> = ({
-  count = 4,
-  lines,
   className,
   ...props
 }) => {
-  const actualCount = count || lines || 4;
+  // This primitive renders a SINGLE placeholder tile. Callers place it inside
+  // their own grid; previously it rendered its own 4-column grid, so nesting
+  // it in a grid cell produced oversized empty blocks.
   return (
     <div
-      className={cn('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3', className)}
+      className={cn(
+        'animate-pulse p-2.5 rounded-sm bg-terminal-surface border border-terminal-border',
+        className
+      )}
       {...props}
     >
-      {Array.from({ length: actualCount }).map((_, i) => (
-        <div
-          key={i}
-          className="p-4 rounded-lg bg-terminal-surface border border-terminal-border space-y-3 animate-pulse"
-        >
-          <div className="flex justify-between items-center">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-4 w-12" />
-          </div>
-          <Skeleton className="h-7 w-28" />
-          <div className="flex justify-between pt-2 border-t border-terminal-border-subtle">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-3 w-16" />
-          </div>
-        </div>
-      ))}
+      <div className="flex items-center justify-between gap-2">
+        <div className="h-3 w-16 rounded-sm bg-terminal-surface-elevated" />
+        <div className="h-3 w-8 rounded-sm bg-terminal-surface-elevated" />
+      </div>
+      <div className="mt-2 h-4 w-24 rounded-sm bg-terminal-surface-elevated" />
     </div>
   );
 };
@@ -106,10 +98,10 @@ export const TableSkeleton: React.FC<TableSkeletonProps> = ({
   const actualCols = columns || cols || 6;
   return (
     <div
-      className={cn('rounded-lg border border-terminal-border bg-terminal-surface overflow-hidden', className)}
+      className={cn('rounded-sm border border-terminal-border bg-terminal-surface overflow-hidden', className)}
       {...props}
     >
-      <div className="p-3 border-b border-terminal-border bg-terminal-surface-subtle flex justify-between">
+      <div className="p-2.5 border-b border-terminal-border bg-terminal-surface-subtle flex justify-between">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-4 w-32" />
       </div>
@@ -135,23 +127,21 @@ export interface LoadingStateProps extends React.HTMLAttributes<HTMLDivElement> 
 }
 
 export const LoadingState: React.FC<LoadingStateProps> = ({
-  message = 'Đang tải dữ liệu...',
+  message = 'Đang tải dữ liệu…',
   variant = 'default',
   className,
   ...props
 }) => {
   return (
     <div
-      className={cn(
-        'flex flex-col items-center justify-center py-12 px-4 text-center',
-        className
-      )}
+      className={cn('terminal-state w-full min-w-0', className)}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
       {...props}
     >
-      <div className="w-10 h-10 rounded-lg bg-terminal-accent/15 border border-terminal-accent/30 flex items-center justify-center text-terminal-accent mb-3 shadow-sm">
-        <RefreshCw className="w-5 h-5 animate-spin" />
-      </div>
-      <p className="font-mono text-xs text-terminal-text-secondary max-w-sm">{message}</p>
+      <span className="terminal-state-code">Loading</span>
+      <p className="terminal-state-detail break-words">{message}</p>
     </div>
   );
 };

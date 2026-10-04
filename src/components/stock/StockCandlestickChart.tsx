@@ -407,7 +407,7 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
   return (
     <div
       id="stock-candlestick-chart"
-      className="p-4 rounded-xl bg-terminal-surface border border-terminal-border shadow-sm space-y-3"
+      className="p-4 rounded-sm bg-terminal-surface border border-terminal-border shadow-sm space-y-3"
     >
       {/* Chart Top Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-terminal-border/70">

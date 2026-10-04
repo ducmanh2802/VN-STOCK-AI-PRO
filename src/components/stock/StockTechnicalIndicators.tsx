@@ -14,7 +14,7 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
 }) => {
   if (!snapshot) {
     return (
-      <div className="p-4 rounded-xl bg-terminal-surface border border-terminal-border text-center text-xs text-terminal-text-muted font-mono">
+      <div className="p-4 rounded-sm bg-terminal-surface border border-terminal-border text-center text-xs text-terminal-text-muted font-mono">
         Đang đồng bộ dữ liệu chỉ báo kỹ thuật...
       </div>
     );
@@ -46,7 +46,7 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
   return (
     <div
       id="stock-technical-indicators"
-      className="p-4 rounded-xl bg-terminal-surface border border-terminal-border shadow-sm space-y-4"
+      className="p-4 rounded-sm bg-terminal-surface border border-terminal-border shadow-sm space-y-4"
     >
       {/* Header */}
       <div className="flex items-center justify-between pb-2.5 border-b border-terminal-border/70">

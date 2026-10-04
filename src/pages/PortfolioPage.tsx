@@ -91,7 +91,7 @@ export const PortfolioPage: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
               <Briefcase className="w-4 h-4" />
             </div>
-            <h1 className="text-xl font-bold font-sans text-slate-100">
+            <h1 className="page-title">
               Portfolio Analytics & Asset Allocation
             </h1>
             <DataStatusBadge
@@ -227,7 +227,7 @@ export const PortfolioPage: React.FC = () => {
           {/* Holdings and Allocation Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Active Positions Table (2 Cols) — canonical BrokerPosition fields only */}
-            <div className="lg:col-span-2 bg-[#111827] border border-[#263244] rounded-xl overflow-hidden flex flex-col">
+            <div className="lg:col-span-2 bg-[#111827] border border-[#263244] rounded-sm overflow-hidden flex flex-col">
               <div className="p-4 bg-[#0E1522] border-b border-[#263244] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-200 font-mono uppercase tracking-wider">
@@ -338,7 +338,7 @@ export const PortfolioPage: React.FC = () => {
                 classification and NO per-position allocation weights, so this panel
                 intentionally performs ZERO frontend computation (Phase 19.5.6 §5/§6):
                 allocation/exposure must come from a canonical provider or not display. */}
-            <div className="bg-[#111827] border border-[#263244] rounded-xl p-4 space-y-4">
+            <div className="bg-[#111827] border border-[#263244] rounded-sm p-4 space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-[#263244]">
                 <span className="text-xs font-bold uppercase tracking-wider font-mono text-slate-200 flex items-center gap-2">
                   <PieChart className="w-4 h-4 text-indigo-400" />

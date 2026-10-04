@@ -55,7 +55,7 @@ export function StocksPage({
       <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-terminal-border">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-terminal-text-primary font-mono uppercase tracking-tight">
+            <h1 className="page-title font-mono">
               Danh Sách Cổ Phiếu Việt Nam
             </h1>
             <DemoBadge size="sm" />

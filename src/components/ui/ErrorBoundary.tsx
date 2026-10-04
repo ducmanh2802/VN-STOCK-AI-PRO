@@ -22,19 +22,19 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   return (
     <div
       className={cn(
-        'rounded-lg border border-terminal-down/30 bg-terminal-down/10 text-terminal-text-primary',
-        compact ? 'p-3 flex items-center justify-between gap-3' : 'p-6 sm:p-8 flex flex-col items-center text-center',
+        'rounded-sm border border-terminal-down/30 bg-terminal-down/10 text-terminal-text-primary',
+        compact ? 'p-2.5 flex items-center justify-between gap-3' : 'p-4 flex flex-col items-center text-center',
         className
       )}
       {...props}
     >
-      <div className={cn('flex items-center gap-3', !compact && 'flex-col')}>
-        <div className="w-10 h-10 rounded-lg bg-terminal-down/20 border border-terminal-down/40 flex items-center justify-center text-terminal-down shrink-0">
-          <AlertCircle className="w-5 h-5" />
+      <div className={cn('flex items-center gap-2', !compact && 'flex-col')}>
+        <div className="w-7 h-7 rounded-sm bg-terminal-down/20 border border-terminal-down/40 flex items-center justify-center text-terminal-down shrink-0">
+          <AlertCircle className="w-3.5 h-3.5" />
         </div>
         <div>
           <h4 className="text-xs font-semibold text-terminal-down mb-1">{title}</h4>
-          <p className="text-[11px] text-terminal-text-muted leading-relaxed max-w-md">{message}</p>
+          <p className="text-[11px] text-terminal-text-muted leading-relaxed max-w-[28rem]">{message}</p>
           {error && (
             <div className="mt-2 p-2 rounded bg-terminal-surface border border-terminal-border text-left font-mono text-[10px] text-terminal-down overflow-x-auto">
               <code>{error.message || String(error)}</code>
@@ -105,22 +105,20 @@ export class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, Err
 
       return (
         <div className="min-h-screen bg-terminal-bg text-terminal-text-primary flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-xl border border-terminal-border bg-terminal-surface p-6 sm:p-8 space-y-5 shadow-lg">
-            <div className="flex items-center gap-3 pb-4 border-b border-terminal-border">
-              <div className="w-10 h-10 rounded-lg bg-terminal-down/15 border border-terminal-down/30 flex items-center justify-center text-terminal-down">
-                <Terminal className="w-5 h-5" />
-              </div>
+          <div className="w-full max-w-[28rem] rounded border border-terminal-border bg-terminal-surface p-5 space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-terminal-border">
+              <Terminal className="w-4 h-4 text-terminal-down" />
               <div>
-                <h2 className="text-sm font-bold font-mono tracking-tight text-white">
+                <h2 className="text-[13px] font-semibold font-mono tracking-tight text-terminal-text-primary">
                   VN STOCK AI · ERROR RECOVERY
                 </h2>
-                <p className="text-xs text-terminal-text-muted mt-0.5">
+                <p className="text-[11px] text-terminal-text-muted mt-0.5">
                   Đã phát hiện ngoại lệ chưa xử lý tại giao diện
                 </p>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-lg bg-terminal-surface-subtle border border-terminal-border font-mono text-xs space-y-2">
+            <div className="p-2.5 rounded-sm bg-terminal-surface-subtle border border-terminal-border font-mono text-[11px] space-y-2">
               <div className="text-terminal-down font-bold">
                 {this.state.error?.name || 'Error'}: {this.state.error?.message || 'Unknown render exception'}
               </div>
@@ -135,14 +133,14 @@ export class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, Err
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="px-3 py-1.5 rounded-md bg-terminal-surface-hover border border-terminal-border text-xs font-mono text-terminal-text-secondary hover:text-white transition-colors cursor-pointer"
+                className="px-3 py-1.5 rounded-sm bg-terminal-surface-hover border border-terminal-border text-xs font-mono text-terminal-text-secondary hover:text-terminal-text-primary transition-colors cursor-pointer"
               >
                 Tải lại trang (F5)
               </button>
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-terminal-accent hover:bg-terminal-accent-hover text-white text-xs font-mono font-semibold transition-colors cursor-pointer shadow-xs"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-sm bg-terminal-accent hover:bg-terminal-accent-hover text-white text-xs font-mono font-medium transition-colors cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Khôi phục phiên làm việc</span>

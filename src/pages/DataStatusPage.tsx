@@ -118,7 +118,7 @@ export const DataStatusPage: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
               <Database className="w-4 h-4" />
             </div>
-            <h1 className="text-xl font-bold font-sans text-slate-100">
+            <h1 className="page-title">
               Data Quality & Live Feed Health Monitor
             </h1>
             <DataStatusBadge
@@ -187,7 +187,7 @@ export const DataStatusPage: React.FC = () => {
       </div>
 
       {/* Providers Table */}
-      <div className="bg-[#111827] border border-[#263244] rounded-xl overflow-hidden">
+      <div className="bg-[#111827] border border-[#263244] rounded-sm overflow-hidden">
         <div className="p-4 bg-[#0E1522] border-b border-[#263244] flex items-center justify-between">
           <span className="text-xs font-bold text-slate-200 font-mono uppercase tracking-wider">
             Chi tiết kết nối các nguồn cấp dữ liệu ({feeds.length})

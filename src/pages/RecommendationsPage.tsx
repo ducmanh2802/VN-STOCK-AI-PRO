@@ -93,35 +93,36 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({ onSele
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-emerald-950/40 border border-emerald-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1">
+      {/* Page header — flat terminal strip, no gradient banner */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pb-3 border-b border-terminal-border">
+        <div className="space-y-1 min-w-0">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <h1 className="text-xl font-bold text-white font-mono">AI INVESTMENT RECOMMENDATIONS</h1>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+            <Sparkles className="w-3.5 h-3.5 text-terminal-accent" />
+            <h1 className="text-[19px] font-semibold text-terminal-text-primary tracking-tight font-mono">
+              AI INVESTMENT RECOMMENDATIONS
+            </h1>
+            <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-mono bg-terminal-surface-elevated text-terminal-text-muted border border-terminal-border">
               PHASE 19.5.5
             </span>
           </div>
-          <p className="text-xs text-slate-400 max-w-[42rem] font-sans leading-relaxed">
+          <p className="text-[11px] text-terminal-text-muted max-w-[42rem] font-sans leading-relaxed">
             Hệ thống xếp hạng và chấm điểm chiến lược đa khung thời gian (StrategyScorer + SignalEngine + RiskRewardEngine) dựa trên dữ liệu giao dịch thực tế từ KBS & VPS.
           </p>
         </div>
 
         {/* Horizon Tabs */}
-        <div className="flex items-center bg-slate-950 p-1.5 rounded-xl border border-slate-800 shrink-0">
+        <div className="flex items-center bg-terminal-bg p-0.5 rounded-sm border border-terminal-border shrink-0">
           {(['SHORT_TERM', 'MEDIUM_TERM', 'LONG_TERM'] as InvestmentHorizon[]).map((hz) => {
             const isSelected = strategy === hz;
             return (
               <button
                 key={hz}
                 onClick={() => setStrategy(hz)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                aria-pressed={isSelected}
+                className={`px-2.5 py-1 rounded-sm text-[11px] font-mono transition-colors cursor-pointer ${
                   isSelected
-                    ? 'bg-emerald-500 text-slate-950 font-bold shadow'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-terminal-surface-elevated text-terminal-text-primary'
+                    : 'text-terminal-text-muted hover:text-terminal-text-secondary'
                 }`}
               >
                 {HORIZON_LABELS[hz].split(' ')[0]}
@@ -132,7 +133,7 @@ export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({ onSele
       </div>
 
       {/* Universe Strategy Rankings Table */}
-      <div className="p-5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-4">
+      <div className="p-3 rounded-sm bg-terminal-surface border border-terminal-border space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">

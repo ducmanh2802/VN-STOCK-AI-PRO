@@ -30,7 +30,7 @@ export const StockRealFundamentals: React.FC<StockRealFundamentalsProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <div className="p-4 rounded-xl bg-terminal-surface border border-terminal-border text-xs text-terminal-text-muted font-mono">
+      <div className="p-4 rounded-sm bg-terminal-surface border border-terminal-border text-xs text-terminal-text-muted font-mono">
         Đang tải BCTC thật (VPS)...
       </div>
     );
@@ -38,7 +38,7 @@ export const StockRealFundamentals: React.FC<StockRealFundamentalsProps> = ({
 
   if (!fundamentals || fundamentals.dataStatus !== 'OK') {
     return (
-      <div className="p-4 rounded-xl bg-terminal-surface border border-terminal-border space-y-2">
+      <div className="p-4 rounded-sm bg-terminal-surface border border-terminal-border space-y-2">
         <div className="flex items-center gap-2 text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
           <BookOpen className="w-4 h-4 text-terminal-accent" /> BCTC Thật (VPS)
         </div>
@@ -55,7 +55,7 @@ export const StockRealFundamentals: React.FC<StockRealFundamentalsProps> = ({
   const aHeader = (i: number) => fundamentals.annualPeriods[i]?.sourceLabel ?? `V${i + 1}`;
 
   return (
-    <div className="p-4 rounded-xl bg-terminal-surface border border-terminal-border space-y-3">
+    <div className="p-4 rounded-sm bg-terminal-surface border border-terminal-border space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
           <BookOpen className="w-4 h-4 text-terminal-accent" /> BCTC Thật (VPS)

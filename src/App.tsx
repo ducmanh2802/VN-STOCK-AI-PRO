@@ -149,7 +149,7 @@ export default function App() {
   const watchlistStocks = watchlistQuery.data || [];
 
   return (
-    <div className="min-h-screen bg-background text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-background text-terminal-text-secondary flex flex-col font-sans pb-11 lg:pb-0">
       {/* 1. Header with Tickers & Search */}
       <Header
         indices={indices}
@@ -180,24 +180,22 @@ export default function App() {
 
         {/* Dynamic Page Container */}
         <main
-          className={`flex-1 min-w-0 flex flex-col transition-all duration-200 ${
-            isSidebarCollapsed ? 'lg:pl-0' : 'lg:pl-0'
-          }`}
+          className="flex-1 min-w-0 flex flex-col"
         >
-          <div className="flex-1 p-4 sm:p-5 lg:p-7 max-w-[1480px] w-full mx-auto">
+          <div className="flex-1 p-3 lg:p-4 w-full">
             {/* Loading State */}
             {isLoading && (
-              <div className="py-16">
+              <div className="w-full">
                 <LoadingState
                   variant="terminal"
-                  message="Đang đồng bộ dữ liệu thị trường và mô hình định lượng..."
+                  message="Đang đồng bộ dữ liệu thị trường và mô hình định giá…"
                 />
               </div>
             )}
 
             {/* Error State */}
             {error && !isLoading && (
-              <div className="py-12">
+              <div className="w-full">
                 <ErrorState
                   error={error}
                   onRetry={() => refreshMarket()}
@@ -332,45 +330,45 @@ export default function App() {
       {/* Mobile Bottom Quick Navigation Bar */}
       <nav
         id="mobile-bottom-nav"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0E1522]/95 border-t border-[#263244] backdrop-blur-md px-2 py-1.5 flex items-center justify-around text-[10px] font-mono text-slate-400"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 h-11 bg-terminal-surface border-t border-terminal-border px-2 flex items-center justify-around text-[10px] font-mono text-terminal-text-muted"
       >
         <button
           onClick={() => setCurrentView('dashboard')}
-          className={`flex flex-col items-center gap-0.5 p-1.5 rounded transition-colors ${
-            currentView === 'dashboard' ? 'text-indigo-400 font-bold' : 'hover:text-slate-200'
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-sm ${
+            currentView === 'dashboard' ? 'text-terminal-accent' : ''
           }`}
         >
-          <LayoutDashboard className="w-4 h-4" />
-          <span>Dashboard</span>
+          <LayoutDashboard className="w-3.5 h-3.5" />
+          <span>Overview</span>
         </button>
         <button
           onClick={() => setCurrentView('screener')}
-          className={`flex flex-col items-center gap-0.5 p-1.5 rounded transition-colors ${
-            currentView === 'screener' ? 'text-indigo-400 font-bold' : 'hover:text-slate-200'
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-sm ${
+            currentView === 'screener' ? 'text-terminal-accent' : ''
           }`}
         >
-          <SlidersHorizontal className="w-4 h-4" />
+          <SlidersHorizontal className="w-3.5 h-3.5" />
           <span>Screener</span>
         </button>
         <button
           onClick={() => setCurrentView('portfolio')}
-          className={`flex flex-col items-center gap-0.5 p-1.5 rounded transition-colors ${
-            currentView === 'portfolio' ? 'text-indigo-400 font-bold' : 'hover:text-slate-200'
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-sm ${
+            currentView === 'portfolio' ? 'text-terminal-accent' : ''
           }`}
         >
-          <Briefcase className="w-4 h-4" />
+          <Briefcase className="w-3.5 h-3.5" />
           <span>Portfolio</span>
         </button>
         <button
           onClick={() => setCurrentView('watchlist')}
-          className={`flex flex-col items-center gap-0.5 p-1.5 rounded relative transition-colors ${
-            currentView === 'watchlist' ? 'text-indigo-400 font-bold' : 'hover:text-slate-200'
+          className={`flex flex-col items-center gap-0.5 p-1 rounded-sm relative ${
+            currentView === 'watchlist' ? 'text-terminal-accent' : ''
           }`}
         >
-          <Bookmark className="w-4 h-4" />
+          <Bookmark className="w-3.5 h-3.5" />
           <span>Watchlist</span>
           {watchlistSymbols.length > 0 && (
-            <span className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-indigo-500" />
+            <span className="absolute top-0.5 right-1.5 w-1.5 h-1.5 rounded-full bg-terminal-accent" />
           )}
         </button>
       </nav>

@@ -47,12 +47,12 @@ export function DataTable<T>({
   className,
   density = 'compact',
 }: DataTableProps<T>) {
-  const paddingClass = density === 'compact' ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-xs';
+  const paddingClass = density === 'compact' ? 'px-2.5 py-1.5 text-[12px]' : 'px-3 py-2 text-[12px]';
 
   return (
     <div
       className={cn(
-        'w-full overflow-hidden rounded-md border border-terminal-border bg-terminal-surface',
+        'w-full overflow-hidden rounded-sm border border-terminal-border bg-terminal-surface',
         className
       )}
     >
@@ -60,7 +60,7 @@ export function DataTable<T>({
         <table className="w-full border-collapse text-left">
           {/* Table Header */}
           <thead>
-            <tr className="border-b border-terminal-border bg-terminal-surface-subtle text-[11px] font-mono uppercase text-terminal-text-muted">
+            <tr className="border-b border-terminal-border bg-terminal-surface-subtle text-[10px] font-mono uppercase text-terminal-text-muted">
               {columns.map((col) => {
                 const isSorted = sortKey === col.key;
                 return (
@@ -146,8 +146,8 @@ export function DataTable<T>({
                   key={keyExtractor(item, index)}
                   onClick={() => onRowClick?.(item)}
                   className={cn(
-                    'data-grid-row transition-colors',
-                    onRowClick && 'cursor-pointer hover:bg-terminal-surface-hover'
+                    'data-grid-row row-hover transition-colors',
+                    onRowClick && 'cursor-pointer hover:bg-terminal-surface-elevated'
                   )}
                 >
                   {columns.map((col) => {
@@ -155,7 +155,7 @@ export function DataTable<T>({
                       <td
                         key={col.key}
                         className={cn(
-                          'whitespace-nowrap text-terminal-text-primary',
+                          'whitespace-nowrap text-terminal-text-primary tnum',
                           paddingClass,
                           col.align === 'right' && 'text-right font-mono',
                           col.align === 'center' && 'text-center',

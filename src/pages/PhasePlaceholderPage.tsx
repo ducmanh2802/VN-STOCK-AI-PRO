@@ -100,7 +100,7 @@ export function PhasePlaceholderPage({ view, onBackToDashboard }: PhasePlacehold
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold font-mono text-white tracking-tight">
+                <h1 className="page-title font-mono">
                   {config.title}
                 </h1>
                 <DemoBadge size="sm" />

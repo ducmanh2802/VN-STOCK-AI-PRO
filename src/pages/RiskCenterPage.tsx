@@ -90,7 +90,7 @@ export const RiskCenterPage: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
               <ShieldCheck className="w-4 h-4" />
             </div>
-            <h1 className="text-xl font-bold font-sans text-slate-100">
+            <h1 className="page-title">
               Risk Center & Guardrails Control
             </h1>
             <DataStatusBadge
@@ -175,7 +175,7 @@ export const RiskCenterPage: React.FC = () => {
             {/* Left: Active Safety Guardrails (2 Cols) */}
             <div className="lg:col-span-2 space-y-6">
               {/* Rules Checklist */}
-              <div className="bg-[#111827] border border-[#263244] rounded-xl p-5 space-y-4">
+              <div className="bg-[#111827] border border-[#263244] rounded-sm p-5 space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-[#263244]">
                   <span className="text-xs font-bold uppercase tracking-wider font-mono text-slate-200 flex items-center gap-2">
                     <Lock className="w-4 h-4 text-indigo-400" />
@@ -247,7 +247,7 @@ export const RiskCenterPage: React.FC = () => {
             </div>
 
             {/* Right: Stress Testing Simulator (1 Col) */}
-            <div className="bg-[#111827] border border-[#263244] rounded-xl p-5 space-y-4">
+            <div className="bg-[#111827] border border-[#263244] rounded-sm p-5 space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-[#263244]">
                 <span className="text-xs font-bold uppercase tracking-wider font-mono text-slate-200 flex items-center gap-2">
                   <Activity className="w-4 h-4 text-amber-400" />

@@ -34,7 +34,7 @@ export const StockSupportResistance: React.FC<StockSupportResistanceProps> = ({
   return (
     <div
       id="stock-support-resistance"
-      className="p-4 rounded-xl bg-terminal-surface border border-terminal-border shadow-sm space-y-4"
+      className="p-4 rounded-sm bg-terminal-surface border border-terminal-border shadow-sm space-y-4"
     >
       {/* Header */}
       <div className="flex items-center justify-between pb-2.5 border-b border-terminal-border/70">

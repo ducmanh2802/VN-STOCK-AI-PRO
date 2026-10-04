@@ -169,7 +169,7 @@ export const AICopilot: React.FC<AICopilotProps> = ({
       {/* Copilot Header */}
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#263244] bg-[#111827]">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-600/30">
+          <div className="w-7 h-7 rounded-sm bg-terminal-accent/15 border border-terminal-accent/30 flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
@@ -238,7 +238,7 @@ export const AICopilot: React.FC<AICopilotProps> = ({
                 </div>
               )}
               <div
-                className={`max-w-[85%] rounded-xl p-3.5 text-sm leading-relaxed ${
+                className={`max-w-[85%] rounded-sm p-3.5 text-sm leading-relaxed ${
                   isUser
                     ? 'bg-indigo-600 text-white rounded-br-none shadow-sm'
                     : 'bg-[#182231] text-slate-200 border border-[#263244] rounded-bl-none shadow-sm'
@@ -277,7 +277,7 @@ export const AICopilot: React.FC<AICopilotProps> = ({
             <div className="w-7 h-7 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 text-indigo-400 animate-pulse">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div className="bg-[#182231] border border-[#263244] rounded-xl px-3.5 py-2.5 flex items-center gap-2">
+            <div className="bg-[#182231] border border-[#263244] rounded-sm px-3.5 py-2.5 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
               <span>AI đang phân tích dữ liệu thị trường...</span>
             </div>
@@ -323,7 +323,7 @@ export const AICopilot: React.FC<AICopilotProps> = ({
                 ? `Hỏi về ${currentSymbol}, định giá, rủi ro...`
                 : 'Nhập câu hỏi phân tích chứng khoán...'
             }
-            className="flex-1 px-3.5 py-2.5 bg-[#0B0F17] border border-[#263244] rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all font-sans"
+            className="flex-1 px-3.5 py-2.5 bg-[#0B0F17] border border-[#263244] rounded-sm text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all font-sans"
           />
           <Button
             type="submit"

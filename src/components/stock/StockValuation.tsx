@@ -56,7 +56,7 @@ export const StockValuation: React.FC<StockValuationProps> = ({ valuation }) => 
   return (
     <div
       id="stock-valuation"
-      className="p-4 rounded-xl bg-terminal-surface border border-terminal-border shadow-sm space-y-4"
+      className="p-4 rounded-sm bg-terminal-surface border border-terminal-border shadow-sm space-y-4"
     >
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-terminal-border/70">

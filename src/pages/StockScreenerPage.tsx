@@ -253,7 +253,7 @@ export const StockScreenerPage: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
               <SlidersHorizontal className="w-4 h-4" />
             </div>
-            <h1 className="text-xl font-bold font-sans text-slate-100">
+            <h1 className="page-title">
               Stock Screener & Multi-Factor Filters
             </h1>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -301,7 +301,7 @@ export const StockScreenerPage: React.FC = () => {
       {/* Main Grid: Left Filters, Right Results */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         {/* Left Filter Panel */}
-        <div className="lg:col-span-1 bg-[#111827] border border-[#263244] rounded-xl p-4 space-y-5 h-fit">
+        <div className="lg:col-span-1 bg-[#111827] border border-[#263244] rounded-sm p-4 space-y-5 h-fit">
           <div className="flex items-center justify-between pb-2 border-b border-[#263244]">
             <span className="text-xs font-bold uppercase tracking-wider font-mono text-slate-300 flex items-center gap-2">
               <Filter className="w-3.5 h-3.5 text-indigo-400" />
@@ -400,7 +400,7 @@ export const StockScreenerPage: React.FC = () => {
         </div>
 
         {/* Right Results Table */}
-        <div className="lg:col-span-3 bg-[#111827] border border-[#263244] rounded-xl overflow-hidden flex flex-col">
+        <div className="lg:col-span-3 bg-[#111827] border border-[#263244] rounded-sm overflow-hidden flex flex-col">
           {/* Table Controls */}
           <div className="p-3 bg-[#0E1522] border-b border-[#263244] flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-300 font-mono">

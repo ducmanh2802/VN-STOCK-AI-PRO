@@ -29,7 +29,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
   // Canonical fail-closed panel: recommendation unavailable → explicit unavailable
   // state, never fabricated values (Phase 19.5.5).
   const unavailablePanel = (
-    <div className="p-8 bg-slate-900/60 border border-slate-800 rounded-xl text-center space-y-3">
+    <div className="p-8 bg-slate-900/60 border border-slate-800 rounded-sm text-center space-y-3">
       <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
       <p className="text-base font-bold text-slate-200 font-mono">Dữ liệu phân tích khuyến nghị chưa sẵn sàng</p>
       <p className="text-xs text-slate-400 max-w-md mx-auto">
@@ -40,7 +40,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
+      <div className="flex flex-col items-center justify-center p-12 bg-slate-900/60 border border-slate-800 rounded-sm space-y-3">
         <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
         <p className="text-sm font-mono text-slate-400">Đang tổng hợp khuyến nghị đa khung thời gian cho {symbol}...</p>
       </div>
@@ -101,7 +101,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
   return (
     <div className="space-y-6">
       {/* Header with Horizon Navigation */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-900/80 border border-slate-800 rounded-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-900/80 border border-slate-800 rounded-sm">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
             <Sparkles className="w-5 h-5" />
@@ -143,7 +143,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
       {/* Main Signal & Overview Bento Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Card 1: Core Action Signal & Score */}
-        <div className={`p-6 rounded-xl border ${signalStyle.bg} flex flex-col justify-between space-y-5`}>
+        <div className={`p-6 rounded-sm border ${signalStyle.bg} flex flex-col justify-between space-y-5`}>
           <div>
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Tín Hiệu Khuyến Nghị</span>
@@ -179,7 +179,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
         </div>
 
         {/* Card 2: Risk / Reward & Price Levels */}
-        <div className="p-6 rounded-xl bg-slate-900/80 border border-slate-800 space-y-4">
+        <div className="p-6 rounded-sm bg-slate-900/80 border border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Scale className="w-4 h-4 text-emerald-400" />
@@ -223,7 +223,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
         </div>
 
         {/* Card 3: Component Score Breakdown */}
-        <div className="p-6 rounded-xl bg-slate-900/80 border border-slate-800 space-y-4">
+        <div className="p-6 rounded-sm bg-slate-900/80 border border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Layers className="w-4 h-4 text-blue-400" />
@@ -260,7 +260,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
       {/* Rationale & Warnings Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Key Reasons */}
-        <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
+        <div className="p-5 rounded-sm bg-slate-900/60 border border-slate-800 space-y-3">
           <h4 className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" />
             Luận Điểm Đầu Tư Then Chốt
@@ -276,7 +276,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
         </div>
 
         {/* Warnings & Risk Controls */}
-        <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
+        <div className="p-5 rounded-sm bg-slate-900/60 border border-slate-800 space-y-3">
           <h4 className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" />
             Cảnh Báo & Quản Trị Rủi Ro
@@ -294,7 +294,7 @@ export const StockRecommendationsView: React.FC<StockRecommendationsViewProps> =
 
       {/* Evidence Traceability Matrix ("WHY?") */}
       {currentRec.evidence && currentRec.evidence.length > 0 && (
-        <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-4">
+        <div className="p-5 rounded-sm bg-slate-900/60 border border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
               <FileSearch className="w-4 h-4 text-emerald-400" />

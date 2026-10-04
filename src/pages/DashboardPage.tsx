@@ -27,7 +27,7 @@ import { AITopSignalsWidget } from '../components/dashboard/AITopSignalsWidget';
 import { WatchlistPreviewWidget } from '../components/dashboard/WatchlistPreviewWidget';
 import { AIMarketSummaryCard } from '../components/dashboard/AIMarketSummaryCard';
 import { DemoBadge } from '../components/common/DemoBadge';
-import { RefreshCw, Monitor, Zap } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
 export interface DashboardPageProps {
   indices?: IndexData[];
@@ -98,45 +98,36 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const aiSummary = propsAiSummary || aiSummaryQuery.data || null;
 
   return (
-    <div id="page-dashboard" className="space-y-6 sm:space-y-7">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-terminal-border/70 pb-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="mt-0.5 rounded-md border border-terminal-accent/30 bg-terminal-accent/10 p-2 text-terminal-accent">
-            <Monitor className="h-4 w-4" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-terminal-accent">Market command center</p>
-              <DemoBadge size="sm" />
-            </div>
-            <h1 className="mt-1 truncate text-lg font-semibold tracking-tight text-terminal-text-primary sm:text-xl">
-              Bàn làm việc thị trường
-            </h1>
-            <p className="mt-1 text-xs text-terminal-text-muted">
-              Market state · breadth · rotation · opportunities
-            </p>
-          </div>
+    <div id="page-dashboard" className="space-y-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 pb-2.5 border-b border-terminal-border">
+        <div className="min-w-0">
+          <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-terminal-accent">
+            Market command center
+          </p>
+          <h1 className="page-title mt-0.5">Bàn làm việc thị trường</h1>
         </div>
-        <button
-          id="btn-refresh-dashboard"
-          onClick={() => refreshMarket()}
-          className="flex items-center gap-1.5 rounded-md border border-terminal-border bg-terminal-surface px-3 py-2 text-xs font-mono text-terminal-text-secondary transition-colors hover:border-terminal-border-bright hover:bg-terminal-surface-hover hover:text-terminal-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terminal-accent"
-          title="Đồng bộ toàn bộ dữ liệu bảng điều khiển"
-        >
-          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline">Làm mới dữ liệu</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <DemoBadge size="sm" />
+          <button
+            id="btn-refresh-dashboard"
+            onClick={() => refreshMarket()}
+            className="flex items-center gap-1.5 rounded-sm border border-terminal-border bg-terminal-surface px-2.5 h-7 text-[11px] font-mono text-terminal-text-secondary transition-colors hover:border-terminal-border-bright hover:bg-terminal-surface-hover hover:text-terminal-text-primary"
+            title="Đồng bộ toàn bộ dữ liệu bảng điều khiển"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="hidden sm:inline">Làm mới</span>
+          </button>
+        </div>
       </header>
 
-      <section aria-labelledby="dashboard-regime-heading" className="space-y-3">
+      <section aria-labelledby="dashboard-regime-heading" className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" aria-hidden="true" />
-            <h2 id="dashboard-regime-heading" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-terminal-text-muted">
-              01 · Market state
-            </h2>
-          </div>
-          <span className="hidden text-[10px] font-mono uppercase tracking-wider text-terminal-text-disabled sm:inline">Authoritative market data</span>
+          <h2 id="dashboard-regime-heading" className="section-eyebrow">
+            01 · Market state
+          </h2>
+          <span className="hidden text-[10px] font-mono uppercase tracking-wider text-terminal-text-disabled sm:inline">
+            Authoritative market data
+          </span>
         </div>
         <MarketIndexRibbon
           indices={indices}
@@ -160,13 +151,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       </section>
 
       <section aria-labelledby="dashboard-breadth-heading" className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" aria-hidden="true" />
-          <h2 id="dashboard-breadth-heading" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-terminal-text-muted">
-            02 · Breadth &amp; sentiment
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+        <h2 id="dashboard-breadth-heading" className="section-eyebrow">
+          02 · Breadth &amp; sentiment
+        </h2>
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-[0.9fr_1.1fr]">
           <MarketSentimentWidget
             sentiment={sentiment}
             isLoading={sentimentQuery.isLoading}
@@ -185,12 +173,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       </section>
 
       <section aria-labelledby="dashboard-opportunity-heading" className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" aria-hidden="true" />
-          <h2 id="dashboard-opportunity-heading" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-terminal-text-muted">
-            03 · Opportunities &amp; rotation
-          </h2>
-        </div>
+        <h2 id="dashboard-opportunity-heading" className="section-eyebrow">
+          03 · Opportunities &amp; rotation
+        </h2>
 
         <TopMoversSection
         gainers={gainers}

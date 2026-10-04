@@ -14,7 +14,7 @@ export function AIAnalystPage({ aiSummary }: AIAnalystPageProps) {
       <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-white font-mono uppercase tracking-tight">
+            <h1 className="page-title font-mono">
               Trung Tâm Phân Tích Trí Tuệ Nhân Tạo (AI Analyst)
             </h1>
             <DemoBadge size="sm" />

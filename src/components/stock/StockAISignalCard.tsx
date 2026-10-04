@@ -28,7 +28,7 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal }) 
   return (
     <div
       id="stock-ai-signal-card"
-      className="p-4 rounded-xl bg-terminal-surface border border-terminal-accent/30 shadow-md relative overflow-hidden"
+      className="p-4 rounded-sm bg-terminal-surface border border-terminal-accent/30 shadow-md relative overflow-hidden"
     >
       {/* Decorative ambient subtle glow */}
       <div className="absolute top-0 right-0 w-48 h-48 bg-terminal-accent/5 rounded-full blur-2xl pointer-events-none" />

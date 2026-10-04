@@ -51,7 +51,7 @@ export const StockHeader: React.FC<StockHeaderProps> = ({
   return (
     <div
       id="stock-header"
-      className="p-4 rounded-xl bg-terminal-surface border border-terminal-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
+      className="p-4 rounded-sm bg-terminal-surface border border-terminal-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
     >
       {/* Left: Back button + Symbol + Name + Badges */}
       <div className="flex items-start sm:items-center gap-3">

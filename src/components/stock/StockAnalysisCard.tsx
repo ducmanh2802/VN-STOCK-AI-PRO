@@ -24,13 +24,13 @@ const signalIcon: Record<string, React.ReactNode> = {
 
 export const StockAnalysisCard: React.FC<StockAnalysisCardProps> = ({ analysis, isLoading }) => {
   if (isLoading) {
-    return <div className="p-4 rounded-xl bg-terminal-surface border border-terminal-border text-center text-xs text-terminal-text-muted font-mono">Đang phán tích kỹ thuật...</div>;
+    return <div className="p-4 rounded-sm bg-terminal-surface border border-terminal-border text-center text-xs text-terminal-text-muted font-mono">Đang phán tích kỹ thuật...</div>;
   }
   if (!analysis || analysis.dataStatus === "DATA_UNAVAILABLE") {
-    return <div className="p-4 rounded-xl bg-terminal-surface border border-terminal-border text-center text-xs text-terminal-text-muted font-mono">Dữ liệu không khả dụng</div>;
+    return <div className="p-4 rounded-sm bg-terminal-surface border border-terminal-border text-center text-xs text-terminal-text-muted font-mono">Dữ liệu không khả dụng</div>;
   }
   if (analysis.dataStatus === "INSUFFICIENT_DATA") {
-    return <div className="p-4 rounded-xl bg-terminal-surface border border-amber-400/30 text-center text-xs text-amber-400 font-mono">Chưa đủ dữ liệu</div>;
+    return <div className="p-4 rounded-sm bg-terminal-surface border border-amber-400/30 text-center text-xs text-amber-400 font-mono">Chưa đủ dữ liệu</div>;
   }
   const signal = (analysis.signal as string) || "HOLD";
   const score = (analysis.score as number) || 0;
@@ -43,7 +43,7 @@ export const StockAnalysisCard: React.FC<StockAnalysisCardProps> = ({ analysis, 
   const colorClass = signalColor[signal] || signalColor.HOLD;
   const icon = signalIcon[signal] || signalIcon.HOLD;
   return (
-    <div className="rounded-xl bg-terminal-surface border border-terminal-border shadow-sm overflow-hidden">
+    <div className="rounded-sm bg-terminal-surface border border-terminal-border shadow-sm overflow-hidden">
       <div className="p-4 border-b border-terminal-border/70 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent"><Target className="w-4 h-4" /></div>

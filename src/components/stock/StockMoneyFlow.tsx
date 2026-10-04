@@ -48,7 +48,7 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
   return (
     <div
       id="stock-money-flow"
-      className="p-4 rounded-xl bg-terminal-surface border border-terminal-border shadow-sm space-y-4"
+      className="p-4 rounded-sm bg-terminal-surface border border-terminal-border shadow-sm space-y-4"
     >
       {/* Header with Score */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-terminal-border/70">

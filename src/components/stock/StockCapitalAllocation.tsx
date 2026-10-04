@@ -3,7 +3,7 @@ import type { CapitalAllocationResult } from '../../lib/analysis/capitalAllocati
 import { Landmark } from 'lucide-react';
 
 export const StockCapitalAllocation: React.FC<{ analysis: CapitalAllocationResult }> = ({ analysis }) => (
-  <section className="p-4 rounded-xl bg-terminal-surface border border-terminal-border space-y-3">
+  <section className="p-4 rounded-sm bg-terminal-surface border border-terminal-border space-y-3">
     <div className="flex items-center gap-2 text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
       <Landmark className="w-4 h-4 text-terminal-accent" /> Phân bổ vốn
     </div>
