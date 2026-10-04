@@ -87,7 +87,7 @@ describe('Phase 25 — Strategy Fail-Closed Matrix', () => {
   });
 
   it('fails closed when upstream snapshot dataFreshness is STALE or UNAVAILABLE', () => {
-    const staleEarnings = makeEarningsSnapshot({ freshness: 'UNAVAILABLE' });
+    const staleEarnings = makeEarningsSnapshot({ dataFreshness: 'UNAVAILABLE' });
     const signal = StrategyFactory.evaluate('EARNINGS_MOMENTUM_QUALITY', {
       ...baseContext,
       earningsSnapshot: staleEarnings,

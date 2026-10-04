@@ -23,6 +23,8 @@ import type { DerivativesIntelligenceSnapshot } from '../derivatives/types.ts';
 import type { EtfIntelligenceSnapshot } from '../etf/types.ts';
 import type { CorporateActionIntelligenceSnapshot } from '../corporate-actions/types.ts';
 import type { EarningsSnapshot } from '../earnings/types.ts';
+import type { IndustryCapitalCycleAndPolicySnapshot } from '../capital-cycle/types.ts';
+import type { MacroRegimeSnapshot } from '../macro-regime/types.ts';
 
 export type { DataFreshnessStatus };
 
@@ -80,6 +82,8 @@ export interface StrategySignalLineage {
     etf?: string;
     corporateAction?: string;
     earnings?: string;
+    capitalCycle?: string;
+    macroRegime?: string;
   }>;
 }
 
@@ -116,6 +120,8 @@ export interface StrategyContext {
   readonly etfSnapshot?: EtfIntelligenceSnapshot | null;
   readonly corporateActionSnapshot?: CorporateActionIntelligenceSnapshot | null;
   readonly earningsSnapshot?: EarningsSnapshot | null;
+  readonly capitalCycleSnapshot?: IndustryCapitalCycleAndPolicySnapshot | null;
+  readonly macroRegimeSnapshot?: MacroRegimeSnapshot | null;
   readonly lookaheadRejected?: boolean;
   readonly lookaheadDetails?: readonly string[];
 }

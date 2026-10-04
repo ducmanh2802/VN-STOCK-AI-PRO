@@ -40,13 +40,23 @@ describe('Phase 25 — EarningsMomentumStrategy', () => {
 
   it('emits HOLD with caution when growth is high but earnings quality has red flags or poor CFO conversion', () => {
     const poorQualityEarnings = makeEarningsSnapshot({
-      quality: {
-        accrualsBalanceSheet: 0.25, // High accruals
-        accrualsCashFlow: 0.22,
-        cfoToNetIncomeRatio: 0.35,  // Weak cash flow conversion
-        redFlags: ['CFO_DIVERGENCE_HIGH_ACCRUALS'],
-        qualityScore: 35,
+      earningsQuality: {
+        accrualRatio: 0.25, // High accruals
+        cashConversion: 0.35,  // Weak cash flow conversion
+        receivablesGrowth: null,
+        inventoryGrowth: null,
+        oneOffRatio: null,
+        nonOperatingIntensity: null,
+        fcfQuality: 0.3,
+        classification: 'LOW_CASH_CONVERSION',
+        adjustedForRestatement: false,
+        warnings: ['CFO_DIVERGENCE_HIGH_ACCRUALS'],
         reasons: {},
+        lineage: {
+          sources: ['SSC'],
+          calculationVersion: '24.0.0',
+          engine: 'EarningsQualityEngine',
+        },
       },
     });
 

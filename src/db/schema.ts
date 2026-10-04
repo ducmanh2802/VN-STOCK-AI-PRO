@@ -815,3 +815,220 @@ export const earningsCalendar = pgTable(
   ]
 );
 
+// ==========================================
+// 23. POLICY_EVENTS (Phase 26 — Government & Regulatory Policy)
+// ==========================================
+export const policyEvents = pgTable(
+  'policy_events',
+  {
+    id: serial('id').primaryKey(),
+    policyEventId: text('policy_event_id').notNull().unique(),
+    documentNumber: text('document_number').notNull(),
+    title: text('title').notNull(),
+    description: text('description').notNull(),
+    issuingAuthority: text('issuing_authority').notNull(),
+    policyType: text('policy_type').notNull(),
+    status: text('status').notNull(),
+    targetSectors: text('target_sectors').notNull(), // JSON string or comma-separated
+    targetInvestmentVnd: numeric('target_investment_vnd', { precision: 24, scale: 2 }),
+    fundingMechanism: text('funding_mechanism'),
+    geographicScope: text('geographic_scope').notNull(),
+    announcementDate: date('announcement_date').notNull(),
+    effectiveDate: date('effective_date'),
+    source: text('source').notNull(),
+    sourceTier: text('source_tier').notNull(),
+    sourceUrl: text('source_url'),
+    publicationDate: date('publication_date').notNull(),
+    freshness: text('freshness').notNull(),
+    validationStatus: text('validation_status').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('policy_events_id_idx').on(table.policyEventId),
+    index('policy_events_doc_idx').on(table.documentNumber),
+    index('policy_events_ann_idx').on(table.announcementDate),
+  ]
+);
+
+// ==========================================
+// 24. STRATEGIC_PROJECTS (Phase 26 — Strategic Infrastructure & Energy Projects)
+// ==========================================
+export const strategicProjects = pgTable(
+  'strategic_projects',
+  {
+    id: serial('id').primaryKey(),
+    projectId: text('project_id').notNull().unique(),
+    projectCode: text('project_code').notNull(),
+    name: text('name').notNull(),
+    category: text('category').notNull(),
+    primarySectorId: text('primary_sector_id').notNull(),
+    locationProvinces: text('location_provinces'), // JSON or comma-separated
+    projectStatus: text('project_status').notNull(),
+    estimatedInvestmentVnd: numeric('estimated_investment_vnd', { precision: 24, scale: 2 }),
+    approvedInvestmentVnd: numeric('approved_investment_vnd', { precision: 24, scale: 2 }),
+    fundingSource: text('funding_source'),
+    owner: text('owner'),
+    contractingAuthority: text('contracting_authority'),
+    startDatePlanned: date('start_date_planned'),
+    expectedCompletionDate: date('expected_completion_date'),
+    actualCompletionDate: date('actual_completion_date'),
+    delayMonths: integer('delay_months').default(0),
+    progressPercent: numeric('progress_percent', { precision: 5, scale: 2 }),
+    source: text('source').notNull(),
+    sourceTier: text('source_tier').notNull(),
+    sourceUrl: text('source_url'),
+    publicationDate: date('publication_date'),
+    freshness: text('freshness').notNull(),
+    validationStatus: text('validation_status').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('strategic_projects_id_idx').on(table.projectId),
+    index('strategic_projects_code_idx').on(table.projectCode),
+    index('strategic_projects_sector_idx').on(table.primarySectorId),
+  ]
+);
+
+// ==========================================
+// 25. PROJECT_BENEFICIARIES (Phase 26 — Evidence-Tiered Contractor & Supplier Links)
+// ==========================================
+export const projectBeneficiaries = pgTable(
+  'project_beneficiaries',
+  {
+    id: serial('id').primaryKey(),
+    relationshipId: text('relationship_id').notNull().unique(),
+    projectId: text('project_id').notNull(),
+    symbol: text('symbol').notNull(),
+    companyName: text('company_name').notNull(),
+    role: text('role').notNull(),
+    evidenceTier: text('evidence_tier').notNull(),
+    contractPackageCode: text('contract_package_code'),
+    contractValueVnd: numeric('contract_value_vnd', { precision: 24, scale: 2 }),
+    confirmedBacklogShareVnd: numeric('confirmed_backlog_share_vnd', { precision: 24, scale: 2 }),
+    awardDate: date('award_date'),
+    executionPeriodMonths: integer('execution_period_months'),
+    isConfirmedBeneficiary: boolean('is_confirmed_beneficiary').default(false).notNull(),
+    source: text('source').notNull(),
+    sourceTier: text('source_tier').notNull(),
+    sourceUrl: text('source_url'),
+    publicationDate: date('publication_date'),
+    freshness: text('freshness').notNull(),
+    validationStatus: text('validation_status').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('proj_beneficiaries_rel_idx').on(table.relationshipId),
+    index('proj_beneficiaries_proj_idx').on(table.projectId),
+    index('proj_beneficiaries_sym_idx').on(table.symbol),
+  ]
+);
+
+// ==========================================
+// 26. LEGAL_GOVERNANCE_EVENTS (Phase 26 — Corporate Legal & Regulatory Disclosures)
+// ==========================================
+export const legalGovernanceEvents = pgTable(
+  'legal_governance_events',
+  {
+    id: serial('id').primaryKey(),
+    eventId: text('event_id').notNull().unique(),
+    symbol: text('symbol').notNull(),
+    companyName: text('company_name').notNull(),
+    eventType: text('event_type').notNull(),
+    severity: text('severity').notNull(),
+    title: text('title').notNull(),
+    description: text('description').notNull(),
+    authority: text('authority').notNull(),
+    officialDocumentNumber: text('official_document_number'),
+    affectedPersonName: text('affected_person_name'),
+    affectedPersonRole: text('affected_person_role'),
+    fineAmountVnd: numeric('fine_amount_vnd', { precision: 18, scale: 2 }),
+    eventDate: date('event_date').notNull(),
+    announcementDate: date('announcement_date').notNull(),
+    effectiveDate: date('effective_date'),
+    status: text('status').notNull(),
+    source: text('source').notNull(),
+    sourceTier: text('source_tier').notNull(),
+    sourceUrl: text('source_url'),
+    publicationDate: date('publication_date'),
+    freshness: text('freshness').notNull(),
+    validationStatus: text('validation_status').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('legal_gov_events_id_idx').on(table.eventId),
+    index('legal_gov_events_sym_idx').on(table.symbol),
+    index('legal_gov_events_date_idx').on(table.eventDate),
+    index('legal_gov_events_sev_idx').on(table.severity),
+  ]
+);
+
+// ==========================================
+// 27. MACRO_OBSERVATIONS (Phase 27 — Macroeconomic Time Series & Vintages)
+// ==========================================
+export const macroObservations = pgTable(
+  'macro_observations',
+  {
+    id: serial('id').primaryKey(),
+    metricCode: text('metric_code').notNull(),
+    observationDate: date('observation_date').notNull(),
+    publicationDate: date('publication_date').notNull(),
+    retrievalDate: date('retrieval_date').notNull(),
+    value: numeric('value', { precision: 18, scale: 4 }),
+    unit: text('unit').notNull(),
+    source: text('source').notNull(),
+    sourceTier: text('source_tier').notNull(),
+    revisionVersion: integer('revision_version').default(0).notNull(),
+    frequency: text('frequency').notNull(),
+    periodId: text('period_id'),
+    validationStatus: text('validation_status').notNull(),
+    freshnessStatus: text('freshness_status').notNull(),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('macro_obs_metric_obsdate_rev_idx').on(
+      table.metricCode,
+      table.observationDate,
+      table.revisionVersion
+    ),
+    index('macro_obs_metric_obsdate_idx').on(table.metricCode, table.observationDate),
+    index('macro_obs_metric_pubdate_idx').on(table.metricCode, table.publicationDate),
+  ]
+);
+
+// ==========================================
+// 28. MACRO_REGIME_SNAPSHOTS (Phase 27 — Economic Cycle & Regime Snapshots)
+// ==========================================
+export const macroRegimeSnapshots = pgTable(
+  'macro_regime_snapshots',
+  {
+    id: serial('id').primaryKey(),
+    snapshotId: text('snapshot_id').notNull().unique(),
+    asOfDate: date('as_of_date').notNull(),
+    publicationCutoffDate: date('publication_cutoff_date').notNull(),
+    evaluatedAt: timestamp('evaluated_at').notNull(),
+    macroRegime: text('macro_regime').notNull(),
+    growthState: text('growth_state').notNull(),
+    inflationState: text('inflation_state').notNull(),
+    monetaryState: text('monetary_state').notNull(),
+    externalSectorState: text('external_sector_state').notNull(),
+    financialConditionsState: text('financial_conditions_state').notNull(),
+    dataCoverage: text('data_coverage').notNull(),
+    confidencePercent: numeric('confidence_percent', { precision: 5, scale: 2 }).notNull(),
+    classificationVersion: text('classification_version').notNull(),
+    diagnostics: text('diagnostics'),
+    transition: text('transition'),
+    rationaleVi: text('rationale_vi'),
+    dataFreshness: text('data_freshness').notNull(),
+    lookaheadRejected: boolean('lookahead_rejected').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('macro_regime_snapshots_id_idx').on(table.snapshotId),
+    index('macro_regime_snapshots_date_idx').on(table.asOfDate),
+    index('macro_regime_snapshots_regime_idx').on(table.macroRegime),
+  ]
+);
+
+
+

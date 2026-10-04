@@ -14,18 +14,28 @@ describe('Phase 25 — EtfNavArbitrageStrategy', () => {
   it('emits LONG signal when ETF trades at significant discount to NAV', () => {
     const etf = makeEtfSnapshot({
       nav: {
+        symbol: 'E1VFVN30',
         navPerShare: 25000,
-        totalNav: 11250000000000,
-        change: 150,
-        changePercent: 0.60,
-        navDate: '2026-09-30',
-        referenceType: 'OFFICIAL_EOD',
+        previousNavPerShare: 24850,
+        navChange: 150,
+        navChangePercent: 0.60,
+        totalNavVnd: 11250000000000,
+        asOfDate: '2026-09-30',
+        source: 'HOSE',
+        sourceTimestamp: 1790866800000,
+        dataFreshness: 'CURRENT',
       },
       premiumDiscount: {
+        symbol: 'E1VFVN30',
+        marketPrice: 24500,
+        referenceNav: 25000,
         premiumDiscountPoints: -500,
         premiumDiscountPercent: -2.0, // -2% deep discount (<= -1.0%)
+        referenceNavType: 'OFFICIAL_EOD',
         regime: 'DISCOUNT',
-        isTimestampDivergent: false,
+        asOfDate: '2026-09-30',
+        status: 'LIVE',
+        warnings: [],
       },
       quote: {
         symbol: 'E1VFVN30',
@@ -46,7 +56,8 @@ describe('Phase 25 — EtfNavArbitrageStrategy', () => {
         foreignRoom: 50000000,
         source: 'VPS',
         sourceTimestamp: 1790866800000,
-        freshness: 'CURRENT',
+        fetchedAt: '2026-10-01T15:00:00.000Z',
+        dataFreshness: 'CURRENT',
       },
     });
 
@@ -70,12 +81,16 @@ describe('Phase 25 — EtfNavArbitrageStrategy', () => {
   it('fails closed to HOLD with ETF_NAV_UNAVAILABLE if NAV is 0 or negative', () => {
     const etf = makeEtfSnapshot({
       nav: {
+        symbol: 'E1VFVN30',
         navPerShare: 0, // Zero NAV invalid
-        totalNav: 0,
-        change: 0,
-        changePercent: 0,
-        navDate: '2026-09-30',
-        referenceType: 'OFFICIAL_EOD',
+        previousNavPerShare: 0,
+        navChange: 0,
+        navChangePercent: 0,
+        totalNavVnd: 0,
+        asOfDate: '2026-09-30',
+        source: 'HOSE',
+        sourceTimestamp: 1790866800000,
+        dataFreshness: 'INVALID',
       },
     });
 

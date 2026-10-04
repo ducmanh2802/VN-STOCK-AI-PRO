@@ -109,7 +109,7 @@ export class EtfNavArbitrageStrategy
     const nav = etf.nav.navPerShare;
     const premiumDiscount = etf.premiumDiscount.premiumDiscountPercent;
     const currentPrice = etf.quote.price ?? context.currentPrice ?? null;
-    const trackingError = etf.trackingMetrics?.trackingErrorPercent ?? null;
+    const trackingError = etf.tracking?.trackingErrorAnnualized ?? null;
 
     // Fail closed if NAV <= 0 or invalid
     if (nav === null || nav <= 0 || premiumDiscount === null) {

@@ -1,7 +1,7 @@
 /**
- * PHASE 25 — STRATEGY CONTEXT AGGREGATOR
- * =======================================
- * Orchestrates multi-snapshot retrieval across certified Phases 20–24.
+ * PHASE 25/26 — STRATEGY CONTEXT AGGREGATOR
+ * ==========================================
+ * Orchestrates multi-snapshot retrieval across certified Phases 20–26.
  * Enforces temporal alignment and mandatory lookahead protection.
  *
  * LOOKAHEAD-BIAS PROTECTION (P0 Invariant):
@@ -16,6 +16,8 @@ import { DerivativesIntelligenceService } from '../../services/derivatives/Deriv
 import { EtfIntelligenceService } from '../../services/etf/EtfIntelligenceService.ts';
 import { CorporateActionIntelligenceService } from '../../services/corporate-actions/CorporateActionIntelligenceService.ts';
 import { EarningsIntelligenceService } from '../../services/earnings/EarningsIntelligenceService.ts';
+import { PolicyIntelligenceService } from '../../services/capital-cycle/PolicyIntelligenceService.ts';
+import { MacroRegimeService } from '../../services/macro-regime/MacroRegimeService.ts';
 
 export interface BuildStrategyContextOptions {
   readonly symbol: string;
@@ -30,6 +32,8 @@ export interface BuildStrategyContextOptions {
   readonly etfSnapshotOverride?: StrategyContext['etfSnapshot'];
   readonly corporateActionSnapshotOverride?: StrategyContext['corporateActionSnapshot'];
   readonly earningsSnapshotOverride?: StrategyContext['earningsSnapshot'];
+  readonly capitalCycleSnapshotOverride?: StrategyContext['capitalCycleSnapshot'];
+  readonly macroRegimeSnapshotOverride?: StrategyContext['macroRegimeSnapshot'];
 }
 
 export class StrategyContextAggregator {
@@ -49,6 +53,8 @@ export class StrategyContextAggregator {
     let etfSnapshot = options.etfSnapshotOverride ?? null;
     let corporateActionSnapshot = options.corporateActionSnapshotOverride ?? null;
     let earningsSnapshot = options.earningsSnapshotOverride ?? null;
+    let capitalCycleSnapshot = options.capitalCycleSnapshotOverride ?? null;
+    let macroRegimeSnapshot = options.macroRegimeSnapshotOverride ?? null;
 
     // Concurrently fetch required upstream snapshots based on asset class if not injected
     const fetchPromises: Promise<void>[] = [];
@@ -88,7 +94,6 @@ export class StrategyContextAggregator {
         EtfIntelligenceService.getSnapshot({
           symbol,
           forceRefresh: options.forceRefresh,
-          asOfDate,
         })
           .then((res) => {
             etfSnapshot = res;
@@ -99,7 +104,7 @@ export class StrategyContextAggregator {
       );
     }
 
-    if (!corporateActionSnapshot && assetClass === 'EQUITY') {
+    if (!corporateActionSnapshot && (assetClass === 'EQUITY' || assetClass === 'CROSS_ASSET')) {
       fetchPromises.push(
         CorporateActionIntelligenceService.getSnapshot(symbol, {
           asOfDate,
@@ -114,7 +119,7 @@ export class StrategyContextAggregator {
       );
     }
 
-    if (!earningsSnapshot && assetClass === 'EQUITY') {
+    if (!earningsSnapshot && (assetClass === 'EQUITY' || assetClass === 'CROSS_ASSET')) {
       fetchPromises.push(
         EarningsIntelligenceService.getSnapshot(symbol, {
           asOfDate,
@@ -125,6 +130,37 @@ export class StrategyContextAggregator {
           })
           .catch(() => {
             earningsSnapshot = null;
+          })
+      );
+    }
+
+    if (!capitalCycleSnapshot && (assetClass === 'EQUITY' || assetClass === 'CROSS_ASSET')) {
+      fetchPromises.push(
+        PolicyIntelligenceService.getSnapshot({
+          symbol,
+          asOfDate,
+          forceRefresh: options.forceRefresh,
+        })
+          .then((res) => {
+            capitalCycleSnapshot = res;
+          })
+          .catch(() => {
+            capitalCycleSnapshot = null;
+          })
+      );
+    }
+
+    if (!macroRegimeSnapshot && (assetClass === 'EQUITY' || assetClass === 'CROSS_ASSET')) {
+      fetchPromises.push(
+        MacroRegimeService.getSnapshot({
+          asOfDate,
+          forceRefresh: options.forceRefresh,
+        })
+          .then((res) => {
+            macroRegimeSnapshot = res;
+          })
+          .catch(() => {
+            macroRegimeSnapshot = null;
           })
       );
     }
@@ -142,15 +178,15 @@ export class StrategyContextAggregator {
       );
     }
 
-    if (derivativesSnapshot?.asOfDate && derivativesSnapshot.asOfDate > asOfDate) {
+    if (derivativesSnapshot?.timestamp && derivativesSnapshot.timestamp.slice(0, 10) > asOfDate) {
       lookaheadViolations.push(
-        `Derivatives snapshot date (${derivativesSnapshot.asOfDate}) > evaluation date (${asOfDate})`
+        `Derivatives snapshot timestamp (${derivativesSnapshot.timestamp.slice(0, 10)}) > evaluation date (${asOfDate})`
       );
     }
 
-    if (etfSnapshot?.asOfDate && etfSnapshot.asOfDate > asOfDate) {
+    if (etfSnapshot?.timestamp && etfSnapshot.timestamp.slice(0, 10) > asOfDate) {
       lookaheadViolations.push(
-        `ETF snapshot date (${etfSnapshot.asOfDate}) > evaluation date (${asOfDate})`
+        `ETF snapshot timestamp (${etfSnapshot.timestamp.slice(0, 10)}) > evaluation date (${asOfDate})`
       );
     }
 
@@ -163,6 +199,18 @@ export class StrategyContextAggregator {
     if (earningsSnapshot?.asOfDate && earningsSnapshot.asOfDate > asOfDate) {
       lookaheadViolations.push(
         `Earnings snapshot date (${earningsSnapshot.asOfDate}) > evaluation date (${asOfDate})`
+      );
+    }
+
+    if (capitalCycleSnapshot?.asOfDate && capitalCycleSnapshot.asOfDate > asOfDate) {
+      lookaheadViolations.push(
+        `Capital cycle snapshot date (${capitalCycleSnapshot.asOfDate}) > evaluation date (${asOfDate})`
+      );
+    }
+
+    if (macroRegimeSnapshot?.asOfDate && macroRegimeSnapshot.asOfDate > asOfDate) {
+      lookaheadViolations.push(
+        `Macro regime snapshot date (${macroRegimeSnapshot.asOfDate}) > evaluation date (${asOfDate})`
       );
     }
 
@@ -179,6 +227,8 @@ export class StrategyContextAggregator {
       etfSnapshot,
       corporateActionSnapshot,
       earningsSnapshot,
+      capitalCycleSnapshot,
+      macroRegimeSnapshot,
       lookaheadRejected,
       lookaheadDetails: Object.freeze(lookaheadViolations),
     });

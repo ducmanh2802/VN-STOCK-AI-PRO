@@ -101,11 +101,11 @@ export class DividendCaptureStrategy
       );
     }
 
-    const currentPrice = corp.marketContext.currentPrice ?? context.currentPrice ?? null;
-    const actions = corp.actions ?? [];
+    const currentPrice = context.currentPrice ?? null;
+    const actions = [...(corp.upcomingEvents ?? []), ...(corp.historicalEvents ?? [])];
 
     // Filter for upcoming CASH_DIVIDEND actions
-    const cashActions = actions.filter((a) => a.type === 'CASH_DIVIDEND' && a.cashAmount && a.cashAmount > 0);
+    const cashActions = actions.filter((a) => a.actionType === 'CASH_DIVIDEND' && a.cashAmountVnd && a.cashAmountVnd > 0);
 
     if (cashActions.length === 0) {
       return UniversalSignalNormalizer.normalize({
@@ -138,7 +138,7 @@ export class DividendCaptureStrategy
       }
     }
 
-    if (!eligibleAction || !eligibleAction.cashAmount) {
+    if (!eligibleAction || !eligibleAction.cashAmountVnd) {
       return UniversalSignalNormalizer.normalize({
         strategyId: this.id,
         assetClass: this.assetClass,
@@ -153,11 +153,11 @@ export class DividendCaptureStrategy
       });
     }
 
-    const cashAmount = eligibleAction.cashAmount;
+    const cashAmount = eligibleAction.cashAmountVnd;
     const dividendYield =
       currentPrice !== null && currentPrice > 0
         ? (cashAmount / currentPrice) * 100
-        : (cashAmount / (eligibleAction.marketContext?.referencePrice ?? 10_000)) * 100;
+        : (cashAmount / 10_000) * 100;
 
     const notes: string[] = [
       `Dividend: ${cashAmount.toLocaleString()} VND/share`,

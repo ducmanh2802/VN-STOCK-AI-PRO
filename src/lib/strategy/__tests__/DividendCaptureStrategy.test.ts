@@ -37,27 +37,36 @@ describe('Phase 25 — DividendCaptureStrategy', () => {
   it('emits HOLD when announced dividend is outside the pre-ex-date window', () => {
     // Ex-date is 2026-12-01 (61 days away, > 15 days)
     const corp = makeCorporateActionSnapshot({
-      actions: [
+      upcomingEvents: [
         {
           id: 'CA-HPG-FUTURE',
           symbol: 'HPG',
-          type: 'CASH_DIVIDEND',
+          isin: 'VN000000HPG4',
+          exchange: 'HOSE',
+          actionType: 'CASH_DIVIDEND',
           status: 'ANNOUNCED',
-          cashAmount: 2000,
+          cashAmountVnd: 2000,
+          cashYieldPercent: 20.0,
+          issuePriceVnd: null,
+          quantityExpected: null,
+          rightsCode: null,
+          rightsIsin: null,
           dates: {
             announcementDate: '2026-09-20',
-            boardResolutionDate: '2026-09-20',
             exDate: '2026-12-01',
             recordDate: '2026-12-02',
             paymentDate: '2026-12-20',
-            effectiveDate: '2026-12-01',
+            tradingDate: null,
+            rightsStartDate: null,
+            rightsEndDate: null,
           },
           ratio: { oldShares: 1, newShares: 1, ratioDecimal: 1.0, rawExpression: '1:1' },
-          fractionalSharePolicy: 'FLOOR',
+          fractionalPolicy: 'FLOOR',
           source: 'VSDC',
-          sourceTier: 'TIER_1_REGULATOR',
-          validationStatus: 'PASSED',
-          freshness: 'CURRENT',
+          sourceTimestamp: 1790866800000,
+          fetchedAt: '2026-10-01T15:00:00.000Z',
+          dataFreshness: 'CURRENT',
+          warnings: [],
         },
       ],
     });

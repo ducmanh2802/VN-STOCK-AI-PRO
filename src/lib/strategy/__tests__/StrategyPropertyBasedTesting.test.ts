@@ -83,15 +83,34 @@ describe('Phase 25 — Strategy Property-Based Testing (PBT)', () => {
       // Basis from 5.0 points to 25.0 points
       for (let basisPoints = 5; basisPoints <= 25; basisPoints += 2) {
         const deriv = makeDerivativesSnapshot({
-          spotPrice: 1300,
+          spotQuote: {
+            symbol: 'VN30',
+            price: 1300,
+            referencePrice: 1298,
+            change: 2,
+            changePercent: 0.15,
+            source: 'VPS',
+            sourceTimestamp: 1790866800000,
+            fetchedAt: '2026-10-01T15:00:00.000Z',
+            dataFreshness: 'CURRENT',
+          },
           basis: {
-            spotFuturesBasis: basisPoints,
-            basisPercentage: (basisPoints / 1300) * 100,
-            annualizedBasisPercent: 15.0,
-            costOfCarryFairValue: 1302.0,
-            mispricingSpread: basisPoints - 2.0,
-            isMispriced: true,
-            timestamp: '2026-10-01T15:00:00.000Z',
+            futuresPrice: 1300 + basisPoints,
+            spotPrice: 1300,
+            basis: basisPoints,
+            basisPct: (basisPoints / 1300) * 100,
+            annualizedBasis: 15.0,
+            daysToExpiry: 14,
+            fairBasis: 2.0,
+            fairPrice: 1302.0,
+            mispricing: basisPoints - 2.0,
+            status: 'LIVE',
+            warnings: [],
+            dataLineage: {
+              futuresSource: 'VPS',
+              spotSource: 'VPS',
+              timestamp: '2026-10-01T15:00:00.000Z',
+            },
           },
         });
 

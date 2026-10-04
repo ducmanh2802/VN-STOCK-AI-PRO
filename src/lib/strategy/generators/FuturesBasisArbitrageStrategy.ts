@@ -110,11 +110,11 @@ export class FuturesBasisArbitrageStrategy
       );
     }
 
-    const basis = deriv.basis.spotFuturesBasis; // F - S (index points)
-    const spotPrice = deriv.spotPrice;
-    const futuresPrice = deriv.activeContractQuote.price ?? context.currentPrice ?? null;
-    const oiInterpretation = deriv.openInterest.interpretation;
-    const termRegime = deriv.termStructure.regime;
+    const basis = deriv.basis.basis; // F - S (index points)
+    const spotPrice = deriv.spotQuote.price;
+    const futuresPrice = deriv.quote.price ?? context.currentPrice ?? null;
+    const oiInterpretation = deriv.openInterest.positioning;
+    const termRegime = deriv.termStructure.curveShape;
 
     // Fail closed if basis cannot be computed or spot is null
     if (basis === null || spotPrice === null) {

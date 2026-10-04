@@ -88,7 +88,7 @@ export class EarningsMomentumStrategy
       asOfDate: context.asOfDate,
       assetClass: this.assetClass,
       sourceSnapshots: {
-        earnings: context.earningsSnapshot?.period.id,
+        earnings: context.earningsSnapshot?.period?.id,
         market: context.marketSnapshot?.timestamp,
       },
     };
@@ -107,7 +107,7 @@ export class EarningsMomentumStrategy
 
     // 2. Upstream Earnings Intelligence Guard
     const earnings = context.earningsSnapshot;
-    if (!earnings || earnings.freshness === 'UNAVAILABLE' || earnings.freshness === 'INVALID') {
+    if (!earnings || earnings.dataFreshness === 'UNAVAILABLE' || earnings.dataFreshness === 'INVALID') {
       return UniversalSignalNormalizer.failClosed(
         this.id,
         this.assetClass,
@@ -118,11 +118,11 @@ export class EarningsMomentumStrategy
       );
     }
 
-    const revGrowth = earnings.growth.revenueGrowthYoY;
-    const profitGrowth = earnings.growth.netProfitGrowthYoY;
-    const cfoRatio = earnings.quality.cfoToNetIncomeRatio;
-    const accruals = earnings.quality.accrualsBalanceSheet;
-    const redFlags = earnings.quality.redFlags;
+    const revGrowth = earnings.growth?.revenue?.percent ?? null;
+    const profitGrowth = earnings.growth?.netProfit?.percent ?? null;
+    const cfoRatio = earnings.earningsQuality?.cashConversion ?? null;
+    const accruals = earnings.earningsQuality?.accrualRatio ?? null;
+    const redFlags = earnings.earningsQuality?.warnings ?? [];
 
     // Fail closed if primary growth metrics are unavailable
     if (revGrowth === null || profitGrowth === null) {
@@ -132,7 +132,7 @@ export class EarningsMomentumStrategy
         context.symbol,
         'REQUIRED_EARNINGS_FACTS_UNAVAILABLE',
         lineage,
-        ['YoY Revenue or Profit growth unavailable for period ' + earnings.period.id]
+        ['YoY Revenue or Profit growth unavailable for period ' + (earnings.period?.id ?? 'UNKNOWN')]
       );
     }
 
@@ -183,7 +183,7 @@ export class EarningsMomentumStrategy
         targetPrice,
         stopLoss,
         timeInForce: 'POSITION',
-        dataFreshness: earnings.freshness,
+        dataFreshness: earnings.dataFreshness,
         notes,
         lineage,
       });
@@ -199,7 +199,7 @@ export class EarningsMomentumStrategy
         direction: 'HOLD',
         conviction: 25,
         timeInForce: 'POSITION',
-        dataFreshness: earnings.freshness,
+        dataFreshness: earnings.dataFreshness,
         reasonCode: 'POOR_EARNINGS_QUALITY_DIVERGENCE',
         notes,
         lineage,
@@ -214,7 +214,7 @@ export class EarningsMomentumStrategy
       direction: 'HOLD',
       conviction: 0,
       timeInForce: 'POSITION',
-      dataFreshness: earnings.freshness,
+      dataFreshness: earnings.dataFreshness,
       reasonCode: 'CRITERIA_NOT_MET',
       notes,
       lineage,
