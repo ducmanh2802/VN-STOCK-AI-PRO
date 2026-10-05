@@ -143,7 +143,7 @@ describe('Trading API Router HTTP Endpoints', () => {
       const res = await fetch(`${harness.baseUrl}/order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: 'HPG', side: 'BUY', quantity: 100, orderType: 'MARKET' }),
+        body: JSON.stringify({ symbol: 'HPG', side: 'BUY', quantity: 100, orderType: 'MARKET', stopLoss: 27000, targetPrice: 31500 }),
       });
       expect(res.status).toBe(409);
       const json = await res.json();
@@ -160,7 +160,7 @@ describe('Trading API Router HTTP Endpoints', () => {
       const res = await fetch(`${harness.baseUrl}/order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: 'UNKNOWN', side: 'BUY', quantity: 100, orderType: 'MARKET' }),
+        body: JSON.stringify({ symbol: 'UNKNOWN', side: 'BUY', quantity: 100, orderType: 'MARKET', stopLoss: 27000, targetPrice: 31500 }),
       });
       expect(res.status).toBe(503);
       const json = await res.json();
@@ -194,7 +194,7 @@ describe('Trading API Router HTTP Endpoints', () => {
       const res = await fetch(`${harness.baseUrl}/order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: 'HPG', side: 'BUY', quantity: 100, orderType: 'MARKET' }),
+        body: JSON.stringify({ symbol: 'HPG', side: 'BUY', quantity: 100, orderType: 'MARKET', stopLoss: 27000, targetPrice: 31500 }),
       });
       expect(res.status).toBe(201);
       const json = await res.json();
@@ -254,7 +254,7 @@ describe('Trading API Router HTTP Endpoints', () => {
       const buy = await fetch(`${harness.baseUrl}/order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: 'HPG', side: 'BUY', quantity: 100, orderType: 'MARKET' }),
+        body: JSON.stringify({ symbol: 'HPG', side: 'BUY', quantity: 100, orderType: 'MARKET', stopLoss: 27000, targetPrice: 31500 }),
       });
       expect(buy.status).toBe(201);
 

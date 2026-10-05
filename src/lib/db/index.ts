@@ -10,3 +10,6 @@ export * from './MoneyFlowRepository.ts';
 export * from './EarningsFactsRepository.ts';
 export * from './CapitalCycleRepository.ts';
 export * from './MacroRepository.ts';
+// P0-04 — canonical market-data persistence (bars, provenance, quality).
+export * from './data/CanonicalMarketDataRepository.ts';
+export * from './data/DataFoundationRepository.ts';

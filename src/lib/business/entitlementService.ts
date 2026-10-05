@@ -20,7 +20,7 @@
 import { actorFromPrincipal, type BusinessActor } from './actor.ts';
 import type { CommercialAuditLog } from './auditLog.ts';
 import { EntitlementEngine, type ReconciliationState } from './entitlementEngine.ts';
-import { isFeatureImplemented, type FeatureId } from './features.ts';
+import { isFeatureImplemented, isFeatureReachable, type FeatureId } from './features.ts';
 import { FREE_PLAN_ID, freePlan, planAllowsSubjectKind, planFeatures, requirePlan } from './plans.ts';
 import { effectiveStatus, startFreeSubscription, transition } from './subscriptionMachine.ts';
 import type {
@@ -112,7 +112,11 @@ export class EntitlementService {
     return {
       planId,
       label: plan.label,
-      features: planFeatures(plan).map((id) => ({ id, implemented: isFeatureImplemented(id) })),
+      features: planFeatures(plan).map((id) => ({
+        id,
+        implemented: isFeatureImplemented(id),
+        reachable: isFeatureReachable(id),
+      })),
     };
   }
 

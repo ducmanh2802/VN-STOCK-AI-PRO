@@ -21,6 +21,8 @@ import { VietnamDerivativesRegistry } from '../../lib/derivatives/VietnamDerivat
 import { parseVpsNumeric } from '../market/providers/vps/normalize.ts';
 import type { VpsRawQuote } from '../market/providers/vps/types.ts';
 import { cacheGet, cacheSet } from '../market/marketDataCache.ts';
+import { resolveDataFreshness } from '../market/freshness/dataFreshness.ts';
+import { QUOTE_FRESHNESS_TTL_MS } from '../market/providers/VPSMarketDataProvider.ts';
 
 const VPS_QUOTE_URL = 'https://bgapidatafeed.vps.com.vn/getliststockdata';
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -69,6 +71,9 @@ export class DerivativesDataProvider {
     underlying: UnderlyingIndex = 'VN30',
     fetchedAt: string = new Date().toISOString()
   ): DerivativesQuote {
+    // P0-02: the observation instant is the moment the provider answered; freshness
+    // is computed from it, never asserted.
+    const observationMs = new Date(fetchedAt).getTime();
     if (!raw) {
       return {
         symbol,
@@ -121,7 +126,14 @@ export class DerivativesDataProvider {
       }
     }
 
-    const dataFreshness: DataFreshnessStatus = price != null && price > 0 ? 'CURRENT' : 'UNAVAILABLE';
+    // P0-02: computed from the real observation timestamp, never asserted.
+    const dataFreshness: DataFreshnessStatus =
+      price != null && price > 0
+        ? resolveDataFreshness({
+            sourceTimestamp: observationMs,
+            ttlMs: QUOTE_FRESHNESS_TTL_MS,
+          }).status
+        : 'UNAVAILABLE';
 
     return {
       symbol,
@@ -141,7 +153,7 @@ export class DerivativesDataProvider {
       tradingValue,
       openInterest,
       source: 'VPS_DERIVATIVES',
-      sourceTimestamp: Date.now(),
+      sourceTimestamp: observationMs,
       fetchedAt,
       dataFreshness,
     };
@@ -155,6 +167,9 @@ export class DerivativesDataProvider {
     raw: VpsRawQuote | null,
     fetchedAt: string = new Date().toISOString()
   ): SpotIndexQuote {
+    // P0-02: the observation instant is the moment the provider answered; freshness
+    // is computed from it, never asserted.
+    const observationMs = new Date(fetchedAt).getTime();
     if (!raw) {
       return {
         symbol: underlying,
@@ -173,7 +188,14 @@ export class DerivativesDataProvider {
     const ref = parseVpsNumeric(raw.r ?? raw.closePrice);
     const change = price != null && ref != null ? +(price - ref).toFixed(2) : null;
     const changePercent = parseVpsNumeric(raw.changePc);
-    const dataFreshness: DataFreshnessStatus = price != null && price > 0 ? 'CURRENT' : 'UNAVAILABLE';
+    // P0-02: computed from the real observation timestamp, never asserted.
+    const dataFreshness: DataFreshnessStatus =
+      price != null && price > 0
+        ? resolveDataFreshness({
+            sourceTimestamp: observationMs,
+            ttlMs: QUOTE_FRESHNESS_TTL_MS,
+          }).status
+        : 'UNAVAILABLE';
 
     return {
       symbol: underlying,
@@ -182,7 +204,7 @@ export class DerivativesDataProvider {
       change,
       changePercent,
       source: 'VPS_INDEX',
-      sourceTimestamp: Date.now(),
+      sourceTimestamp: observationMs,
       fetchedAt,
       dataFreshness,
     };

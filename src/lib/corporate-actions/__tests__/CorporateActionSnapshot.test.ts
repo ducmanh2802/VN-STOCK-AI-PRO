@@ -18,7 +18,11 @@ describe('Phase 23 — CorporateActionSnapshotBuilder', () => {
     });
 
     expect(snapshot.symbol).toBe('HPG');
-    expect(snapshot.dataFreshness).toBe('CURRENT');
+    // P0-02: freshness is the weakest state of the contributing records, computed
+    // from their real source timestamps — never a hardcoded CURRENT. The 2024 HPG
+    // disclosures are older than the disclosure TTL, so STALE is the honest label.
+    expect(snapshot.dataFreshness).toBe('STALE');
+    expect(snapshot.dataFreshness).not.toBe('CURRENT');
     expect(snapshot.dataLineage.engine).toBe('CorporateActionEngine');
     expect(snapshot.dataLineage.calculationVersion).toBe('23.0.0-PROD');
 

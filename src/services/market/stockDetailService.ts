@@ -127,18 +127,19 @@ export async function getFullStockDetail(symbol: string): Promise<FullStockDetai
   const nearestSupport = s1 > 0 && s1 < price ? s1 : (ma20 != null && ma20 < price ? ma20 : s1 > 0 ? s1 : price);
   const nearestResistance = r1 > price ? r1 : (r2 > price ? r2 : price);
 
-  const targetPrice1 = Math.round(price * 1.15);
-  const targetPrice2 = Math.round(price * 1.25);
-  const stopLossPrice = Math.round(nearestSupport * 0.97);
-
-  const riskAmount = price - stopLossPrice;
-  const rewardAmount = targetPrice1 - price;
-  const maxRiskPercent = Number((((stopLossPrice - price) / price) * 100).toFixed(1));
-  const potentialGainPercent = Number((((targetPrice1 - price) / price) * 100).toFixed(1));
-
-  const riskRewardRatio = riskAmount > 0 ? `1 : ${(rewardAmount / riskAmount).toFixed(1)}` : '1 : 2.5';
-  const fairValue = Math.round(price * 1.18);
-  const marginOfSafety = Number((((fairValue - price) / price) * 100).toFixed(1));
+  // P0-03 — NO SYNTHETIC VALUATION OR RISK LEVELS.
+  // Targets, stops, fair value and every derived multiple are reported as
+  // NOT_COMPUTED because no valuation model or authoritative target feed is
+  // reachable from this UI path. They are never `price x 1.15`, `price x 1.18`,
+  // `fairValue x 1.04` or an assumed `'1 : 2.5'` ratio. The genuinely derived
+  // levels that DO survive are the floor-trader pivots and the MAs, all computed
+  // above from real KBS daily bars.
+  const NOT_COMPUTED_VALUATION =
+    'NOT_COMPUTED: no valuation model (DCF / multiple / Graham / consensus) is reachable from this UI path, so no fair value is produced. The previous `price x 1.18` heuristic has been removed.';
+  const NOT_COMPUTED_RISK =
+    'NOT_COMPUTED: no authoritative target / stop model is reachable from this UI path, so no target, stop, reward or risk/reward ratio is produced. Fixed multipliers have been removed.';
+  const NOT_COMPUTED_FLOW =
+    'UNAVAILABLE: no order-book or money-flow provider is connected for this ticker, so no order-size split, active buy/sell volume or proprietary flow is produced.';
 
   // Dynamic theses based on real stock properties
   const sector = meta?.sector || baseSummary.sector || 'Thị trường';
@@ -149,27 +150,30 @@ export async function getFullStockDetail(symbol: string): Promise<FullStockDetai
   const peText = fundamentals.pe != null && fundamentals.pe > 0 ? `P/E hiện tại ở mức ${fundamentals.pe.toFixed(1)}x` : 'P/E đang cập nhật';
   const pbText = fundamentals.pb != null && fundamentals.pb > 0 ? `P/B ${fundamentals.pb.toFixed(1)}x` : 'P/B đang cập nhật';
   const roeText = fundamentals.roe != null && fundamentals.roe > 0 ? `ROE ${fundamentals.roe.toFixed(1)}%` : 'ROE đang cập nhật';
-  const fundamentalThesis = `Định giá ${peText}, ${pbText} và tỷ suất sinh lời ${roeText} tạo nền tảng định giá hấp dẫn cho tầm nhìn trung - dài hạn.`;
-  const macroThesis = `Hưởng lợi từ định hướng phục hồi kinh tế vĩ mô, giải ngân vốn đầu tư công và chính sách ổn định tiền tệ của Ngân hàng Nhà nước Việt Nam.`;
+  // P0-03: never claim an "attractive valuation" while valuation is NOT_COMPUTED.
+  const fundamentalThesis = `Chỉ số tài chính từ nguồn VPS: ${peText}, ${pbText}, ${roeText}. Định giá nội tại CHƯA TÍNH (không có mô hình định giá khả dụng), do đó chưa đưa ra kết luận rẻ/đắt.`;
+  const macroThesis = `Chưa có dữ liệu vĩ mô được nối vào luồng chi tiết cổ phiếu này, nên không đưa ra nhận định vĩ mô.`;
   const keyRisks = [
     'Biến động tỷ giá và lãi suất liên ngân hàng trong ngắn hạn',
     'Áp lực điều chỉnh chốt lời kỹ thuật khi tiệm cận các vùng kháng cự đỉnh cũ',
     'Rủi ro thanh khoản chung toàn thị trường trong các nhịp phân hóa dòng tiền',
+    'Chưa có mức cắt lỗ / mục tiêu có thẩm quyền: quyết định vào lệnh phải kèm mức rủi ro do người đặt lệnh xác định.',
   ];
 
   const aiSignal: StockAISignalData = {
     signalType: baseSummary.aiScore >= 75 ? 'BUY' : baseSummary.aiScore <= 40 ? 'SELL' : 'HOLD',
     signalLabel: baseSummary.aiScore >= 75 ? 'MUA TÍCH LŨY' : baseSummary.aiScore <= 40 ? 'HẠ TỶ TRỌNG' : 'NẮM GIỮ',
     aiScore: baseSummary.aiScore,
-    confidence: 88,
+    // P0-03: no confidence model is computed here, so it is null (NOT_COMPUTED),
+    // not a fixed 88.
+    confidence: null,
     timeframe: 'Trung hạn (1 - 3 tháng)',
-    targetPrice: targetPrice1,
-    stopLossPrice,
-    upsidePercent: potentialGainPercent,
-    riskRewardRatio,
+    targetPrice: null,
+    stopLossPrice: null,
+    upsidePercent: null,
+    riskRewardRatio: null,
     catalysts: [
       'Dòng tiền giao dịch duy trì ở mức cao so với bình quân 20 phiên',
-      'Định giá cơ bản hấp dẫn với biên an toàn lành mạnh',
       'Hỗ trợ kỹ thuật ngắn hạn MA20 ngày được củng cố vững chắc',
     ],
     riskWarnings: keyRisks,
@@ -182,36 +186,41 @@ export async function getFullStockDetail(symbol: string): Promise<FullStockDetai
     high52Week,
     low52Week,
     avgVolume20D,
-    foreignOwnershipPercent: 32.4,
-    roomRemainingPercent: 16.6,
+    // P0-03: no authoritative free-float / foreign-room source is reachable.
+    foreignOwnershipPercent: null,
+    roomRemainingPercent: null,
     fundamentals,
     valuation: {
       currentPrice: price,
-      fairValue,
-      dcfValue: Math.round(fairValue * 1.04),
-      peMultipleValue: Math.round(fairValue * 0.98),
-      pbBookValue: Math.round(fairValue * 0.95),
-      grahamValue: Math.round(price * 1.12),
-      consensusTarget: targetPrice1,
-      marginOfSafety,
-      valuationRating: marginOfSafety >= 15 ? 'UNDERVALUED' : marginOfSafety <= -10 ? 'OVERVALUED' : 'FAIR',
+      fairValue: null,
+      dcfValue: null,
+      peMultipleValue: null,
+      pbBookValue: null,
+      grahamValue: null,
+      consensusTarget: null,
+      marginOfSafety: null,
+      valuationRating: 'NOT_COMPUTED',
+      valuationStatus: 'NOT_COMPUTED',
+      valuationProvenance: NOT_COMPUTED_VALUATION,
       valuationNote:
-        marginOfSafety >= 15
-          ? 'Đang giao dịch dưới giá trị nội tại ước tính (Biên an toàn hấp dẫn)'
-          : 'Định giá hợp lý so với triển vọng tăng trưởng kinh doanh',
+        'Định giá nội tại chưa được tính. Hệ thống không hiển thị giá trị hợp lý ước tính khi chưa có mô hình định giá chạy được.',
     },
     moneyFlow: {
-      largeOrderPercent: 44,
-      mediumOrderPercent: 34,
-      smallOrderPercent: 22,
-      foreignNetValue: 84.5,
-      foreignBuyValue: 142.8,
-      foreignSellValue: 58.3,
-      propTradingNetValue: 26.4,
-      activeBuyVolume: Math.round(baseSummary.volume * 0.58),
-      activeSellVolume: Math.round(baseSummary.volume * 0.42),
-      netFlowVolume: Math.round(baseSummary.volume * 0.16),
-      orderPressureRatio: 1.38,
+      // P0-03: every money-flow figure is UNAVAILABLE rather than a literal or a
+      // fixed fraction of volume (e.g. `volume x 0.58`).
+      largeOrderPercent: null,
+      mediumOrderPercent: null,
+      smallOrderPercent: null,
+      foreignNetValue: null,
+      foreignBuyValue: null,
+      foreignSellValue: null,
+      propTradingNetValue: null,
+      activeBuyVolume: null,
+      activeSellVolume: null,
+      netFlowVolume: null,
+      orderPressureRatio: null,
+      moneyFlowStatus: 'UNAVAILABLE',
+      moneyFlowProvenance: NOT_COMPUTED_FLOW,
     },
     supportResistance: {
       r3,
@@ -231,15 +240,17 @@ export async function getFullStockDetail(symbol: string): Promise<FullStockDetai
     },
     riskReward: {
       entryPrice: price,
-      stopLossPrice,
-      targetPrice1,
-      targetPrice2,
-      riskAmount,
-      rewardAmount,
-      riskRewardRatio,
-      maxRiskPercent,
-      potentialGainPercent,
-      suggestedPositionSizeShares: Math.round(50_000_000 / (riskAmount || 1000)),
+      stopLossPrice: null,
+      targetPrice1: null,
+      targetPrice2: null,
+      riskAmount: null,
+      rewardAmount: null,
+      riskRewardRatio: null,
+      maxRiskPercent: null,
+      potentialGainPercent: null,
+      suggestedPositionSizeShares: null,
+      riskRewardStatus: 'NOT_COMPUTED',
+      riskRewardProvenance: NOT_COMPUTED_RISK,
     },
     aiSignal,
     aiExplanation: {

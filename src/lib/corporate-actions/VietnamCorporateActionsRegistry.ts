@@ -10,8 +10,45 @@
  */
 
 import type { CorporateAction } from './types.ts';
+import { resolveDataFreshness } from '../../services/market/freshness/dataFreshness.ts';
 
-const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
+/**
+ * P0-02 — freshness of a registry record is COMPUTED from its real sourceTimestamp,
+ * never asserted. A corporate-action disclosure is a dated observation, so the only
+ * honest label is the one an age-vs-TTL comparison produces.
+ *
+ * TTL rationale: a statutory disclosure remains a permanent fact once published, so the
+ * staleness window is deliberately wide; what this prevents is the P0-02 defect of a
+ * hardcoded CURRENT that never ages and hides a missing or bogus timestamp.
+ */
+export const CORPORATE_ACTION_FRESHNESS_TTL_MS = 400 * 24 * 60 * 60 * 1000; // 400 days
+
+function computeRegistryFreshness(action: MasterCorporateAction): {
+  status: CorporateAction['dataFreshness'];
+  sourceTimestamp: number | null;
+} {
+  const verdict = resolveDataFreshness({
+    sourceTimestamp: action.sourceTimestamp ?? null,
+    ttlMs: CORPORATE_ACTION_FRESHNESS_TTL_MS,
+  });
+  const normalized =
+    verdict.normalizedSourceTimestamp !== null
+      ? Date.parse(verdict.normalizedSourceTimestamp)
+      : null;
+  return {
+    status: verdict.status,
+    sourceTimestamp: Number.isFinite(normalized as number) ? (normalized as number) : null,
+  };
+}
+
+type MasterCorporateAction = Omit<CorporateAction, 'dataFreshness'>;
+
+/**
+ * P0-02 — the master list stores SOURCE facts only. Freshness is deliberately
+ * absent here and is computed at read time from each record's real
+ * `sourceTimestamp`, so it can never be a hardcoded literal.
+ */
+const MASTER_CORPORATE_ACTIONS: MasterCorporateAction[] = [
   // -------------------------------------------------------------------------
   // HPG - Tập đoàn Hòa Phát (HOSE)
   // -------------------------------------------------------------------------
@@ -43,7 +80,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 4521/TB-VSDC',
     sourceTimestamp: 1716422400000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
   {
@@ -79,7 +115,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 4522/TB-VSDC',
     sourceTimestamp: 1716422400000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
 
@@ -114,7 +149,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 5188/TB-VSDC',
     sourceTimestamp: 1718323200000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
   {
@@ -150,7 +184,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 5189/TB-VSDC',
     sourceTimestamp: 1718323200000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
 
@@ -185,7 +218,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 6721/TB-VSDC',
     sourceTimestamp: 1722816000000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
 
@@ -225,7 +257,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 8102/TB-VSDC',
     sourceTimestamp: 1727136000000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
   {
@@ -261,7 +292,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 8103/TB-VSDC',
     sourceTimestamp: 1727136000000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
 
@@ -296,7 +326,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 4688/TB-VSDC',
     sourceTimestamp: 1716508800000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
   {
@@ -332,7 +361,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 4689/TB-VSDC',
     sourceTimestamp: 1716508800000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
 
@@ -372,7 +400,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 5422/TB-VSDC',
     sourceTimestamp: 1718928000000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
   {
@@ -403,7 +430,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 5423/TB-VSDC',
     sourceTimestamp: 1718928000000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
 
@@ -441,7 +467,6 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 2781/TB-VSDC',
     sourceTimestamp: 1711584000000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
 
@@ -477,17 +502,28 @@ const MASTER_CORPORATE_ACTIONS: CorporateAction[] = [
     sourceDocumentRef: 'VSDC Notice No. 9811/TB-VSDC',
     sourceTimestamp: 1731628800000,
     fetchedAt: '2026-10-01T00:00:00.000Z',
-    dataFreshness: 'CURRENT',
     warnings: [],
   },
 ];
+
+/**
+ * P0-02 — the indexed map is built from freshness that has been COMPUTED from each
+ * record's real `sourceTimestamp`. A record whose timestamp is missing or
+ * unparseable resolves to UNAVAILABLE / INVALID rather than CURRENT.
+ */
+function withComputedFreshness(action: MasterCorporateAction): CorporateAction {
+  const { status, sourceTimestamp } = computeRegistryFreshness(action);
+  return { ...action, dataFreshness: status, sourceTimestamp: sourceTimestamp ?? action.sourceTimestamp };
+}
 
 export class VietnamCorporateActionsRegistry {
   private static actions: Map<string, CorporateAction[]> = new Map();
 
   static {
-    // Initialize indexed map by symbol
-    for (const action of MASTER_CORPORATE_ACTIONS) {
+    // Initialize indexed map by symbol, with freshness computed from the source
+    // timestamp rather than asserted (P0-02).
+    for (const raw of MASTER_CORPORATE_ACTIONS) {
+      const action = withComputedFreshness(raw);
       const sym = action.symbol.toUpperCase();
       const existing = this.actions.get(sym) || [];
       existing.push(action);
@@ -507,7 +543,7 @@ export class VietnamCorporateActionsRegistry {
    * Retrieves all corporate actions recorded across the entire registry.
    */
   public static getAllActions(): CorporateAction[] {
-    return [...MASTER_CORPORATE_ACTIONS];
+    return MASTER_CORPORATE_ACTIONS.map(withComputedFreshness);
   }
 
   /**

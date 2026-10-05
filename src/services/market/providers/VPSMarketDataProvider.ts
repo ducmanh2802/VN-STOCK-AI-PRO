@@ -1,5 +1,12 @@
 import { MarketQuote, MarketDataStatus } from '../types';
 import { FundamentalMetrics } from '../../../types/stockDetail';
+import { resolveDataFreshness } from '../freshness/dataFreshness';
+
+/**
+ * TTL for a VPS realtime quote observation, in ms. Matches the 120 s staleness
+ * guard used by the trading risk layer (`DEFAULT_RISK_CONFIG.maxStaleTimeMs`).
+ */
+export const QUOTE_FRESHNESS_TTL_MS = 120_000;
 
 export interface VPSQuoteRaw {
   id?: number;
@@ -139,6 +146,15 @@ export class VPSMarketDataProvider {
 
     const status = this.calculateDataStatus();
     const nowIso = new Date().toISOString();
+    // P0-02: the VPS realtime payload carries no exchange-side timestamp, so the
+    // authoritative observation time for this record is the moment it was received
+    // from the source. Freshness is *computed* from it — never hardcoded to zero.
+    const observationMs = new Date(nowIso).getTime();
+    const freshness = resolveDataFreshness({
+      sourceTimestamp: nowIso,
+      referenceTimeMs: observationMs,
+      ttlMs: QUOTE_FRESHNESS_TTL_MS,
+    });
 
     return {
       symbol: sym,
@@ -159,9 +175,9 @@ export class VPSMarketDataProvider {
       status,
       dataStatus: status,
       fetchedAt: nowIso,
-      freshnessMs: 0,
-      marketTimestamp: nowIso,
-      timestamp: Date.now(),
+      freshnessMs: freshness.ageMs ?? 0,
+      marketTimestamp: freshness.normalizedSourceTimestamp,
+      timestamp: observationMs,
     };
   }
 
@@ -333,8 +349,11 @@ export class VPSMarketDataProvider {
         profitGrowthYoY: 0,
         netMargin: netMargin || (ros > 0 ? ros : 0),
         grossMargin,
-        sharesOutstanding: 0,
-        marketCapBillion: 0,
+        // P0-03: the VPS base-info payload exposes no shares-outstanding field and
+        // no market-cap field. Reporting `0` here would render a fabricated zero as a
+        // financial value, so both are explicitly UNAVAILABLE (null).
+        sharesOutstanding: null,
+        marketCapBillion: null,
       };
 
       return {

@@ -24,6 +24,8 @@ import {
   parseVpsNumeric,
 } from '../market/providers/vps/normalize.ts';
 import { KbsHistoricalProvider } from '../market/providers/kbs/KbsHistoricalProvider.ts';
+import { resolveDataFreshness } from '../market/freshness/dataFreshness.ts';
+import { QUOTE_FRESHNESS_TTL_MS } from '../market/providers/VPSMarketDataProvider.ts';
 
 const VPS_QUOTE_URL = 'https://bgapidatafeed.vps.com.vn/getliststockdata';
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -38,6 +40,9 @@ export class EtfDataProvider {
     raw: VpsRawQuote | null | undefined,
     fetchedAt: string = new Date().toISOString()
   ): EtfMarketQuote {
+    // P0-02: the observation instant is the moment the provider answered; freshness
+    // is computed from it, never asserted.
+    const observationMs = new Date(fetchedAt).getTime();
     const sym = (symbol || '').trim().toUpperCase();
 
     if (!raw || typeof raw !== 'object') {
@@ -127,9 +132,13 @@ export class EtfDataProvider {
       foreignSellVolume: normalizeVpsLotVolume(raw.fSVolume),
       foreignRoom: parseVpsNumeric(raw.fRoom),
       source: 'VPS_ETF',
-      sourceTimestamp: Date.now(),
+      // P0-02: computed from the real observation timestamp, never asserted.
+      sourceTimestamp: observationMs,
       fetchedAt,
-      dataFreshness: 'CURRENT',
+      dataFreshness: resolveDataFreshness({
+        sourceTimestamp: observationMs,
+        ttlMs: QUOTE_FRESHNESS_TTL_MS,
+      }).status,
     };
   }
 

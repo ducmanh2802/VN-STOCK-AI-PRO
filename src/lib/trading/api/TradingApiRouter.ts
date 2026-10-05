@@ -2,8 +2,11 @@ import { Router, type Request, type Response } from 'express';
 import type { OrderType, OrderSide } from '../types/trading.ts';
 import type { TradingEngine } from '../engine/TradingEngine.ts';
 import { getRealtimeQuote, type RealtimeQuote } from '../../../services/market/realMarketDataService.ts';
-import { TradingDataValidator } from '../validation/TradingDataValidator.ts';
 import { PortfolioRiskMetrics } from '../risk/PortfolioRiskMetrics.ts';
+import {
+  PaperOrderRiskBoundary,
+  type PaperOrderResult,
+} from '../../../services/trading/PaperOrderRiskBoundary.ts';
 
 interface ApiError {
   code: string;
@@ -17,6 +20,10 @@ export interface TradingOrderRequest {
   orderType?: unknown;
   limitPrice?: unknown;
   clientOrderId?: unknown;
+  /** Protective stop in VND. Mandatory for BUY — never synthesized server-side. */
+  stopLoss?: unknown;
+  /** Profit target in VND. Mandatory for BUY — never synthesized server-side. */
+  targetPrice?: unknown;
 }
 
 export function validateTradingOrder(body: TradingOrderRequest): ApiError | null {
@@ -49,6 +56,15 @@ export function validateTradingOrder(body: TradingOrderRequest): ApiError | null
       return { code: 'INVALID_ORDER', message: 'clientOrderId must be a non-empty string when provided.' };
     }
   }
+  // Protective envelope: shape-checked here, evaluated authoritatively by RiskGuard.
+  // A BUY without it is refused fail-closed by the boundary rather than synthesized.
+  for (const field of ['stopLoss', 'targetPrice'] as const) {
+    const value = body[field];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+      return { code: 'INVALID_PRICE', message: `${field} must be a positive finite number in VND when provided.` };
+    }
+  }
   return null;
 }
 
@@ -57,26 +73,42 @@ const fail = (res: Response, status: number, error: ApiError, data?: unknown) =>
 
 export interface TradingApiRouterOptions {
   getQuoteFn?: (symbol: string) => Promise<RealtimeQuote>;
+  /** Overrides the risk boundary. Tests may inject a boundary over a fake engine. */
+  riskBoundary?: PaperOrderRiskBoundary;
+}
+
+/** Maps a boundary rejection onto the closest HTTP status without losing the code. */
+function statusForBoundary(code: string): number {
+  switch (code) {
+    case 'DATA_UNAVAILABLE':
+    case 'STALE_DATA':
+    case 'INVALID_MARKET_DATA':
+      return 503;
+    case 'RISK_PARAMETERS_REQUIRED':
+      return 422;
+    default:
+      return 409;
+  }
 }
 
 /**
- * Paper-trading HTTP surface. It delegates all state reads and mutations to
- * TradingEngine/OrderManager/BrokerAdapter; the router owns no trading state.
+ * Paper-trading HTTP surface. It owns **no** trading state and **no** risk logic.
  *
- * Security & Governance Contract:
- * - Simulation only: Verifies that engine connects to PaperBroker (process-local).
- * - Master switches enforced: Emergency stop and trading enabled.
- * - Real market quotes: Acquired and validated prior to order matching.
- * - Short-selling blocked: SELL requires existing position with adequate shares.
- * - Anti-pyramiding: BUY blocked if existing open position in symbol.
- * - Double-spend & Cash checks: Validated against authoritative broker balance.
+ * P0-01 SECURITY CONTRACT — the only path from HTTP to the broker is
+ * `PaperOrderRiskBoundary.submit`, which enforces, fail-closed and in order:
+ *   simulation-only assertion -> real market data -> RiskGuard
+ *   -> RiskManager -> PositionSizer -> OrderManager -> PaperBroker.
+ * A rejected or zero-sized decision never reaches `PaperBroker.submitOrder`.
+ * Every response carries `riskTrace` proving which engines actually ran.
  */
 export function createTradingApiRouter(
   engine: TradingEngine,
   options: TradingApiRouterOptions = {}
 ): Router {
   const router = Router();
-  const fetchQuote = options.getQuoteFn ?? getRealtimeQuote;
+  const riskBoundary =
+    options.riskBoundary ??
+    new PaperOrderRiskBoundary(engine, options.getQuoteFn ? { getQuote: options.getQuoteFn } : {});
 
   router.get('/status', (_req, res) =>
     res.json({
@@ -120,166 +152,37 @@ export function createTradingApiRouter(
     }
   });
 
+  // P0-01: the router is wiring only. Every risk verdict comes from the boundary,
+  // which drives RiskGuard -> RiskManager -> PositionSizer before the broker.
   router.post('/order', async (req: Request, res: Response) => {
     const body = (req.body ?? {}) as TradingOrderRequest;
     const invalid = validateTradingOrder(body);
     if (invalid) return fail(res, 400, invalid);
 
-    const symbol = (body.symbol as string).trim().toUpperCase();
-    const side = body.side as OrderSide;
-    const quantity = body.quantity as number;
-    const orderType = body.orderType as OrderType;
-    const limitPrice = typeof body.limitPrice === 'number' ? body.limitPrice : undefined;
-    const clientOrderId = typeof body.clientOrderId === 'string' ? body.clientOrderId.trim() : undefined;
-
-    // 0. Idempotency Check on clientOrderId
-    if (clientOrderId) {
-      const allOrders = await engine.getOrderManager().getAllOrders();
-      const existing = allOrders.find((o) => o.clientOrderId === clientOrderId);
-      if (existing) {
-        if (existing.status === 'FILLED') {
-          return fail(res, 409, {
-            code: 'ORDER_ALREADY_FILLED',
-            message: `Lệnh với clientOrderId '${clientOrderId}' đã được khớp trước đó.`,
-          }, existing);
-        }
-        if (existing.status === 'CANCELLED') {
-          return fail(res, 409, {
-            code: 'ORDER_ALREADY_CANCELLED',
-            message: `Lệnh với clientOrderId '${clientOrderId}' đã bị hủy trước đó.`,
-          }, existing);
-        }
-        return fail(res, 409, {
-          code: 'DUPLICATE_ORDER',
-          message: `Lệnh với clientOrderId '${clientOrderId}' đã tồn tại (trạng thái: ${existing.status}).`,
-        }, existing);
-      }
-    }
-
-    // 1. Master Kill Switch: Emergency Stop
-    if (engine.isEmergencyStopActive()) {
-      return fail(res, 409, {
-        code: 'EMERGENCY_STOP',
-        message: 'Giao dịch tạm dừng do công tắc dừng khẩn cấp (Emergency Stop) đang bật.',
-      });
-    }
-
-    // 2. Master Trading Enabled Switch
-    if (!engine.isTradingEnabled()) {
-      return fail(res, 409, {
-        code: 'TRADING_DISABLED',
-        message: 'Chức năng giao dịch hiện đang bị tắt trên TradingEngine.',
-      });
-    }
-
-    // 3. Real Market Data Acquisition & Validation
-    let realtimeQuote: any = null;
-    try {
-      const quoteRes = await fetchQuote(symbol);
-      if (quoteRes.dataStatus !== 'OK' || !quoteRes.quote) {
-        return fail(res, 503, {
-          code: 'DATA_UNAVAILABLE',
-          message: `Không có dữ liệu giá thị trường thật cho mã ${symbol}. Lệnh giao dịch thất bại có chủ đích (Fail-closed).`,
-        });
-      }
-      realtimeQuote = quoteRes.quote;
-    } catch {
-      return fail(res, 503, {
-        code: 'DATA_UNAVAILABLE',
-        message: `Dịch vụ dữ liệu giá thị trường cho ${symbol} hiện không sẵn sàng. Lệnh giao dịch thất bại có chủ đích (Fail-closed).`,
-      });
-    }
-
-    // 4. Feed fresh market tick into broker for price-matching & limit verification
-    const brokerWithTicks = engine.getBroker() as { processMarketData?: (tick: any) => void };
-    if (typeof brokerWithTicks.processMarketData === 'function') {
-      brokerWithTicks.processMarketData({
-        symbol,
-        price: realtimeQuote.lastPrice,
-        referencePrice: realtimeQuote.referencePrice,
-        ceilingPrice: realtimeQuote.ceilingPrice,
-        floorPrice: realtimeQuote.floorPrice,
-        volume: realtimeQuote.matchedVolumeShares ?? 100000,
-        timestamp: Date.now(),
-      });
-    }
-
-    // 5. Price-band validation for LIMIT orders
-    if (orderType === 'LIMIT' && limitPrice != null) {
-      if (realtimeQuote.ceilingPrice && limitPrice > realtimeQuote.ceilingPrice) {
-        return fail(res, 409, {
-          code: 'PRICE_LIMIT_VIOLATION',
-          message: `Giá đặt lệnh (${limitPrice.toLocaleString('vi-VN')} VND) vượt trần biên độ sàn (${realtimeQuote.ceilingPrice.toLocaleString('vi-VN')} VND).`,
-        });
-      }
-      if (realtimeQuote.floorPrice && limitPrice < realtimeQuote.floorPrice) {
-        return fail(res, 409, {
-          code: 'PRICE_LIMIT_VIOLATION',
-          message: `Giá đặt lệnh (${limitPrice.toLocaleString('vi-VN')} VND) dưới sàn biên độ sàn (${realtimeQuote.floorPrice.toLocaleString('vi-VN')} VND).`,
-        });
-      }
-    }
-
-    // 6. Pre-trade checks: Short-selling restriction & Anti-pyramiding
-    if (side === 'SELL') {
-      const positions = await engine.getPositions();
-      const currentPos = positions.find((p) => p.symbol.toUpperCase() === symbol);
-      if (!currentPos || currentPos.quantity < quantity) {
-        return fail(res, 409, {
-          code: 'INSUFFICIENT_POSITION',
-          message: `Không đủ số lượng cổ phiếu để bán. Sở hữu: ${currentPos?.quantity ?? 0}, yêu cầu: ${quantity} (Quy định TTCK VN: Nghiêm cấm bán khống).`,
-        });
-      }
-    }
-
-    if (side === 'BUY') {
-      // Check for existing position conflict (no unauthorized pyramiding)
-      const positions = await engine.getPositions();
-      const currentPos = positions.find((p) => p.symbol.toUpperCase() === symbol && p.quantity > 0);
-      if (currentPos) {
-        return fail(res, 409, {
-          code: 'POSITION_LIMIT',
-          message: `Mã ${symbol} đã có vị thế mở (${currentPos.quantity} CP). Quy tắc phòng ngừa rủi ro (anti-pyramiding) không cho phép mở thêm vị thế mua.`,
-        });
-      }
-
-      // Check available cash sufficiency
-      const account = await engine.getAccount();
-      const estPrice = orderType === 'LIMIT' && limitPrice ? limitPrice : realtimeQuote.lastPrice;
-      const estimatedCost = quantity * estPrice * 1.0025; // 0.15% fee + 0.10% slippage buffer
-      if (account.availableCash < estimatedCost) {
-        return fail(res, 409, {
-          code: 'INSUFFICIENT_FUNDS',
-          message: `Số dư tiền mặt khả dụng không đủ (${account.availableCash.toLocaleString('vi-VN')} VND). Ước tính cần: ${Math.round(estimatedCost).toLocaleString('vi-VN')} VND.`,
-        });
-      }
-    }
-
-    // 7. Submit order atomically via OrderManager to PaperBroker
-    const orderResult = await engine.getOrderManager().submitOrder({
-      symbol,
-      side,
-      type: orderType,
-      quantity,
-      limitPrice: orderType === 'LIMIT' ? limitPrice : null,
-      clientOrderId,
+    const outcome: PaperOrderResult = await riskBoundary.submit({
+      symbol: (body.symbol as string).trim().toUpperCase(),
+      side: body.side as OrderSide,
+      quantity: body.quantity as number,
+      orderType: body.orderType as OrderType,
+      limitPrice: typeof body.limitPrice === 'number' ? body.limitPrice : undefined,
+      clientOrderId: typeof body.clientOrderId === 'string' ? body.clientOrderId.trim() : undefined,
+      stopLoss: typeof body.stopLoss === 'number' ? body.stopLoss : undefined,
+      targetPrice: typeof body.targetPrice === 'number' ? body.targetPrice : undefined,
     });
 
-    if (!orderResult.success) {
+    if (!outcome.success) {
       return fail(
         res,
-        409,
-        orderResult.error ?? {
-          code: orderResult.order?.rejectionCode || 'ORDER_REJECTED',
-          message: orderResult.order?.rejectedReason || 'Lệnh bị từ chối bởi PaperBroker.',
-        },
-        orderResult.order
+        statusForBoundary(outcome.code),
+        { code: outcome.code, message: outcome.message },
+        { order: outcome.order ?? null, riskTrace: outcome.trace }
       );
     }
 
     return res.status(201).json({
       success: true,
-      data: orderResult.order,
+      data: outcome.order,
+      riskTrace: outcome.trace,
     });
   });
 

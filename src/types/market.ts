@@ -1,10 +1,18 @@
 export type MarketState = 'TRADING' | 'CLOSED';
 
+/**
+ * P0-03: `value` / `change` / `sparkline` are nullable because a genuine index
+ * level requires an authoritative index feed. When no such feed is reachable the
+ * fields are `null` (UNAVAILABLE) — never a manufactured base such as
+ * `price x constant`, an interpolated value, or yesterday's value reused as
+ * current. `changePercent` remains a DERIVED value: it is the real
+ * capital-weighted-free mean of constituent percentage changes.
+ */
 export interface IndexData {
   symbol: 'VN-INDEX' | 'VN30' | 'HNX-INDEX' | 'UPCOM-INDEX';
   displayName: string;
-  value: number;
-  change: number;
+  value: number | null;
+  change: number | null;
   changePercent: number;
   totalVolume: number;
   totalValue: number; // in billion VND
@@ -14,8 +22,11 @@ export interface IndexData {
   ceilings: number;
   floors: number;
   status: MarketState;
-  sparkline: number[];
+  sparkline: number[] | null;
   isDemo?: boolean;
+  /** Provenance for `value`: which source backs the index level, or why it is absent. */
+  levelSource: 'AUTHORITATIVE_INDEX_FEED' | 'UNAVAILABLE' | 'DEMO';
+  levelProvenance: string;
 }
 
 export interface MarketStatus {
@@ -39,6 +50,21 @@ export interface AIMarketSummary {
   isDemo?: boolean;
 }
 
+/**
+ * P0-03: a money-flow metric is only reported when it is backed by real provider
+ * data, persisted history, or an authoritative derived calculation. Otherwise it
+ * is `netValue: null` with `availability: 'UNAVAILABLE'` and an explicit
+ * `provenance` reason — never a hardcoded number presented as a measured flow.
+ */
+export interface MoneyFlowMetric {
+  /** in billion VND. `null` means UNAVAILABLE. */
+  netValue: number | null;
+  type: 'NET_BUY' | 'NET_SELL' | 'UNAVAILABLE';
+  label: string;
+  availability: 'REAL' | 'DERIVED' | 'UNAVAILABLE' | 'DEMO';
+  provenance: string;
+}
+
 export interface MarketSentiment {
   score: number; // 0 - 100
   label: 'CỰC KỲ BI QUAN' | 'BI QUAN' | 'TRUNG TÍNH' | 'LẠC QUAN' | 'HƯNG PHẤN';
@@ -46,21 +72,9 @@ export interface MarketSentiment {
   description: string;
   momentum: 'MẠNH' | 'TRUNG BÌNH' | 'YẾU';
   liquidityTrend: string;
-  foreignFlow: {
-    netValue: number; // in billion VND
-    type: 'NET_BUY' | 'NET_SELL';
-    label: string;
-  };
-  proprietaryFlow: {
-    netValue: number;
-    type: 'NET_BUY' | 'NET_SELL';
-    label: string;
-  };
-  retailFlow: {
-    netValue: number;
-    type: 'NET_BUY' | 'NET_SELL';
-    label: string;
-  };
+  foreignFlow: MoneyFlowMetric;
+  proprietaryFlow: MoneyFlowMetric;
+  retailFlow: MoneyFlowMetric;
   shortTermOutlook: string;
   keyFactors: string[];
   updatedAt: string;
@@ -106,10 +120,15 @@ export interface AITopSignal {
   aiScore: number; // 0 - 100
   confidence: number; // 0 - 100
   currentPrice: number;
-  targetPrice: number;
-  stopLossPrice: number;
-  upsidePercent: number;
-  riskRewardRatio: string;
+  /**
+   * P0-03: nullable. A target, stop, upside or R:R figure is only populated when an
+   * actual valuation model or authoritative target feed backs it. Otherwise `null`
+   * (UNAVAILABLE) — never `price x constant`, `0`, or an assumed multiple.
+   */
+  targetPrice: number | null;
+  stopLossPrice: number | null;
+  upsidePercent: number | null;
+  riskRewardRatio: string | null;
   timeframe: string;
   catalysts: string[];
   technicalSummary: string;

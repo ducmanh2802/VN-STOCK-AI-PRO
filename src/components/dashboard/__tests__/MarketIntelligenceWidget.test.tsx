@@ -167,6 +167,8 @@ describe('MarketIntelligenceWidget (Dashboard Step 1)', () => {
             floors: 0,
             status: 'TRADING',
             sparkline: [1280, 1285, 1290, 1295.5],
+            levelSource: 'AUTHORITATIVE_INDEX_FEED',
+            levelProvenance: 'TEST_FIXTURE: asserted by this suite as an authoritative-feed index payload.',
           },
           {
             symbol: 'VN30',
@@ -183,6 +185,8 @@ describe('MarketIntelligenceWidget (Dashboard Step 1)', () => {
             floors: 0,
             status: 'TRADING',
             sparkline: [1325, 1330, 1335, 1340.2],
+            levelSource: 'AUTHORITATIVE_INDEX_FEED',
+            levelProvenance: 'TEST_FIXTURE: asserted by this suite as an authoritative-feed index payload.',
           },
         ]}
       />

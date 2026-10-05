@@ -4,6 +4,16 @@ export type TimeframeOption = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y' | '3Y';
 
 export type IndicatorKey = 'MA20' | 'MA50' | 'MA200' | 'RSI' | 'MACD' | 'Volume' | 'Bollinger';
 
+/**
+ * P0-03 availability contract.
+ * - `REAL`               backed directly by provider data
+ * - `DERIVED`            computed from authoritative data by a documented deterministic rule
+ * - `NOT_COMPUTED`       the required engine/source is not reachable from this path
+ * - `UNAVAILABLE`        no source supplied the input
+ * - `DEMO`               fixture data, explicitly flagged as non-production
+ */
+export type EvidenceStatus = 'REAL' | 'DERIVED' | 'NOT_COMPUTED' | 'UNAVAILABLE' | 'DEMO';
+
 export interface FundamentalMetrics {
   pe: number;
   pb: number;
@@ -16,35 +26,48 @@ export interface FundamentalMetrics {
   profitGrowthYoY: number; // % e.g. +24.2
   netMargin: number; // %
   grossMargin: number; // %
-  sharesOutstanding: number; // million shares
-  marketCapBillion: number; // in billion VND
+  /** P0-03: million shares. `null` when no authoritative shares-outstanding source exists. */
+  sharesOutstanding: number | null;
+  /** P0-03: billion VND. `null` when shares outstanding are unavailable. */
+  marketCapBillion: number | null;
 }
 
+/**
+ * P0-03: every valuation figure is nullable and carries an explicit status.
+ * A fair value, DCF value, multiple-based value or Graham value is only populated
+ * when an actual valuation model produced it. `price x 1.18` and friends are
+ * never presented as certified valuation.
+ */
 export interface ValuationData {
   currentPrice: number;
-  fairValue: number;
-  dcfValue: number;
-  peMultipleValue: number;
-  pbBookValue: number;
-  grahamValue: number;
-  consensusTarget: number;
-  marginOfSafety: number; // % e.g. +19.4%
-  valuationRating: 'UNDERVALUED' | 'FAIR' | 'OVERVALUED';
+  fairValue: number | null;
+  dcfValue: number | null;
+  peMultipleValue: number | null;
+  pbBookValue: number | null;
+  grahamValue: number | null;
+  consensusTarget: number | null;
+  marginOfSafety: number | null; // % e.g. +19.4%
+  valuationRating: 'UNDERVALUED' | 'FAIR' | 'OVERVALUED' | 'NOT_COMPUTED';
+  valuationStatus: EvidenceStatus;
+  valuationProvenance: string;
   valuationNote: string;
 }
 
+/** P0-03: money-flow figures are nullable; missing sources are never faked. */
 export interface MoneyFlowData {
-  largeOrderPercent: number; // Cá mập > 1 tỷ VND
-  mediumOrderPercent: number; // Sói già 200tr - 1 tỷ VND
-  smallOrderPercent: number; // Nhỏ lẻ < 200tr VND
-  foreignNetValue: number; // in billion VND (+ is net buy, - is net sell)
-  foreignBuyValue: number;
-  foreignSellValue: number;
-  propTradingNetValue: number; // Tự doanh in billion VND
-  activeBuyVolume: number;
-  activeSellVolume: number;
-  netFlowVolume: number;
-  orderPressureRatio: number; // Active Buy / Active Sell ratio e.g. 1.35
+  largeOrderPercent: number | null; // Cá mập > 1 tỷ VND
+  mediumOrderPercent: number | null; // Sói già 200tr - 1 tỷ VND
+  smallOrderPercent: number | null; // Nhỏ lẻ < 200tr VND
+  foreignNetValue: number | null; // billion VND (+ net buy, - net sell)
+  foreignBuyValue: number | null;
+  foreignSellValue: number | null;
+  propTradingNetValue: number | null; // Tự doanh in billion VND
+  activeBuyVolume: number | null;
+  activeSellVolume: number | null;
+  netFlowVolume: number | null;
+  orderPressureRatio: number | null;
+  moneyFlowStatus: EvidenceStatus;
+  moneyFlowProvenance: string;
 }
 
 export interface SupportResistanceLevels {
@@ -55,38 +78,46 @@ export interface SupportResistanceLevels {
   s1: number;
   s2: number;
   s3: number;
-  ma20Level: number;
-  ma50Level: number;
-  ma200Level: number;
+  ma20Level: number | null;
+  ma50Level: number | null;
+  ma200Level: number | null;
   nearestSupport: number;
   nearestResistance: number;
   supportDistancePercent: number;
   resistanceDistancePercent: number;
 }
 
+/**
+ * P0-03: targets and stops are nullable. They are populated only when an
+ * authoritative risk/target model backs them; this UI path has none, so they are
+ * `null` and the ratio is `null` — never a fixed multiplier or a `'1 : 2.5'` default.
+ */
 export interface RiskRewardData {
   entryPrice: number;
-  stopLossPrice: number;
-  targetPrice1: number;
-  targetPrice2: number;
-  riskAmount: number; // in VND
-  rewardAmount: number; // in VND
-  riskRewardRatio: string; // e.g. "1 : 2.8"
-  maxRiskPercent: number; // % e.g. -5.2%
-  potentialGainPercent: number; // % e.g. +16.8%
-  suggestedPositionSizeShares?: number; // suggested based on 2% risk model
+  stopLossPrice: number | null;
+  targetPrice1: number | null;
+  targetPrice2: number | null;
+  riskAmount: number | null; // in VND
+  rewardAmount: number | null; // in VND
+  riskRewardRatio: string | null; // e.g. "1 : 2.8"
+  maxRiskPercent: number | null; // % e.g. -5.2%
+  potentialGainPercent: number | null; // % e.g. +16.8%
+  suggestedPositionSizeShares: number | null;
+  riskRewardStatus: EvidenceStatus;
+  riskRewardProvenance: string;
 }
 
 export interface StockAISignalData {
   signalType: 'STRONG_BUY' | 'BUY' | 'ACCUMULATE' | 'HOLD' | 'SELL' | 'WATCH' | 'TAKE_PROFIT';
   signalLabel: string;
   aiScore: number; // 0 - 100
-  confidence: number; // % e.g. 88%
+  /** P0-03: `null` when no model confidence is computed (never a fixed 88). */
+  confidence: number | null; // % e.g. 88%
   timeframe: string;
-  targetPrice: number;
-  stopLossPrice: number;
-  upsidePercent: number;
-  riskRewardRatio: string;
+  targetPrice: number | null;
+  stopLossPrice: number | null;
+  upsidePercent: number | null;
+  riskRewardRatio: string | null;
   catalysts: string[];
   riskWarnings: string[];
   technicalSummary: string;
@@ -112,6 +143,7 @@ export interface FullStockDetail extends StockSummary {
   high52Week: number;
   low52Week: number;
   avgVolume20D: number;
-  foreignOwnershipPercent: number;
-  roomRemainingPercent: number;
+  /** P0-03: `null` when no authoritative free-float / room source is reachable. */
+  foreignOwnershipPercent: number | null;
+  roomRemainingPercent: number | null;
 }

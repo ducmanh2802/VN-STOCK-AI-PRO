@@ -1,8 +1,7 @@
 import express from 'express';
 import http from 'http';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
-      // (vite import moved to top)
+import * as dotenv from 'dotenv';
 import {
   StockRepository,
   PriceRepository,
@@ -21,6 +20,7 @@ import {
   MoneyFlowEngine,
 } from './src/lib/analysis/index.ts';
 import { requireAuth, type AuthRequest } from './src/middleware/auth.ts';
+import { getAdminAuthState } from './src/lib/firebase-admin.ts';
 // PLATFORM FOUNDATION — platform layer mounts below product/feature routes.
 import { createPlatformRouter } from './src/lib/platform/api/createPlatformRouter.ts';
 import { correlationMiddleware, securityHeaders } from './src/middleware/platform/security.ts';
@@ -43,10 +43,27 @@ import { TradingEngine } from './src/lib/trading/engine/TradingEngine.ts';
 import { createTradingApiRouter } from './src/lib/trading/api/TradingApiRouter.ts';
 import { createMacroApiRouter } from './src/lib/macro/api/macroRouter.ts';
 import { MarketIntelligenceService } from './src/services/market/MarketIntelligenceService.ts';
+// P0-04 — canonical bar / provenance / quality persistence, mounted so the tables
+// and the repository have a real production caller instead of being orphans.
+import { createCanonicalDataApiRouter } from './src/services/data/CanonicalDataApiRouter.ts';
+// P1-02 / P1-04 — research lane entrypoint (AuditEngine.certify, ResearchRepository,
+// DecisionJournalRepository, PointInTimeGuard).
+import { createResearchApiRouter } from './src/services/research/ResearchApiRouter.ts';
+// P1-09 — paper replay lane entrypoint (PaperReplayEngine, ReplayRepository).
+import { createPaperReplayApiRouter } from './src/services/replay/PaperReplayApiRouter.ts';
+// P1-08 — commercial lane entrypoint (entitlements, subscriptions, usage, audit).
+import { createBusinessApiRouterComposition } from './src/services/business-api/BusinessApiRouterComposition.ts';
+import { runAiChat } from './src/services/assistant/aiChatService.ts';
 
 async function startServer() {
+  // Local development convenience only. Google AI Studio / Cloud Run inject real
+  // environment variables, and dotenv never overrides an already-set variable.
+  dotenv.config();
+
   const app = express();
-  const PORT = 3000;
+  // AI Studio forwards a dynamic port, so the port must never be hardcoded.
+  const PORT = Number(process.env.PORT) || 3000;
+  const HOST = process.env.HOST || '0.0.0.0';
   const httpServer = http.createServer(app);
 
   app.use(express.json());
@@ -62,6 +79,26 @@ async function startServer() {
   // Macroeconomic Intelligence layer (Phase 19.1)
   app.use('/api/macro', createMacroApiRouter());
 
+  // P0-04 — canonical market-data persistence surface:
+  // POST /api/canonical-data/ingest/:symbol  (provider -> validation -> persistence
+  //                                          -> provenance -> quality)
+  // GET  /api/canonical-data/bars/:symbol   (point-in-time safe query)
+  // GET  /api/canonical-data/quality/:symbol
+  // POST /api/canonical-data/cross-source-check
+  // GET  /api/canonical-data/identity/:symbol
+  app.use('/api/canonical-data', createCanonicalDataApiRouter());
+
+  // P1-02 / P1-04 — research: metrics, certification, experiments, decisions, PIT.
+  // `AuditEngine.certify` is reachable only here; nothing else may claim CERTIFIED.
+  app.use('/api/research', createResearchApiRouter());
+
+  // P1-09 — paper replay: paper-only assertion, run + persistence, transitions.
+  app.use('/api/replay', createPaperReplayApiRouter());
+
+  // P1-08 — commercial layer: entitlements, subscription, usage, commercial audit.
+  // Identity comes from the shared PLATFORM IdentityService; status probes fail closed.
+  app.use('/api/billing', createBusinessApiRouterComposition());
+
   // ========================================================
   // PLATFORM FOUNDATION (identity/auth, authorization, audit, health)
   // Mounts below feature routers; owns no financial semantics.
@@ -73,7 +110,21 @@ async function startServer() {
   // ========================================================
 
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString(), marketDataCache: cacheStats() });
+    // Honest dependency states — never a blanket "ok" while a required service is
+    // unusable. Liveness is proven by /api/platform/healthz (touches no dependency).
+    const databaseConfigured = Boolean(
+      process.env.SQL_HOST && process.env.SQL_USER && process.env.SQL_PASSWORD && process.env.SQL_DB_NAME
+    );
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      marketDataCache: cacheStats(),
+      dependencies: {
+        database: databaseConfigured ? 'DATABASE_CONFIGURED' : 'DATABASE_CONFIGURATION_REQUIRED',
+        auth: getAdminAuthState().status,
+        gemini: process.env.GEMINI_API_KEY ? 'GEMINI_CONFIGURED' : 'GEMINI_CONFIGURATION_REQUIRED',
+      },
+    });
   });
 
   // Current Authenticated User Profile (Cloud SQL + Firebase Auth)
@@ -774,56 +825,21 @@ async function startServer() {
   // Cannot execute trades, cannot mutate balances or positions.
   // ========================================================
   app.post('/api/ai/chat', async (req, res) => {
+    const { message, context } = req.body ?? {};
+    if (typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'Nội dung tin nhắn không được để trống' });
+    }
+
+    const symbol =
+      typeof context?.symbol === 'string' ? context.symbol.trim().toUpperCase() : undefined;
+    const tab = typeof context?.tab === 'string' ? context.tab.trim() : undefined;
+
+    // P1-03: the advisory implementation now lives in src/ so the feature registry
+    // can cite a real, reachable module instead of a test-only one. ADVISORY ONLY:
+    // it holds no trading authority and can never place or modify an order.
     try {
-      const { message, context } = req.body ?? {};
-      if (typeof message !== 'string' || !message.trim()) {
-        return res.status(400).json({ error: 'Nội dung tin nhắn không được để trống' });
-      }
-
-      const symbol = typeof context?.symbol === 'string' ? context.symbol.trim().toUpperCase() : undefined;
-      const tab = typeof context?.tab === 'string' ? context.tab.trim() : undefined;
-
-      // Lazy load GoogleGenAI SDK to prevent crash if key is unconfigured
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        return res.json({
-          reply: `Dịch vụ AI Copilot hoạt động dưới dạng Cố vấn thông minh (Advisory Only).\n\nHiện tại khóa API (GEMINI_API_KEY) chưa được cấu hình trên môi trường máy chủ. Vui lòng thiết lập biến GEMINI_API_KEY trong cài đặt dự án để kích hoạt phản hồi trực tiếp từ mô hình trí tuệ nhân tạo.\n\n*Ngữ cảnh theo dõi:* ${symbol ? `Cổ phiếu ${symbol}` : 'Tổng quan thị trường'} (Chế độ xem: ${tab || 'Chung'}).`,
-          advisoryOnly: true,
-          source: 'SYSTEM_NOTICE',
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey });
-
-      const systemInstruction = `Bạn là trợ lý AI phân tích tài chính cao cấp của nền tảng VN STOCK AI PRO, chuyên sâu về thị trường chứng khoán Việt Nam (HOSE, HNX, UPCoM).
-QUY TẮC CỐT LÕI (BẮT BUỘC TUÂN THỦ):
-1. CỐ VẤN ĐỘC LẬP: Bạn chỉ đóng vai trò phân tích, tư vấn và cung cấp góc nhìn tham khảo. Bạn TUYỆT ĐỐI KHÔNG CÓ QUYỀN đặt lệnh, hủy lệnh, hay thay đổi số dư tài khoản giao dịch.
-2. TUÂN THỦ PHÁP LÝ & RỦI RO: Mọi khuyến nghị phải tuân thủ quy tắc thị trường Việt Nam (lô chẵn 100 cổ phiếu, biên độ trần/sàn HOSE +/-7%, HNX +/-10%, UPCoM +/-15%, chu kỳ thanh toán T+2.5, không bán khống).
-3. TRUNG THỰC DỮ LIỆU: Không bao giờ bịa đặt thông tin tài chính hay đưa ra lời hứa hẹn cam kết lợi nhuận. Nếu thiếu dữ liệu, hãy nêu rõ ràng.
-4. NGỮ CẢNH ĐANG XEM: ${symbol ? `Người dùng đang xem mã cổ phiếu ${symbol}.` : 'Người dùng đang theo dõi tổng quan thị trường.'}
-Hãy trả lời súc tích, chuyên nghiệp bằng tiếng Việt với định dạng Markdown rõ ràng.`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: `${systemInstruction}\n\nCâu hỏi của nhà đầu tư: ${message.trim()}` }],
-          },
-        ],
-      });
-
-      const reply = response.text || 'Không nhận được câu trả lời từ mô hình AI.';
-
-      return res.json({
-        reply,
-        advisoryOnly: true,
-        symbol,
-        source: 'GEMINI_ADVISORY',
-        timestamp: new Date().toISOString(),
-      });
+      const result = await runAiChat({ message, symbol, tab });
+      return res.json(result);
     } catch (error: any) {
       console.error('Error in POST /api/ai/chat:', error);
       return res.status(500).json({
@@ -836,7 +852,12 @@ Hãy trả lời súc tích, chuyên nghiệp bằng tiếng Việt với địn
   // ========================================================
   // VITE MIDDLEWARE / STATIC ASSETS
   // ========================================================
-  if (process.env.NODE_ENV !== 'production') {
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (!isProduction) {
+    // Loaded dynamically on purpose. `vite` is a devDependency, so a static
+    // top-level import would emit `require("vite")` into dist/server.cjs and the
+    // production server would die at startup whenever devDependencies are pruned.
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
@@ -852,7 +873,11 @@ Hãy trả lời súc tích, chuyên nghiệp bằng tiếng Việt với địn
     app.use(express.static(distPath));
     app.get('*', (req, res) => { res.sendFile(path.join(distPath, 'index.html')); });
   }
-  httpServer.listen(PORT, '0.0.0.0', () => { console.log(`VN STOCK AI Server running on http://0.0.0.0:${PORT}`); });
+  httpServer.listen(PORT, HOST, () => { console.log(`VN STOCK AI Server running on http://${HOST}:${PORT}`); });
 }
 
-startServer();
+startServer().catch((error) => {
+  // A fatal startup failure must be loud and actionable, never a silent exit.
+  console.error('FATAL: server failed to start:', error);
+  process.exitCode = 1;
+});

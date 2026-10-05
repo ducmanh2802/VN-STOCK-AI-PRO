@@ -22,7 +22,14 @@ export interface StockSummary {
   refPrice: number;
   ceilingPrice: number | null;
   floorPrice: number | null;
-  marketCap: number; // in billion VND
+  /**
+   * P0-03: in billion VND, or `null` when UNAVAILABLE.
+   * A market cap is only reported when it is backed by an authoritative
+   * shares-outstanding figure multiplied by an authoritative price (or by an
+   * authoritative market-cap source). It is never assumed to be one million
+   * shares for every ticker, and never coerced to `0`.
+   */
+  marketCap: number | null;
   pe: number | null;
   pb: number | null;
   roe: number | null;
@@ -54,7 +61,8 @@ export interface SectorHeatmapItem {
   id: string;
   name: string;
   changePercent: number;
-  marketCap: number; // tỷ VND
+  /** P0-03: tỷ VND, or `null` when no constituent has an authoritative market cap. */
+  marketCap: number | null;
   leaderSymbol: string;
   stocksCount: number;
   volume: number;

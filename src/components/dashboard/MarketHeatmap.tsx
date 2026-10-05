@@ -103,7 +103,7 @@ export function MarketHeatmap({ sectors, onSelectStock }: MarketHeatmapProps) {
               <Info className="w-4 h-4 text-terminal-accent shrink-0" />
               <span>
                 Ngành <strong>{sectors.find((s) => s.id === selectedSector)?.name}</strong>: Vốn hóa{' '}
-                {formatBillionVND(sectors.find((s) => s.id === selectedSector)?.marketCap || 0)}, dẫn dắt bởi mã{' '}
+                {formatBillionVND(sectors.find((s) => s.id === selectedSector)?.marketCap)}, dẫn dắt bởi mã{' '}
                 <strong className="text-terminal-accent font-mono">
                   {sectors.find((s) => s.id === selectedSector)?.leaderSymbol}
                 </strong>.

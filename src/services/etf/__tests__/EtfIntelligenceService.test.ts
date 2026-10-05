@@ -35,7 +35,20 @@ describe('Phase 22.2 & 22.6 — ETF Provider Normalization & Service', () => {
       expect(quote.foreignBuyVolume).toBe(10_000);
       expect(quote.foreignSellVolume).toBe(5_000);
       expect(quote.foreignRoom).toBe(5_000_000);
-      expect(quote.dataFreshness).toBe('CURRENT');
+      // P0-02: the freshness label is COMPUTED from the observation instant, not
+      // asserted. This fixture's observation is 2026-09-30T10:00Z, which is well
+      // beyond the 120 s quote TTL relative to the reference clock, so the honest
+      // label is STALE. A "fresh" observation yields CURRENT — asserted below.
+      expect(quote.sourceTimestamp).toBe(Date.parse('2026-09-30T10:00:00.000Z'));
+      expect(quote.dataFreshness).toBe('STALE');
+      expect(quote.dataFreshness).not.toBe('CURRENT');
+
+      const freshQuote = EtfDataProvider.normalizeQuote(
+        'E1VFVN30',
+        raw,
+        new Date().toISOString()
+      );
+      expect(freshQuote.dataFreshness).toBe('CURRENT');
     });
 
     it('fails closed when raw payload is null or price is missing', () => {

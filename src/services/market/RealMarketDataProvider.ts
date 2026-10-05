@@ -6,18 +6,43 @@ import {
   AIMarketSummary,
   MarketSentiment,
   MarketBreadth,
+  MoneyFlowMetric,
   AITopSignal,
   MarketState,
 } from '../../types/market';
-import { vpsMarketDataProvider, VPSQuoteRaw } from './providers/VPSMarketDataProvider';
+import { vpsMarketDataProvider, VPSQuoteRaw, QUOTE_FRESHNESS_TTL_MS } from './providers/VPSMarketDataProvider';
 import { VIETNAM_STOCKS_UNIVERSE, UNIVERSE_SYMBOLS, SECTOR_MAP, StockMetadata } from './stockUniverse';
+import { resolveDataFreshness } from './freshness/dataFreshness';
 
 export class RealMarketDataProvider implements MarketDataProvider {
   readonly name = 'RealMarketDataProvider';
   private cachedSummaries: Map<string, StockSummary> = new Map();
   private lastFetchTime = 0;
   private readonly CACHE_TTL_MS = 2500; // 2.5s cache for realtime quotes
+  /**
+   * P0-02: freshness TTL for a universe quote summary. Cached summaries are served
+   * for up to 2.5 s, but their `sourceTimestamp` is the original observation time,
+   * so a summary degrades to STALE on its own once it ages past this TTL.
+   */
+  private readonly FRESHNESS_TTL_MS = QUOTE_FRESHNESS_TTL_MS;
   private watchlistStorageKey = 'vn_stock_watchlist_symbols';
+
+  /**
+   * P0-02: derives `dataFreshness` from the real source timestamp.
+   *
+   * - no timestamp        -> UNAVAILABLE (never CURRENT)
+   * - unparseable         -> INVALID
+   * - beyond clock skew   -> INVALID
+   * - older than the TTL  -> STALE
+   * - otherwise           -> CURRENT
+   */
+  private computeFreshness(sourceTimestamp: string | number | null | undefined, now: number) {
+    return resolveDataFreshness({
+      sourceTimestamp,
+      referenceTimeMs: now,
+      ttlMs: this.FRESHNESS_TTL_MS,
+    });
+  }
 
   /**
    * Determine live market session based on ICT (UTC+7)
@@ -85,7 +110,7 @@ export class RealMarketDataProvider implements MarketDataProvider {
         const high = quote?.high ?? Math.max(price, open);
         const low = quote?.low ?? Math.min(price, open);
 
-        let trend: StockTrend = 'SIDEWAY';
+let trend: StockTrend = 'SIDEWAY';
         if (changePercent > 0.5) trend = 'UPTREND';
         else if (changePercent < -0.5) trend = 'DOWNTREND';
 
@@ -95,6 +120,15 @@ export class RealMarketDataProvider implements MarketDataProvider {
         else if (changePercent < 0) aiScore -= Math.min(30, Math.round(Math.abs(changePercent) * 5));
         if (volume > 5_000_000) aiScore += 10;
         aiScore = Math.max(10, Math.min(95, aiScore));
+
+        // P0-02: freshness is DERIVED from the real VPS observation timestamp.
+        // P0-03: market cap requires authoritative shares outstanding; the VPS
+        // realtime payload carries none, so it is explicitly UNAVAILABLE (null)
+        // rather than assumed to be one million shares for every ticker.
+        const freshness = this.computeFreshness(quote?.marketTimestamp, now);
+        const sparkline = quote
+          ? [refPrice, open, Math.round((open + high) / 2), high, Math.round((high + low) / 2), price]
+          : [];
 
         const summary: StockSummary = {
           symbol: meta.symbol,
@@ -112,7 +146,7 @@ export class RealMarketDataProvider implements MarketDataProvider {
           refPrice,
           ceilingPrice,
           floorPrice,
-          marketCap: Number((price * 1_000_000 / 1e9).toFixed(1)), // Estimated cap in tỷ VND
+          marketCap: null,
           pe: null,
           pb: null,
           roe: null,
@@ -120,19 +154,12 @@ export class RealMarketDataProvider implements MarketDataProvider {
           trend,
           aiScore,
           fairValue: null,
-          sparkline: [
-            Math.round(refPrice * 0.99),
-            open,
-            Math.round((open + high) / 2),
-            high,
-            Math.round((high + low) / 2),
-            price,
-          ],
+          sparkline,
           isDemo: false,
-          dataStatus: 'PARTIAL',
-          dataFreshness: 'CURRENT',
+          dataStatus: quote ? 'PARTIAL' : 'UNAVAILABLE',
+          dataFreshness: freshness.status,
           fetchedAt: new Date(now).toISOString(),
-          sourceTimestamp: null,
+          sourceTimestamp: freshness.normalizedSourceTimestamp,
         };
 
         this.cachedSummaries.set(meta.symbol, summary);
@@ -142,11 +169,23 @@ export class RealMarketDataProvider implements MarketDataProvider {
       this.lastFetchTime = now;
       return results;
     } catch (err) {
+      // Provider failure: never re-present cached data as fresh. Freshness is
+      // recomputed per record against its own observation time so the label can
+      // only get weaker (never stronger) as the cache ages.
       if (this.cachedSummaries.size > 0) {
-        return Array.from(this.cachedSummaries.values()).map((s) => ({
-          ...s,
-          dataFreshness: 'STALE' as const,
-        }));
+        const failedAt = Date.now();
+        return Array.from(this.cachedSummaries.values()).map((s) => {
+          const recomputed = this.computeFreshness(s.sourceTimestamp, failedAt);
+          const degraded =
+            recomputed.status === 'CURRENT'
+              ? ('STALE' as const)
+              : recomputed.status;
+          return {
+            ...s,
+            dataFreshness: degraded,
+            sourceTimestamp: recomputed.normalizedSourceTimestamp ?? s.sourceTimestamp ?? null,
+          };
+        });
       }
       throw err;
     }
@@ -175,9 +214,18 @@ export class RealMarketDataProvider implements MarketDataProvider {
     const vn30TotalVol = vn30Stocks.reduce((sum, s) => sum + s.volume, 0);
     const vn30TotalVal = Number(vn30Stocks.reduce((sum, s) => sum + s.tradingValue, 0).toFixed(1));
 
-    const vn30Base = 1320.5;
-    const vn30Change = Number((vn30Base * (vn30AvgChangePct / 100)).toFixed(2));
-    const vn30Val = Number((vn30Base + vn30Change).toFixed(2));
+    // P0-03: no authoritative index-level feed is reachable from this provider.
+    // The index LEVEL and its absolute CHANGE are therefore UNAVAILABLE (null).
+    // They are never manufactured from a hardcoded base such as 1320.5 / 1285.0,
+    // never interpolated, and never carried over from a previous session.
+    const indexLevelUnavailable = {
+      value: null as number | null,
+      change: null as number | null,
+      sparkline: null as number[] | null,
+      levelSource: 'UNAVAILABLE' as const,
+      levelProvenance:
+        'NO_AUTHORITATIVE_INDEX_FEED: the connected market-data sources expose constituent quotes only, not an index level series. Constituent aggregates (breadth, volume, value, mean change %) are real and are reported.',
+    };
 
     // HOSE / Broad market aggregation
     const hoseStocks = all.filter((s) => s.exchange === 'HOSE');
@@ -194,10 +242,6 @@ export class RealMarketDataProvider implements MarketDataProvider {
     const hoseTotalVol = hoseStocks.reduce((sum, s) => sum + s.volume, 0);
     const hoseTotalVal = Number(hoseStocks.reduce((sum, s) => sum + s.tradingValue, 0).toFixed(1));
 
-    const vnIndexBase = 1285.0;
-    const vnIndexChange = Number((vnIndexBase * (hoseAvgChangePct / 100)).toFixed(2));
-    const vnIndexVal = Number((vnIndexBase + vnIndexChange).toFixed(2));
-
     // HNX & UPCOM
     const hnxStocks = all.filter((s) => s.exchange === 'HNX');
     const hnxAvgChange = hnxStocks.length > 0 ? hnxStocks.reduce((sum, s) => sum + s.changePercent, 0) / hnxStocks.length : 0;
@@ -213,8 +257,7 @@ export class RealMarketDataProvider implements MarketDataProvider {
       {
         symbol: 'VN-INDEX',
         displayName: 'VN-Index (HOSE)',
-        value: vnIndexVal,
-        change: vnIndexChange,
+        ...indexLevelUnavailable,
         changePercent: Number(hoseAvgChangePct.toFixed(2)),
         totalVolume: hoseTotalVol,
         totalValue: hoseTotalVal,
@@ -224,14 +267,12 @@ export class RealMarketDataProvider implements MarketDataProvider {
         ceilings: hoseCeil,
         floors: hoseFloor,
         status: session.state,
-        sparkline: [vnIndexBase - 2, vnIndexBase, vnIndexBase + 1, vnIndexBase + vnIndexChange * 0.7, vnIndexVal],
         isDemo: false,
       },
       {
         symbol: 'VN30',
         displayName: 'VN30-Index',
-        value: vn30Val,
-        change: vn30Change,
+        ...indexLevelUnavailable,
         changePercent: Number(vn30AvgChangePct.toFixed(2)),
         totalVolume: vn30TotalVol,
         totalValue: vn30TotalVal,
@@ -241,41 +282,36 @@ export class RealMarketDataProvider implements MarketDataProvider {
         ceilings: vn30Ceil,
         floors: vn30Floor,
         status: session.state,
-        sparkline: [vn30Base - 3, vn30Base - 1, vn30Base + 2, vn30Base + vn30Change * 0.8, vn30Val],
         isDemo: false,
       },
       {
         symbol: 'HNX-INDEX',
         displayName: 'HNX-Index',
-        value: Number((238.5 + (238.5 * hnxAvgChange / 100)).toFixed(2)),
-        change: Number((238.5 * (hnxAvgChange / 100)).toFixed(2)),
+        ...indexLevelUnavailable,
         changePercent: Number(hnxAvgChange.toFixed(2)),
         totalVolume: hnxTotalVol,
         totalValue: hnxTotalVal,
         advances: hnxStocks.filter((s) => s.change > 0).length,
         declines: hnxStocks.filter((s) => s.change < 0).length,
         unchanged: hnxStocks.filter((s) => s.change === 0).length,
-        ceilings: 0,
-        floors: 0,
+        ceilings: hnxStocks.filter((s) => s.ceilingPrice != null && s.ceilingPrice > 0 && s.price >= s.ceilingPrice).length,
+        floors: hnxStocks.filter((s) => s.floorPrice != null && s.floorPrice > 0 && s.price <= s.floorPrice).length,
         status: session.state,
-        sparkline: [238.0, 238.2, 238.5, 238.5 + (238.5 * hnxAvgChange / 100)],
         isDemo: false,
       },
       {
         symbol: 'UPCOM-INDEX',
         displayName: 'UPCoM-Index',
-        value: Number((98.2 + (98.2 * upcomAvgChange / 100)).toFixed(2)),
-        change: Number((98.2 * (upcomAvgChange / 100)).toFixed(2)),
+        ...indexLevelUnavailable,
         changePercent: Number(upcomAvgChange.toFixed(2)),
         totalVolume: upcomTotalVol,
         totalValue: upcomTotalVal,
         advances: upcomStocks.filter((s) => s.change > 0).length,
         declines: upcomStocks.filter((s) => s.change < 0).length,
         unchanged: upcomStocks.filter((s) => s.change === 0).length,
-        ceilings: 0,
-        floors: 0,
+        ceilings: upcomStocks.filter((s) => s.ceilingPrice != null && s.ceilingPrice > 0 && s.price >= s.ceilingPrice).length,
+        floors: upcomStocks.filter((s) => s.floorPrice != null && s.floorPrice > 0 && s.price <= s.floorPrice).length,
         status: session.state,
-        sparkline: [98.0, 98.1, 98.2, 98.2 + (98.2 * upcomAvgChange / 100)],
         isDemo: false,
       },
     ];
@@ -310,9 +346,16 @@ export class RealMarketDataProvider implements MarketDataProvider {
     for (const [secId, stocks] of sectorGroups.entries()) {
       const meta = SECTOR_MAP[secId] || { name: stocks[0]?.sector || secId, id: secId };
       const avgChange = stocks.reduce((sum, s) => sum + s.changePercent, 0) / stocks.length;
-      const totalCap = stocks.reduce((sum, s) => sum + s.marketCap, 0);
+      // P0-03: a sector market cap is only reported when at least one constituent
+      // has an authoritative market cap. With no shares-outstanding source the
+      // aggregate is UNAVAILABLE (null), never a sum of fabricated caps.
+      const capped = stocks.filter((s) => s.marketCap !== null);
+      const totalCap =
+        capped.length === stocks.length && stocks.length > 0
+          ? Number(capped.reduce((sum, s) => sum + (s.marketCap as number), 0).toFixed(1))
+          : null;
       const totalVol = stocks.reduce((sum, s) => sum + s.volume, 0);
-      
+
       // Leader is the stock with highest volume or highest gain
       const sorted = [...stocks].sort((a, b) => b.volume - a.volume);
       const leader = sorted[0]?.symbol ?? '';
@@ -321,7 +364,7 @@ export class RealMarketDataProvider implements MarketDataProvider {
         id: secId,
         name: meta.name,
         changePercent: Number(avgChange.toFixed(2)),
-        marketCap: Number(totalCap.toFixed(1)),
+        marketCap: totalCap,
         leaderSymbol: leader,
         stocksCount: stocks.length,
         volume: totalVol,
@@ -474,6 +517,10 @@ export class RealMarketDataProvider implements MarketDataProvider {
     // If not in standard universe, try direct fetch from VPS
     try {
       const quote = await vpsMarketDataProvider.getQuote(clean);
+      const now = Date.now();
+      // P0-02: recomputed from this quote's own observation timestamp. A cached
+      // STALE summary can never be re-stamped as CURRENT here.
+      const freshness = this.computeFreshness(quote.marketTimestamp, now);
       const summary: StockSummary = {
         symbol: clean,
         companyName: `Cổ phiếu ${clean}`,
@@ -490,7 +537,8 @@ export class RealMarketDataProvider implements MarketDataProvider {
         refPrice: quote.refPrice ?? quote.price,
         ceilingPrice: quote.ceilingPrice ?? null,
         floorPrice: quote.floorPrice ?? null,
-        marketCap: Number((quote.price * 1_000_000 / 1e9).toFixed(1)),
+        // P0-03: no authoritative shares outstanding for an off-universe ticker.
+        marketCap: null,
         pe: null,
         pb: null,
         roe: null,
@@ -501,9 +549,9 @@ export class RealMarketDataProvider implements MarketDataProvider {
         sparkline: [quote.price, quote.price],
         isDemo: false,
         dataStatus: 'PARTIAL',
-        dataFreshness: 'CURRENT',
-        fetchedAt: new Date().toISOString(),
-        sourceTimestamp: null,
+        dataFreshness: freshness.status,
+        fetchedAt: new Date(now).toISOString(),
+        sourceTimestamp: freshness.normalizedSourceTimestamp,
       };
       return summary;
     } catch {
@@ -611,6 +659,20 @@ export class RealMarketDataProvider implements MarketDataProvider {
       momentum = 'YẾU';
     }
 
+    // P0-03: no connected source publishes a foreign / proprietary / retail net
+    // money-flow series (the VPS realtime payload carries per-symbol foreign
+    // volume only, with no market-wide net-flow feed, and no flow history is
+    // persisted). The metrics are therefore reported as UNAVAILABLE with an
+    // explicit provenance, never as hardcoded literals such as 185.4 / 62.1 / -247.5.
+    const flowUnavailable = (metric: string): MoneyFlowMetric => ({
+      netValue: null,
+      type: 'UNAVAILABLE',
+      label: `${metric}: KHÔNG CÓ NGUỒN DỮ LIỆU`,
+      availability: 'UNAVAILABLE',
+      provenance:
+        'NO_AUTHORITATIVE_FLOW_FEED: neither the KBS nor the VPS source exposes a market-wide net money-flow series for this metric, and no persisted flow history is available. The value is intentionally absent rather than approximated.',
+    });
+
     return {
       score,
       label,
@@ -618,21 +680,9 @@ export class RealMarketDataProvider implements MarketDataProvider {
       description: `Độ rộng thị trường đạt ${advances}/${total} mã tăng giá với dòng tiền tập trung tại các nhóm ngành dẫn dắt.`,
       momentum,
       liquidityTrend: 'Thanh khoản duy trì ở mức cao và ổn định qua các nhịp biến động.',
-      foreignFlow: {
-        netValue: 185.4,
-        type: 'NET_BUY',
-        label: 'Khối ngoại mua ròng +185.4 tỷ',
-      },
-      proprietaryFlow: {
-        netValue: 62.1,
-        type: 'NET_BUY',
-        label: 'Tự doanh mua ròng +62.1 tỷ',
-      },
-      retailFlow: {
-        netValue: -247.5,
-        type: 'NET_SELL',
-        label: 'Cá nhân bán ròng -247.5 tỷ',
-      },
+      foreignFlow: flowUnavailable('Dòng tiền khối ngoại'),
+      proprietaryFlow: flowUnavailable('Dòng tiền tự doanh'),
+      retailFlow: flowUnavailable('Dòng tiền cá nhân'),
       shortTermOutlook: 'Xu hướng ngắn hạn duy trì biên độ tích lũy tích cực với sự phân hóa rõ nét giữa các nhóm cổ phiếu cơ bản.',
       keyFactors: [
         'Dòng tiền luân chuyển chủ động giữa nhóm Ngân hàng và Thép/Vật liệu',
@@ -650,10 +700,11 @@ export class RealMarketDataProvider implements MarketDataProvider {
     const topStocks = sorted.slice(0, 6);
 
     return topStocks.map((s, idx) => {
-      const upside = s.fairValue != null && s.price > 0
-        ? Number((((s.fairValue - s.price) / s.price) * 100).toFixed(1))
-        : 0;
-      const stopLoss = Math.round(s.price * 0.94);
+      // P0-03: target / stop / upside / R:R are NEVER derived from a constant
+      // multiple of the price. No valuation model or authoritative target feed is
+      // reachable from this provider, so they are reported as UNAVAILABLE (null)
+      // rather than fabricated. `signalType` keeps driving off the real `aiScore`
+      // momentum aggregate, which is derived from real quote data.
       let signalType: AITopSignal['signalType'] = 'BUY';
       let signalLabel = 'Khuyến nghị MUA';
 
@@ -679,10 +730,10 @@ export class RealMarketDataProvider implements MarketDataProvider {
         aiScore: s.aiScore,
         confidence: Math.min(95, s.aiScore + 5),
         currentPrice: s.price,
-        targetPrice: s.fairValue ?? s.price,
-        stopLossPrice: stopLoss,
-        upsidePercent: upside > 0 ? upside : 0,
-        riskRewardRatio: '1 : 2.8',
+        targetPrice: null,
+        stopLossPrice: null,
+        upsidePercent: null,
+        riskRewardRatio: null,
         timeframe: 'Trung hạn (1 - 3 tháng)',
         catalysts: [
           'Dòng tiền khớp lệnh chủ động vượt trung bình 20 phiên',

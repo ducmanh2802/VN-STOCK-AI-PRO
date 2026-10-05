@@ -97,6 +97,10 @@ describe('Stock Component Hardening & Fail-Closed Integrity', () => {
       rewardAmount: 5000,
       maxRiskPercent: 7.1,
       potentialGainPercent: 17.8,
+      suggestedPositionSizeShares: 1200,
+      riskRewardStatus: 'REAL',
+      riskRewardProvenance:
+        'TEST_FIXTURE: this suite supplies a complete, authoritative-looking risk envelope to exercise the rendering paths.',
     };
 
     it('calculates position sizing accurately when inputs are valid', () => {

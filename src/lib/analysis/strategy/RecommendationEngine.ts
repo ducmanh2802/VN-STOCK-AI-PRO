@@ -74,51 +74,78 @@ export class RecommendationEngine {
     });
 
     // 3. Calculate Targets, Stop Loss, and Risk/Reward
-    let targetPrice: number;
-    let stopLossPrice: number;
+    //
+    // P0-03 — NO FABRICATED VALUATION LEVELS.
+    // A target price may only come from an authoritative input: a supplied
+    // `fairValuePrice`, or a supplied technical `resistancePrice` that actually
+    // sits above the current price. The previous `currentPrice * 1.08 / 1.18 /
+    // 1.30` fallbacks manufactured a target out of the price itself and presented
+    // it as certified valuation. They are removed: without an authoritative input
+    // the target is `null` (NOT_COMPUTED) and the recommendation carries a warning.
+    // The same rule applies to the stop: only a supplied `supportPrice` below the
+    // current price qualifies.
+    let targetPrice: number | null;
+    let stopLossPrice: number | null;
+    const missingEnvelope: string[] = [];
 
     const holdingDays = HORIZON_HOLDING_DAYS[strategy];
     const avgHoldingDays = Math.round((holdingDays.min + holdingDays.max) / 2);
 
+    const realResistance =
+      resistancePrice != null && resistancePrice > currentPrice ? resistancePrice : null;
+    const realSupport =
+      supportPrice != null && supportPrice > 0 && supportPrice < currentPrice ? supportPrice : null;
+    const realFairValue =
+      fairValuePrice != null && fairValuePrice > currentPrice ? fairValuePrice : null;
+
     if (strategy === 'SHORT_TERM') {
-      // Short term: technical levels or dynamic %
-      targetPrice = resistancePrice && resistancePrice > currentPrice
-        ? resistancePrice
-        : Math.round(currentPrice * 1.08);
-      stopLossPrice = supportPrice && supportPrice < currentPrice
-        ? supportPrice
-        : Math.round(currentPrice * 0.95);
+      targetPrice = realResistance;
+      stopLossPrice = realSupport;
     } else if (strategy === 'MEDIUM_TERM') {
-      // Medium term: blend of fair value and technical expansion
-      const fv = fairValuePrice && fairValuePrice > currentPrice ? fairValuePrice : currentPrice * 1.18;
-      targetPrice = Math.round(fv);
-      stopLossPrice = supportPrice && supportPrice < currentPrice
-        ? Math.round(supportPrice * 0.97)
-        : Math.round(currentPrice * 0.92);
+      targetPrice = realFairValue ?? realResistance;
+      stopLossPrice = realSupport;
     } else {
-      // Long term: fundamental fair value compound
-      const fv = fairValuePrice && fairValuePrice > currentPrice ? fairValuePrice : currentPrice * 1.30;
-      targetPrice = Math.round(fv);
-      stopLossPrice = Math.round(currentPrice * 0.88);
+      targetPrice = realFairValue;
+      stopLossPrice = realSupport;
     }
 
-    const rrResult = RiskRewardEngine.calculate({
-      entryPrice: currentPrice,
-      stopLossPrice,
-      targetPrice,
-    });
+    if (targetPrice === null) {
+      missingEnvelope.push(
+        strategy === 'SHORT_TERM'
+          ? 'TARGET_NOT_COMPUTED: no authoritative resistance level above the current price was supplied. A target is never derived from `currentPrice x constant`.'
+          : 'TARGET_NOT_COMPUTED: no authoritative fair value was supplied. A target is never derived from `currentPrice x constant`.'
+      );
+    }
+    if (stopLossPrice === null) {
+      missingEnvelope.push(
+        'STOP_LOSS_NOT_COMPUTED: no authoritative support level below the current price was supplied. A stop is never derived from `currentPrice x constant`.'
+      );
+    }
 
-    const potentialUpside = rrResult.rewardPercent;
-    const potentialDownside = rrResult.riskPercent;
-    const riskAmount = rrResult.riskAmount;
-    const rewardAmount = rrResult.rewardAmount;
-    const riskReward = rrResult.ratio;
+    // Risk/reward is only computable when a real entry, stop and target exist.
+    const rrResult =
+      targetPrice !== null && stopLossPrice !== null
+        ? RiskRewardEngine.calculate({
+            entryPrice: currentPrice,
+            stopLossPrice,
+            targetPrice,
+          })
+        : null;
 
-    // Expected return: adjusted by win-rate probability derived from score
+    const potentialUpside = rrResult ? rrResult.rewardPercent : null;
+    const potentialDownside = rrResult ? rrResult.riskPercent : null;
+    const riskAmount = rrResult ? rrResult.riskAmount : null;
+    const rewardAmount = rrResult ? rrResult.rewardAmount : null;
+    const riskReward = rrResult ? rrResult.ratio : null;
+
+    // Expected return is only defined when an envelope exists.
     const estimatedWinRate = score !== null ? Math.min(0.85, Math.max(0.35, score / 100)) : 0.5;
-    const expectedReturn = Number(
-      ((estimatedWinRate * potentialUpside - (1 - estimatedWinRate) * potentialDownside)).toFixed(2)
-    );
+    const expectedReturn =
+      potentialUpside !== null && potentialDownside !== null
+        ? Number(
+            ((estimatedWinRate * potentialUpside - (1 - estimatedWinRate) * potentialDownside)).toFixed(2)
+          )
+        : null;
 
     // 4. Determine Confidence Level
     let confidence: ConfidenceLevel = 'MEDIUM';
@@ -147,7 +174,11 @@ export class RecommendationEngine {
       reasons.push(`Dòng tiền tổ chức và khối ngoại ghi nhận xu hướng mua ròng chủ động.`);
     }
     if (scores.valuationScore !== null && scores.valuationScore >= 60) {
-      reasons.push(`Định giá hấp dẫn với biên an toàn ước tính ${potentialUpside.toFixed(1)}%.`);
+      reasons.push(
+        potentialUpside !== null
+          ? `Định giá hấp dẫn với biên an toàn ước tính ${potentialUpside.toFixed(1)}%.`
+          : `Điểm định giá đạt ${scores.valuationScore}/100, nhưng chưa có mức giá trị hợp lý có thẩm quyền để tính biên an toàn.`
+      );
     }
 
     if (reasons.length === 0) {
@@ -157,12 +188,15 @@ export class RecommendationEngine {
     if (scores.riskScore !== null && scores.riskScore >= 60) {
       warnings.push(`Chỉ số rủi ro biến động ở mức ${scores.riskScore}/100, cần thận trọng phân bổ tỷ trọng.`);
     }
-    if (potentialDownside > 8) {
+    if (potentialDownside !== null && potentialDownside > 8) {
       warnings.push(`Biên độ cắt lỗ ${potentialDownside.toFixed(1)}% tương đối rộng, nên tuân thủ kỷ luật dừng lỗ.`);
     }
     if (rsi !== null && rsi !== undefined && rsi > 70) {
       warnings.push(`RSI(14) đạt ${rsi} (tiệm cận vùng quá mua), hạn chế mua đuổi tại các phiên hưng phấn.`);
     }
+    // P0-03: surface the missing authoritative envelope instead of hiding it
+    // behind an invented target / stop.
+    warnings.push(...missingEnvelope);
     if (warnings.length === 0) {
       warnings.push(`Luôn quản trị rủi ro và giải ngân từng phần theo kế hoạch vốn.`);
     }

@@ -23,7 +23,7 @@ import type { Principal } from '../../platform/identity/types.ts';
 import { actorFromPrincipal } from '../actor.ts';
 import type { BusinessActor } from '../actor.ts';
 import type { EntitlementService } from '../entitlementService.ts';
-import { FEATURES, isFeatureImplemented, type FeatureId } from '../features.ts';
+import { FEATURES, isFeatureImplemented, isFeatureReachable, type FeatureId } from '../features.ts';
 import { PLAN_IDS } from '../plans.ts';
 import type { PlanId, SubscriptionStatus } from '../types.ts';
 import { isUnavailable, NOT_AVAILABLE, unavailable } from '../types.ts';
@@ -116,6 +116,7 @@ export function createBusinessApiRouter(deps: BusinessRouterDeps): Router {
           label: f.label,
           status: f.status,
           implemented: isFeatureImplemented(f.id),
+          reachable: isFeatureReachable(f.id),
           evidence: f.evidence,
         })),
       });

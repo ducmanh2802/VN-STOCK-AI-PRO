@@ -35,10 +35,14 @@ const BASE_STOCK: StockSummary = {
   sparkline: [24100, 24200, 24400, 24600, 24350, 24500],
   isDemo: false,
   dataStatus: 'AVAILABLE',
-  dataFreshness: 'CURRENT',
+  // P0-02: a fixture may only claim CURRENT when it carries a real source
+  // timestamp. The schema now rejects `CURRENT` + null sourceTimestamp.
+  dataFreshness: 'UNAVAILABLE',
   fetchedAt: new Date().toISOString(),
   sourceTimestamp: null,
 };
+
+const REAL_SOURCE_TIMESTAMP = '2026-04-10T02:00:00.000Z';
 
 describe('PR-01D: Data Freshness & Availability Integrity Audit Suite', () => {
   // -------------------------------------------------------------------------
@@ -52,9 +56,46 @@ describe('PR-01D: Data Freshness & Availability Integrity Audit Suite', () => {
         const parsed = StockSummarySchema.parse({
           ...BASE_STOCK,
           dataFreshness: st,
+          sourceTimestamp: st === 'CURRENT' || st === 'STALE' ? REAL_SOURCE_TIMESTAMP : null,
         });
         expect(parsed.dataFreshness).toBe(st);
       }
+    });
+
+    it('P0-02: REJECTS the exact defect — dataFreshness CURRENT with a null sourceTimestamp', () => {
+      expect(() =>
+        StockSummarySchema.parse({
+          ...BASE_STOCK,
+          dataFreshness: 'CURRENT',
+          sourceTimestamp: null,
+        })
+      ).toThrow(/CURRENT.*requires a real sourceTimestamp/);
+
+      expect(() =>
+        StockSummarySchema.parse({
+          ...BASE_STOCK,
+          dataFreshness: 'CURRENT',
+          sourceTimestamp: undefined,
+        })
+      ).toThrow();
+
+      expect(() =>
+        StockSummarySchema.parse({
+          ...BASE_STOCK,
+          dataFreshness: 'CURRENT',
+          sourceTimestamp: '   ',
+        })
+      ).toThrow();
+    });
+
+    it('P0-02: still accepts CURRENT when a real source timestamp is supplied', () => {
+      const parsed = StockSummarySchema.parse({
+        ...BASE_STOCK,
+        dataFreshness: 'CURRENT',
+        sourceTimestamp: REAL_SOURCE_TIMESTAMP,
+      });
+      expect(parsed.dataFreshness).toBe('CURRENT');
+      expect(parsed.sourceTimestamp).toBe(REAL_SOURCE_TIMESTAMP);
     });
 
     it('rejects invalid freshness enum strings', () => {
@@ -74,12 +115,22 @@ describe('PR-01D: Data Freshness & Availability Integrity Audit Suite', () => {
       expect(parsed.sourceTimestamp).toBe(1711680000000);
     });
 
-    it('accepts null sourceTimestamp when upstream provider has no packet timestamp', () => {
+    it('P0-02: accepts null sourceTimestamp ONLY alongside a non-CURRENT freshness state', () => {
       const parsed = StockSummarySchema.parse({
         ...BASE_STOCK,
+        dataFreshness: 'UNAVAILABLE',
         sourceTimestamp: null,
       });
       expect(parsed.sourceTimestamp).toBeNull();
+      expect(parsed.dataFreshness).toBe('UNAVAILABLE');
+
+      expect(() =>
+        StockSummarySchema.parse({
+          ...BASE_STOCK,
+          dataFreshness: 'CURRENT',
+          sourceTimestamp: null,
+        })
+      ).toThrow();
     });
   });
 

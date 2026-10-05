@@ -22,6 +22,9 @@ const MOCK_MONEY_FLOW: MoneyFlowData = {
   activeSellVolume: 800000,
   netFlowVolume: 200000,
   orderPressureRatio: 1.25,
+  moneyFlowStatus: 'REAL',
+  moneyFlowProvenance:
+    'TEST_FIXTURE: this suite supplies real-looking money-flow figures to exercise the rendering paths.',
 };
 
 function fullAnalysis(foreignFlow: ForeignFlowResult): MoneyFlowResult {

@@ -109,13 +109,31 @@ export class ReplayEngine {
           score: (orderIntent.score ?? snapshot.recommendation?.confidence ?? 85) as number,
           confidence: (orderIntent.confidence as any) ?? 'HIGH',
           entryPrice: quote.last,
-          targetPrice: orderIntent.targetPrice ?? (orderIntent.side === 'BUY' ? Math.round(quote.last * 1.15) : Math.round(quote.last * 0.85)),
-          stopLoss: orderIntent.stopLoss ?? (orderIntent.side === 'BUY' ? Math.round(quote.last * 0.93) : Math.round(quote.last * 1.07)),
-          riskReward: 2.14,
-          expectedReturn: 15,
+          // P0-03 — NO SYNTHETIC TARGETS OR STOPS. The previous code invented
+          // `last * 1.15` / `last * 0.93` (and the mirrored sell-side values) when
+          // the order intent omitted them, and hardcoded `riskReward: 2.14` and
+          // `expectedReturn: 15`. A replay must reproduce the recorded decision, so
+          // a missing risk envelope is now reported as an explicit unavailable
+          // value rather than fabricated from the price.
+          targetPrice: orderIntent.targetPrice ?? null,
+          stopLoss: orderIntent.stopLoss ?? null,
+          riskReward: orderIntent.targetPrice != null && orderIntent.stopLoss != null
+            ? Number(
+                (
+                  ((orderIntent.targetPrice - quote.last) /
+                    (quote.last - orderIntent.stopLoss))
+                ).toFixed(2)
+              )
+            : null,
+          expectedReturn: null,
           holdingPeriod: 14,
           reasons: ['Deterministic Replay Execution from MarketSnapshot'],
-          warnings: [],
+          warnings:
+            orderIntent.targetPrice == null || orderIntent.stopLoss == null
+              ? [
+                  'RISK_PARAMETERS_NOT_COMPUTED: the recorded order intent carries no target/stop. The replay does not synthesize protective levels.',
+                ]
+              : [],
           currency: 'VND',
           generatedAt: snapshot.capturedAt,
           asOfDate: snapshot.market.tradingDate,

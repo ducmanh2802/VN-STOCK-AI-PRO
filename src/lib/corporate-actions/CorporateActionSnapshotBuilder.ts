@@ -106,9 +106,28 @@ export class CorporateActionSnapshotBuilder {
     });
 
     // 4. Determine Data Freshness Status
-    let freshness: DataFreshnessStatus = input.dataFreshness || 'CURRENT';
-    if (!actions || actions.length === 0) {
-      freshness = 'CURRENT'; // No corporate actions is a valid state
+    //
+    // P0-02 — freshness is never forced. The previous code overrode the input with
+    // 'CURRENT' whenever the action list was empty, which is precisely the defect
+    // the four-state model exists to prevent: an empty result is a statement about
+    // DATA AVAILABILITY, not about freshness. The rule is now:
+    //   - an explicit caller-supplied state wins (it is an upstream verdict);
+    //   - otherwise the weakest state of the contributing records is used;
+    //   - an empty set is UNAVAILABLE, because there is nothing fresh to certify.
+    let freshness: DataFreshnessStatus = input.dataFreshness ?? 'UNAVAILABLE';
+    if (!input.dataFreshness) {
+      if (!actions || actions.length === 0) {
+        freshness = 'UNAVAILABLE';
+      } else {
+        const states = actions.map((a) => a.dataFreshness);
+        freshness = states.includes('INVALID')
+          ? 'INVALID'
+          : states.includes('UNAVAILABLE')
+            ? 'UNAVAILABLE'
+            : states.includes('STALE')
+              ? 'STALE'
+              : 'CURRENT';
+      }
     }
 
     // 5. Lineage metadata

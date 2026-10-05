@@ -32,6 +32,9 @@ export const MOCK_INDICES: IndexData[] = [
     floors: 2,
     status: 'TRADING',
     sparkline: [1279.8, 1281.2, 1280.5, 1283.4, 1285.1, 1284.0, 1286.7, 1288.52],
+    levelSource: 'DEMO',
+    levelProvenance:
+      'DEMO_FIXTURE: static fixture in src/data/mock/marketData.ts. Not real market data; reachable only from the DEV seed path.',
     isDemo: true,
   },
   {
@@ -49,6 +52,9 @@ export const MOCK_INDICES: IndexData[] = [
     floors: 0,
     status: 'TRADING',
     sparkline: [1314.9, 1316.3, 1318.0, 1320.5, 1322.1, 1321.0, 1323.5, 1324.18],
+    levelSource: 'DEMO',
+    levelProvenance:
+      'DEMO_FIXTURE: static fixture in src/data/mock/marketData.ts. Not real market data; reachable only from the DEV seed path.',
     isDemo: true,
   },
   {
@@ -66,6 +72,9 @@ export const MOCK_INDICES: IndexData[] = [
     floors: 1,
     status: 'TRADING',
     sparkline: [234.6, 234.8, 235.2, 235.7, 236.0, 235.8, 236.1, 236.45],
+    levelSource: 'DEMO',
+    levelProvenance:
+      'DEMO_FIXTURE: static fixture in src/data/mock/marketData.ts. Not real market data; reachable only from the DEV seed path.',
     isDemo: true,
   },
   {
@@ -83,6 +92,9 @@ export const MOCK_INDICES: IndexData[] = [
     floors: 3,
     status: 'TRADING',
     sparkline: [92.27, 92.35, 92.20, 92.10, 92.05, 92.18, 92.12, 92.15],
+    levelSource: 'DEMO',
+    levelProvenance:
+      'DEMO_FIXTURE: static fixture in src/data/mock/marketData.ts. Not real market data; reachable only from the DEV seed path.',
     isDemo: true,
   },
 ];
@@ -836,16 +848,22 @@ export const MOCK_MARKET_SENTIMENT: MarketSentiment = {
     netValue: 425.8,
     type: 'NET_BUY',
     label: 'Khối ngoại Mua ròng +425.8 tỷ',
+    availability: 'DEMO',
+    provenance: 'DEMO_FIXTURE: static fixture, not a measured flow.',
   },
   proprietaryFlow: {
     netValue: 168.4,
     type: 'NET_BUY',
     label: 'Tự doanh Mua ròng +168.4 tỷ',
+    availability: 'DEMO',
+    provenance: 'DEMO_FIXTURE: static fixture, not a measured flow.',
   },
   retailFlow: {
     netValue: -594.2,
     type: 'NET_SELL',
     label: 'Cá nhân Chốt lời ngắn hạn -594.2 tỷ',
+    availability: 'DEMO',
+    provenance: 'DEMO_FIXTURE: static fixture, not a measured flow.',
   },
   shortTermOutlook: 'Xu hướng tăng ngắn hạn củng cố trên MA20. Tỷ lệ đòn bẩy margin toàn thị trường ở mức an toàn 62%.',
   keyFactors: [

@@ -83,7 +83,9 @@ export const SectorHeatmapWidget: React.FC<SectorHeatmapWidgetProps> = ({
   // Sort sectors
   const sortedSectors = [...sectors].sort((a, b) => {
     if (sortBy === 'change') return b.changePercent - a.changePercent;
-    if (sortBy === 'marketCap') return b.marketCap - a.marketCap;
+    // P0-03: an UNAVAILABLE market cap must never be coerced to 0 for sorting; such
+    // sectors sort last so a fabricated zero never outranks a real figure.
+    if (sortBy === 'marketCap') return (b.marketCap ?? -1) - (a.marketCap ?? -1);
     if (sortBy === 'volume') return b.volume - a.volume;
     return 0;
   });

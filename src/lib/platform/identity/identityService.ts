@@ -114,6 +114,19 @@ export class IdentityService {
     return account;
   }
 
+  /**
+   * Read-only account lookup by user id.
+   *
+   * Exposed so downstream domains (for example the BUSINESS lane's fail-closed
+   * account-status probe) can verify platform state without reaching into the
+   * user store or owning identity state themselves. Returns `null` for an
+   * unknown user; it never throws and never invents an account.
+   */
+  getAccount(userId: string): UserAccount | null {
+    if (!userId || typeof userId !== 'string') return null;
+    return this.users.get(userId) ?? null;
+  }
+
   /** Persists the account, indexing it by login identifier when one was supplied. */
   private storeAccount(account: UserAccount, identifier: string | null): void {
     const store = this.users as InMemoryUserStore & UserStore;

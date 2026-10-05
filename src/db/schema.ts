@@ -1281,3 +1281,154 @@ export const platformAuthEvents = pgTable(
   },
   (table) => [index('platform_auth_events_user_idx').on(table.userId), index('platform_auth_events_time_idx').on(table.occurredAt)]
 );
+
+// ==========================================
+// 34. CANONICAL MARKET DATA (P0-04)
+// Mirrors drizzle/0013_canonical_market_data.sql exactly.
+// Identity is (instrument_id, source, bar_time, version) — never ticker text.
+// ==========================================
+
+/** P0-04 §17 — explicit Data Foundation quality states. */
+export const CANONICAL_QUALITY_STATES = ['VALID', 'STALE', 'INVALID', 'UNAVAILABLE'] as const;
+export type CanonicalQualityState = (typeof CANONICAL_QUALITY_STATES)[number];
+
+/** P0-04 §18 — cross-source agreement states. */
+export const CANONICAL_AGREEMENT_STATES = ['AGREE', 'TOLERATED', 'MISMATCH', 'INSUFFICIENT_DATA'] as const;
+export type CanonicalAgreementState = (typeof CANONICAL_AGREEMENT_STATES)[number];
+
+export const canonicalMarketBars = pgTable(
+  'canonical_market_bars',
+  {
+    id: serial('id').primaryKey(),
+    /** Deterministic identity: instrument|source|timeframe|barTime|dataVersion */
+    barKey: text('bar_key').notNull().unique(),
+    instrumentId: text('instrument_id').notNull(),
+    /** Denormalised convenience column. NOT part of any uniqueness rule. */
+    symbol: text('symbol').notNull(),
+    exchange: text('exchange').notNull(),
+    timeframe: text('timeframe').notNull().default('1D'),
+    barTime: timestamp('bar_time').notNull(),
+    tradingDate: date('trading_date').notNull(),
+    open: numeric('open', { precision: 18, scale: 4 }),
+    high: numeric('high', { precision: 18, scale: 4 }),
+    low: numeric('low', { precision: 18, scale: 4 }),
+    close: numeric('close', { precision: 18, scale: 4 }),
+    referencePrice: numeric('reference_price', { precision: 18, scale: 4 }),
+    ceilingPrice: numeric('ceiling_price', { precision: 18, scale: 4 }),
+    floorPrice: numeric('floor_price', { precision: 18, scale: 4 }),
+    volume: numeric('volume', { precision: 24, scale: 2 }),
+    turnoverVnd: numeric('turnover_vnd', { precision: 24, scale: 2 }),
+    adjustmentState: text('adjustment_state').notNull().default('RAW'),
+    adjustmentFactor: numeric('adjustment_factor', { precision: 20, scale: 10 }),
+    source: text('source').notNull(),
+    sourceTier: text('source_tier').notNull(),
+    sourceRecordId: text('source_record_id').notNull(),
+    provider: text('provider').notNull(),
+    providerVersion: text('provider_version'),
+    observationTime: timestamp('observation_time').notNull(),
+    publicationTime: timestamp('publication_time'),
+    effectiveTime: timestamp('effective_time').notNull(),
+    ingestedAt: timestamp('ingested_at').notNull().defaultNow(),
+    dataVersion: text('data_version').notNull(),
+    qualityState: text('quality_state').notNull().default('VALID'),
+    qualityReason: text('quality_reason'),
+    qualityDetail: text('quality_detail'),
+    transformVersion: text('transform_version'),
+    transformNote: text('transform_note'),
+    isSynthetic: boolean('is_synthetic').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('cmb_bar_key_idx').on(table.barKey),
+    index('cmb_instrument_date_idx').on(table.instrumentId, table.tradingDate),
+    index('cmb_source_idx').on(table.source),
+    index('cmb_quality_idx').on(table.qualityState),
+    index('cmb_effective_idx').on(table.effectiveTime),
+    index('cmb_ingested_idx').on(table.ingestedAt),
+  ]
+);
+
+export const canonicalDataProvenance = pgTable(
+  'canonical_data_provenance',
+  {
+    id: serial('id').primaryKey(),
+    provenanceId: text('provenance_id').notNull().unique(),
+    barKey: text('bar_key').notNull(),
+    instrumentId: text('instrument_id').notNull(),
+    source: text('source').notNull(),
+    sourceRecordId: text('source_record_id').notNull(),
+    provider: text('provider').notNull(),
+    providerVersion: text('provider_version'),
+    sourceUrl: text('source_url'),
+    observationTime: timestamp('observation_time').notNull(),
+    publicationTime: timestamp('publication_time'),
+    effectiveTime: timestamp('effective_time').notNull(),
+    ingestedAt: timestamp('ingested_at').notNull().defaultNow(),
+    dataVersion: text('data_version').notNull(),
+    payloadChecksum: text('payload_checksum'),
+    rawExcerpt: text('raw_excerpt'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('cdp_provenance_id_idx').on(table.provenanceId),
+    index('cdp_bar_key_idx').on(table.barKey),
+    index('cdp_source_idx').on(table.source),
+    index('cdp_effective_idx').on(table.effectiveTime),
+  ]
+);
+
+export const canonicalDataQuality = pgTable(
+  'canonical_data_quality',
+  {
+    id: serial('id').primaryKey(),
+    qualityId: text('quality_id').notNull().unique(),
+    barKey: text('bar_key').notNull(),
+    instrumentId: text('instrument_id').notNull(),
+    tradingDate: date('trading_date').notNull(),
+    source: text('source').notNull(),
+    qualityState: text('quality_state').notNull(),
+    reasonCode: text('reason_code'),
+    detail: text('detail'),
+    checkedRuleVersion: text('checked_rule_version').notNull(),
+    sourceValues: text('source_values'),
+    resolvedValues: text('resolved_values'),
+    evaluatedAt: timestamp('evaluated_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('cdq_quality_id_idx').on(table.qualityId),
+    index('cdq_bar_key_idx').on(table.barKey),
+    index('cdq_instrument_date_idx').on(table.instrumentId, table.tradingDate),
+    index('cdq_state_idx').on(table.qualityState),
+  ]
+);
+
+export const canonicalSourceAgreement = pgTable(
+  'canonical_source_agreement',
+  {
+    id: serial('id').primaryKey(),
+    instrumentId: text('instrument_id').notNull(),
+    tradingDate: date('trading_date').notNull(),
+    timeframe: text('timeframe').notNull().default('1D'),
+    primarySource: text('primary_source').notNull(),
+    comparedSource: text('compared_source').notNull(),
+    primaryClose: numeric('primary_close', { precision: 18, scale: 4 }).notNull(),
+    comparedClose: numeric('compared_close', { precision: 18, scale: 4 }).notNull(),
+    deviationPercent: numeric('deviation_percent', { precision: 12, scale: 6 }).notNull(),
+    tolerancePercent: numeric('tolerance_percent', { precision: 12, scale: 6 }).notNull(),
+    agreementState: text('agreement_state').notNull(),
+    detail: text('detail'),
+    evaluatedAt: timestamp('evaluated_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('csa_agreement_key_idx').on(
+      table.instrumentId,
+      table.tradingDate,
+      table.timeframe,
+      table.comparedSource
+    ),
+    index('csa_instrument_date_idx').on(table.instrumentId, table.tradingDate),
+    index('csa_state_idx').on(table.agreementState),
+  ]
+);

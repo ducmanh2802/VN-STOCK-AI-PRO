@@ -10,6 +10,7 @@
  *
  *   1. feature registration        unknown feature        -> DENIED_UNKNOWN_FEATURE
  *   2. feature implementation      not implemented        -> DENIED_FEATURE_NOT_IMPLEMENTED
+ *   2b. feature reachability (P1-03) no production caller    -> DENIED_FEATURE_UNREACHABLE
  *   3. subject ownership           subscription mismatch  -> DENIED_SUBJECT_MISMATCH
  *   4. subscription resolution     none                   -> DENIED_NO_SUBSCRIPTION
  *   5. reconciliation state        requires reconciliation-> REQUIRES_RECONCILIATION
@@ -28,7 +29,7 @@
  * branch that returns `allowed: true` without an explicit successful check at every step.
  */
 
-import { featureExists, isFeatureImplemented, type FeatureId } from './features.ts';
+import { featureExists, isFeatureImplemented, isFeatureReachable, type FeatureId } from './features.ts';
 import { planFeatures, requirePlan } from './plans.ts';
 import { accessWindowElapsed, effectiveStatus } from './subscriptionMachine.ts';
 import {
@@ -129,6 +130,16 @@ export class EntitlementEngine {
       return verdict(base, 'DENIED_FEATURE_NOT_IMPLEMENTED', {
         feature,
         reason: `FEATURE_NOT_IMPLEMENTED:${feature}`,
+      });
+    }
+
+    // 2b. P1-03 — reachability. An implemented engine that no production route can
+    // reach is NOT grantable: selling a capability no caller can deliver is the exact
+    // defect this check exists to prevent. Independent of the subscription.
+    if (!isFeatureReachable(feature)) {
+      return verdict(base, 'DENIED_FEATURE_UNREACHABLE', {
+        feature,
+        reason: `FEATURE_UNREACHABLE:${feature}`,
       });
     }
 

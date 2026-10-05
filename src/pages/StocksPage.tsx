@@ -44,7 +44,8 @@ export function StocksPage({
         if (sortBy === 'volume') return b.volume - a.volume;
         if (sortBy === 'aiScore') return b.aiScore - a.aiScore;
         if (sortBy === 'changePercent') return b.changePercent - a.changePercent;
-        if (sortBy === 'marketCap') return b.marketCap - a.marketCap;
+        // P0-03: an UNAVAILABLE market cap sorts last; it is never coerced to 0.
+if (sortBy === 'marketCap') return (b.marketCap ?? -1) - (a.marketCap ?? -1);
         return 0;
       });
   }, [allStocks, search, selectedExchange, selectedSector, sortBy]);

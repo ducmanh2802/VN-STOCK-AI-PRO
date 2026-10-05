@@ -35,6 +35,48 @@ export function correlationMiddleware(req: Request, res: Response, next: NextFun
 }
 
 /**
+ * Outbound hosts the SPA legitimately contacts from the browser.
+ *
+ * The market-data service layer (src/services/market|etf|derivatives) fetches the
+ * public VPS/KBS feeds directly, and index.html loads webfonts from Google Fonts.
+ * Both were denied by the previous policy, so the browser blocked them with
+ * "Refused to connect" / CSP violations and those panels could never load.
+ *
+ * This is an explicit allowlist of two known public market-data origins plus the
+ * Google Fonts CDN — NOT a wildcard. Same-origin, script, and object policies are
+ * unchanged, so no new XSS or exfiltration surface is opened, and no secret is
+ * ever exposed to the browser (AI/Gemini and database access stay server-side).
+ */
+const CSP_ALLOWED_CONNECT_HOSTS = [
+  'https://bgapidatafeed.vps.com.vn',
+  'https://kbbuddywts.kbsec.com.vn',
+].join(' ');
+
+/**
+ * Build the CSP for the current environment.
+ *
+ * Production keeps `script-src 'self'` (no inline execution).
+ *
+ * Development MUST allow `'unsafe-inline'` for scripts: the Vite dev server injects an
+ * inline React-Refresh preamble, and `script-src 'self'` blocks it. That produced a
+ * completely BLANK screen in dev (bodyChars 0, "Executing inline script violates ...
+ * Content Security Policy"), which is fatal in Google AI Studio because the editor
+ * runs `npm run dev`. The relaxation is scoped to non-production only — the deployed
+ * build is unaffected.
+ */
+export function buildContentSecurityPolicy(env: string | undefined = process.env.NODE_ENV): string {
+  const isDev = env !== 'production';
+  const scriptSrc = isDev ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'";
+  return "default-src 'self'; "
+    + `${scriptSrc}; `
+    + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    + "img-src 'self' data: blob:; "
+    + `connect-src 'self' ${CSP_ALLOWED_CONNECT_HOSTS}; `
+    + "font-src 'self' data: https://fonts.gstatic.com; "
+    + "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
+}
+
+/**
  * Conservative header set. No external dependency (helmet is not in the project), and
  * no claim is made that this replaces a full CSP audit — see the architecture doc.
  */
@@ -45,11 +87,7 @@ export function securityHeaders(_req: Request, res: Response, next: NextFunction
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
-  // The SPA is served from the same origin; scripts stay restricted to self.
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
-  );
+  res.setHeader('Content-Security-Policy', buildContentSecurityPolicy());
   next();
 }
 

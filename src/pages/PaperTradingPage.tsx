@@ -39,6 +39,9 @@ const statusTone = (status?: string): 'up' | 'down' | 'subtle' => {
   return 'subtle';
 };
 
+/** Mirrors `DEFAULT_RISK_GUARD_POLICY.minimumRiskReward` for the client preview only. */
+const MIN_RISK_REWARD = 2.0;
+
 export const PaperTradingPage: React.FC = () => {
   const { openQuickView } = useAppStore();
   const [symbol, setSymbol] = useState('HPG');
@@ -46,6 +49,8 @@ export const PaperTradingPage: React.FC = () => {
   const [orderType, setOrderType] = useState<OrderType>('MARKET');
   const [quantity, setQuantity] = useState('100');
   const [price, setPrice] = useState('100000');
+  const [stopLoss, setStopLoss] = useState('');
+  const [targetPrice, setTargetPrice] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -63,6 +68,23 @@ export const PaperTradingPage: React.FC = () => {
 
   const canonicalSymbol = symbol.trim().toUpperCase();
   const shares = Number(quantity);
+
+  // Client-side preview only. The server (RiskGuard) remains the sole authority;
+  // the preview never substitutes a value the operator did not type.
+  const parsedStopLoss = Number(stopLoss);
+  const parsedTarget = Number(targetPrice);
+  const entryForPreview =
+    orderType === 'LIMIT' ? Number(price) : (positions.find((p) => p.symbol.trim().toUpperCase() === canonicalSymbol)?.currentPrice ?? NaN);
+  const riskRewardPreview =
+    side === 'BUY' &&
+    isFiniteNumber(parsedStopLoss) &&
+    parsedStopLoss > 0 &&
+    isFiniteNumber(parsedTarget) &&
+    parsedTarget > parsedStopLoss &&
+    isFiniteNumber(entryForPreview) &&
+    entryForPreview > parsedStopLoss
+      ? (parsedTarget - entryForPreview) / (entryForPreview - parsedStopLoss)
+      : null;
 
   const isEmergencyStop = status?.emergencyStop === true;
   const isTradingDisabled = status?.tradingEnabled === false;
@@ -124,15 +146,34 @@ export const PaperTradingPage: React.FC = () => {
       return;
     }
 
+    // P0-01: a BUY must carry a real protective envelope. The server refuses a
+    // BUY without one (RISK_PARAMETERS_REQUIRED); it never invents stop/target.
+    let orderStopLoss: number | undefined;
+    let orderTarget: number | undefined;
+    if (side === 'BUY') {
+      if (!isFiniteNumber(parsedStopLoss) || parsedStopLoss <= 0) {
+        setErrorMessage('Lệnh MUA bắt buộc có giá cắt lỗ hợp lệ. Hệ thống không tự sinh mức cắt lỗ.');
+        return;
+      }
+      if (!isFiniteNumber(parsedTarget) || parsedTarget <= 0) {
+        setErrorMessage('Lệnh MUA bắt buộc có giá mục tiêu hợp lệ. Hệ thống không tự sinh giá mục tiêu.');
+        return;
+      }
+      orderStopLoss = parsedStopLoss;
+      orderTarget = parsedTarget;
+    }
+
     try {
       // Canonical submission: POST /api/trading/order → TradingEngine →
-      // TradingDataValidator → RiskGuard → OrderManager → PaperBroker.
+      // TradingDataValidator → RiskGuard → RiskManager → PositionSizer →
+      // OrderManager → PaperBroker.
       const result: Order = await placeOrderMutation.mutateAsync({
         symbol: canonicalSymbol,
         side,
         quantity: shares,
         orderType,
         ...(orderType === 'LIMIT' ? { limitPrice } : {}),
+        ...(side === 'BUY' ? { stopLoss: orderStopLoss, targetPrice: orderTarget } : {}),
       });
       setSuccessMessage(`Lệnh ${result.id} (${result.status}) đã được tiếp nhận bởi hệ thống.`);
       setQuantity('100');
@@ -347,7 +388,42 @@ export const PaperTradingPage: React.FC = () => {
                   />
                 </label>
               )}
+
+              {side === 'BUY' && (
+                <>
+                  <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wider text-terminal-text-muted">
+                    Giá cắt lỗ (VND)
+                    <input
+                      required
+                      inputMode="numeric"
+                      value={stopLoss}
+                      onChange={(e) => setStopLoss(e.target.value)}
+                      className="rounded-md border border-terminal-border bg-terminal-bg px-3 py-2 text-xs font-mono text-terminal-text-primary"
+                      placeholder="95000"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wider text-terminal-text-muted">
+                    Giá mục tiêu (VND)
+                    <input
+                      required
+                      inputMode="numeric"
+                      value={targetPrice}
+                      onChange={(e) => setTargetPrice(e.target.value)}
+                      className="rounded-md border border-terminal-border bg-terminal-bg px-3 py-2 text-xs font-mono text-terminal-text-primary"
+                      placeholder="130000"
+                    />
+                  </label>
+                </>
+              )}
             </div>
+
+            {side === 'BUY' && riskRewardPreview !== null && (
+              <div className="rounded-md border border-terminal-border bg-terminal-bg/60 p-3 text-xs text-terminal-text-muted">
+                R:R dự kiến = <span className="font-mono text-terminal-text-primary">{riskRewardPreview.toFixed(2)}</span>{' '}
+                (yêu cầu tối thiểu {MIN_RISK_REWARD.toFixed(1)} để RiskGuard cấp quyền).
+              </div>
+            )}
 
             {side === 'SELL' && (
               <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">

@@ -114,6 +114,15 @@ export class TradingEngine {
   }
 
   /**
+   * Read-only view of the engine's market-session policy. Callers that drive
+   * `RiskManager` directly (e.g. the HTTP risk boundary) must apply the same
+   * policy as `runTradingCycle` instead of re-deciding session state themselves.
+   */
+  respectsMarketSession(): boolean {
+    return !this.config.skipSessionValidation;
+  }
+
+  /**
    * Master switch: Toggle automated trading on/off.
    */
   setTradingEnabled(enabled: boolean): void {
@@ -457,14 +466,33 @@ export class TradingEngine {
       }
 
       // Construct TradingSignal
+      //
+      // P0-03 — NO SYNTHETIC RISK LEVELS. The previous code invented
+      // `entryPrice * 1.15` / `entryPrice * 0.95` when the recommendation omitted
+      // a target or a stop, which fed fabricated levels into real position sizing.
+      // A missing target or stop is now `null`; RiskGuard and PositionSizer already
+      // fail closed on a null stop, and the cycle rejects rather than guessing.
       const entryPrice = recommendation.entryPrice ?? marketData.price;
-      const targetPrice = recommendation.targetPrice ?? Math.round(entryPrice * 1.15);
-      const stopLoss = recommendation.stopLoss ?? Math.round(entryPrice * 0.95);
+      const targetPrice = recommendation.targetPrice ?? null;
+      const stopLoss = recommendation.stopLoss ?? null;
+      if (targetPrice === null || stopLoss === null) {
+        const res: TradingCycleResult = {
+          status: 'NO_TRADE',
+          symbol,
+          action: 'BUY',
+          marketData,
+          recommendation,
+          rejectionCode: 'INVALID_SIGNAL',
+          reason:
+            'RISK_PARAMETERS_NOT_COMPUTED: the recommendation carries no target price or stop loss. The system never synthesizes protective levels from the entry price.',
+          timestamp,
+        };
+        this.recordAudit(res);
+        return res;
+      }
       const riskReward =
         recommendation.riskReward ??
-        (entryPrice > stopLoss && stopLoss > 0
-          ? Number(((targetPrice - entryPrice) / (entryPrice - stopLoss)).toFixed(2))
-          : 2.0);
+        Number(((targetPrice - entryPrice) / (entryPrice - stopLoss)).toFixed(2));
 
       const tradingSignal: TradingSignal = {
         symbol,

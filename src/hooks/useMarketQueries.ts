@@ -531,7 +531,7 @@ export function useTradingRiskMetrics() {
 export function usePlaceTradingOrder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { symbol: string; side: 'BUY' | 'SELL'; quantity: number; orderType: 'MARKET' | 'LIMIT'; limitPrice?: number }) => {
+    mutationFn: async (payload: { symbol: string; side: 'BUY' | 'SELL'; quantity: number; orderType: 'MARKET' | 'LIMIT'; limitPrice?: number; stopLoss?: number; targetPrice?: number }) => {
       const res = await fetch('/api/trading/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
