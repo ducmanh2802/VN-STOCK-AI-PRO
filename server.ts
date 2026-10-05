@@ -23,7 +23,7 @@ import { requireAuth, type AuthRequest } from './src/middleware/auth.ts';
 import { getAdminAuthState } from './src/lib/firebase-admin.ts';
 // PLATFORM FOUNDATION — platform layer mounts below product/feature routes.
 import { createPlatformRouter } from './src/lib/platform/api/createPlatformRouter.ts';
-import { correlationMiddleware, securityHeaders } from './src/middleware/platform/security.ts';
+import { correlationMiddleware, securityHeaders, sendSafeError } from './src/middleware/platform/security.ts';
 import { getOrCreateUser } from './src/db/users.ts';
 // PHASE 8.5C — REAL market data (KBS historical OHLCV + VPS realtime/fundamentals)
 import {
@@ -115,10 +115,13 @@ async function startServer() {
     const databaseConfigured = Boolean(
       process.env.SQL_HOST && process.env.SQL_USER && process.env.SQL_PASSWORD && process.env.SQL_DB_NAME
     );
+    const cache = cacheStats();
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
-      marketDataCache: cacheStats(),
+      // Entry COUNT only. `cacheStats().keys` enumerates every symbol and timeframe the
+      // process has fetched, and /api/health is unauthenticated — do not disclose it.
+      marketDataCache: { size: cache.size },
       dependencies: {
         database: databaseConfigured ? 'DATABASE_CONFIGURED' : 'DATABASE_CONFIGURATION_REQUIRED',
         auth: getAdminAuthState().status,
@@ -137,7 +140,7 @@ async function startServer() {
       res.json(user);
     } catch (error: any) {
       console.error('Error in GET /api/users/me:', error);
-      res.status(500).json({ error: error.message || 'Lỗi khi đồng bộ thông tin người dùng' });
+      sendSafeError(res, 500, 'Lỗi khi đồng bộ thông tin người dùng', error);
     }
   });
 
@@ -152,7 +155,7 @@ async function startServer() {
       res.json(stocksList);
     } catch (error: any) {
       console.error('Error in GET /api/stocks:', error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tải danh sách cổ phiếu' });
+      sendSafeError(res, 500, 'Lỗi khi tải danh sách cổ phiếu', error);
     }
   });
 
@@ -167,7 +170,7 @@ async function startServer() {
       res.json(results);
     } catch (error: any) {
       console.error('Error in GET /api/stocks/search:', error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tìm kiếm' });
+      sendSafeError(res, 500, 'Lỗi khi tìm kiếm', error);
     }
   });
 
@@ -182,7 +185,7 @@ async function startServer() {
       res.json(stock);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi hệ thống' });
+      sendSafeError(res, 500, 'Lỗi hệ thống', error);
     }
   });
 
@@ -202,7 +205,7 @@ async function startServer() {
       res.json(history);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/daily:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tải lịch sử giá' });
+      sendSafeError(res, 500, 'Lỗi khi tải lịch sử giá', error);
     }
   });
 
@@ -219,7 +222,7 @@ async function startServer() {
       res.json(intraday);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/intraday:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tải dữ liệu giao dịch trong ngày' });
+      sendSafeError(res, 500, 'Lỗi khi tải dữ liệu giao dịch trong ngày', error);
     }
   });
 
@@ -236,7 +239,7 @@ async function startServer() {
       res.json(indicators || {});
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/technicals:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tải chỉ báo kỹ thuật' });
+      sendSafeError(res, 500, 'Lỗi khi tải chỉ báo kỹ thuật', error);
     }
   });
 
@@ -261,7 +264,7 @@ async function startServer() {
       });
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/fundamentals:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tải dữ liệu tài chính' });
+      sendSafeError(res, 500, 'Lỗi khi tải dữ liệu tài chính', error);
     }
   });
 
@@ -277,7 +280,7 @@ async function startServer() {
       res.json(valuations);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/valuations:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tải kết quả định giá' });
+      sendSafeError(res, 500, 'Lỗi khi tải kết quả định giá', error);
     }
   });
 
@@ -291,7 +294,7 @@ async function startServer() {
       res.json(activeSignals);
     } catch (error: any) {
       console.error('Error in GET /api/signals:', error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tải tín hiệu khuyến nghị' });
+      sendSafeError(res, 500, 'Lỗi khi tải tín hiệu khuyến nghị', error);
     }
   });
 
@@ -317,7 +320,7 @@ async function startServer() {
       res.json(evaluation);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/technical-analysis:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tính toán phân tích kỹ thuật' });
+      sendSafeError(res, 500, 'Lỗi khi tính toán phân tích kỹ thuật', error);
     }
   });
 
@@ -350,7 +353,7 @@ async function startServer() {
       res.json(evaluation);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/fundamental-analysis:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tính toán phân tích cơ bản' });
+      sendSafeError(res, 500, 'Lỗi khi tính toán phân tích cơ bản', error);
     }
   });
 
@@ -389,7 +392,7 @@ async function startServer() {
       res.json(valuation);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/valuation-analysis:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi phân tích định giá' });
+      sendSafeError(res, 500, 'Lỗi khi phân tích định giá', error);
     }
   });
 
@@ -443,7 +446,7 @@ async function startServer() {
       res.json(moneyFlowResult);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/money-flow-analysis:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi phân tích dòng tiền' });
+      sendSafeError(res, 500, 'Lỗi khi phân tích dòng tiền', error);
     }
   });
 
@@ -505,7 +508,7 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error(`Error in GET /api/market-data/history/${req.params.symbol}:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tải dữ liệu lịch sử thật' });
+      sendSafeError(res, 500, 'Lỗi khi tải dữ liệu lịch sử thật', error);
     }
   });
 
@@ -527,7 +530,7 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error(`Error in GET /api/market-data/quote/${req.params.symbol}:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tải giá realtime thật' });
+      sendSafeError(res, 500, 'Lỗi khi tải giá realtime thật', error);
     }
   });
 
@@ -540,7 +543,7 @@ async function startServer() {
       res.json(snapshot);
     } catch (error: any) {
       console.error('Error in GET /api/market-intelligence:', error);
-      res.status(500).json({ error: error.message || 'Market intelligence evaluation failed' });
+      sendSafeError(res, 500, 'Market intelligence evaluation failed', error);
     }
   });
 
@@ -562,7 +565,7 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error(`Error in GET /api/market-data/fundamentals/${req.params.symbol}:`, error);
-      res.status(500).json({ error: error.message || 'Lỗi khi tải dữ liệu tài chính thật' });
+      sendSafeError(res, 500, 'Lỗi khi tải dữ liệu tài chính thật', error);
     }
   });
 
@@ -624,7 +627,7 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error('Error in GET /api/analysis/' + req.params.symbol + ':', error);
-      res.status(500).json({ error: error.message || 'Analysis failed' });
+      sendSafeError(res, 500, 'Analysis failed', error);
     }
   });
 
@@ -724,7 +727,7 @@ async function startServer() {
       });
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/recommendations:`, error);
-      res.status(500).json({ error: error.message || 'Recommendation generation failed' });
+      sendSafeError(res, 500, 'Recommendation generation failed', error);
     }
   });
 
@@ -815,7 +818,7 @@ async function startServer() {
       res.json(rankingResult);
     } catch (error: any) {
       console.error('Error in GET /api/recommendations/rankings:', error);
-      res.status(500).json({ error: error.message || 'Rankings calculation failed' });
+      sendSafeError(res, 500, 'Rankings calculation failed', error);
     }
   });
 
@@ -842,9 +845,14 @@ async function startServer() {
       return res.json(result);
     } catch (error: any) {
       console.error('Error in POST /api/ai/chat:', error);
+      // `sendSafeError` terminates the response, so the advisory marker travels with it
+      // rather than in a second `res.json()` (which would be a headers-already-sent throw).
       return res.status(500).json({
-        error: error.message || 'Lỗi khi kết nối dịch vụ AI Copilot.',
+        error: 'Lỗi khi kết nối dịch vụ AI Copilot.',
         advisoryOnly: true,
+        ...(process.env.NODE_ENV !== 'production' && error instanceof Error
+          ? { dev: error.message }
+          : {}),
       });
     }
   });

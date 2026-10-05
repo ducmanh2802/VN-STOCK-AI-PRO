@@ -5,7 +5,7 @@ import { DemoBadge } from '../common/DemoBadge';
 import { CardSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
-import { formatVolume, formatBillionVND } from '../../utils/formatters';
+import { formatVolume, formatBillionVND, formatIndexPoint, formatPointChange, formatPercent } from '../../utils/formatters';
 import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 
 export interface MarketIndexRibbonProps {
@@ -100,9 +100,12 @@ export const MarketIndexRibbon: React.FC<MarketIndexRibbonProps> = ({
         className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 overflow-x-auto pb-1 scrollbar-none"
       >
         {indices.map((idx) => {
-          const isUp = idx.change > 0;
-          const isDown = idx.change < 0;
-          const isRef = idx.change === 0;
+          // `change` is `number | null`. A null level is UNKNOWN, not "unchanged":
+          // `null > 0`, `null < 0` and `null === 0` are all false, so every naive branch
+          // below would fall through and then call .toFixed()/.toLocaleString() on null.
+          const hasChange = idx.change !== null && Number.isFinite(idx.change);
+          const isUp = idx.change !== null && Number.isFinite(idx.change) && idx.change > 0;
+          const isDown = idx.change !== null && Number.isFinite(idx.change) && idx.change < 0;
           const trendColor = isUp
             ? 'text-terminal-up'
             : isDown
@@ -128,21 +131,19 @@ export const MarketIndexRibbon: React.FC<MarketIndexRibbonProps> = ({
                   </span>
                 </div>
                 <Badge variant={badgeVariant} size="xs" withDot>
-                  {isUp ? `+${idx.changePercent.toFixed(2)}%` : `${idx.changePercent.toFixed(2)}%`}
+                  {formatPercent(idx.changePercent)}
                 </Badge>
               </div>
 
               {/* Middle Row: Big Index Value & Point Change */}
               <div className="flex items-baseline justify-between gap-1 my-1">
                 <div className={`font-mono font-bold text-sm sm:text-base tracking-tight ${trendColor}`}>
-                  {idx.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatIndexPoint(idx.value)}
                 </div>
                 <div className={`font-mono text-xs font-semibold flex items-center gap-0.5 ${trendColor}`}>
                   {isUp && <TrendingUp className="w-3 h-3 shrink-0" />}
                   {isDown && <TrendingDown className="w-3 h-3 shrink-0" />}
-                  <span>
-                    {isUp ? `+${idx.change.toFixed(2)}` : idx.change.toFixed(2)}
-                  </span>
+                  <span>{formatPointChange(idx.change)}</span>
                 </div>
               </div>
 

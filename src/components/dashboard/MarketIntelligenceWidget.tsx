@@ -28,7 +28,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { CardSkeleton } from '../ui/LoadingState';
 import { ErrorState } from '../ui/ErrorBoundary';
-import { formatIndexPoint, formatPercent } from '../../utils/formatters';
+import { formatIndexPoint, formatPercent, formatPointChange } from '../../utils/formatters';
 
 export interface MarketIntelligenceWidgetProps {
   intelligence?: MarketIntelligenceSnapshot | null;
@@ -323,7 +323,14 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
         {/* Index Quick Summary: VN-INDEX & VN30 */}
         <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2.5">
           {indices.slice(0, 4).map((idx) => {
-            const isUp = idx.change >= 0;
+            // `change` is `number | null`; a null level is UNKNOWN, never a gain.
+            const hasChange = idx.change !== null && Number.isFinite(idx.change);
+            const isUp = idx.change !== null && Number.isFinite(idx.change) && idx.change > 0;
+            const tone = !hasChange
+              ? 'text-terminal-text-muted'
+              : isUp
+              ? 'text-terminal-up'
+              : 'text-terminal-down';
             return (
               <div
                 key={idx.symbol}
@@ -332,8 +339,8 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-terminal-text-primary">{idx.symbol}</span>
-                  <Badge variant={isUp ? 'up' : 'down'} size="xs">
-                    {isUp ? `+${idx.changePercent.toFixed(2)}%` : `${idx.changePercent.toFixed(2)}%`}
+                  <Badge variant={hasChange ? (isUp ? 'up' : 'down') : 'subtle'} size="xs">
+                    {formatPercent(idx.changePercent)}
                   </Badge>
                 </div>
                 <div className="text-base font-bold text-terminal-text-primary">
@@ -341,9 +348,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                 </div>
                 <div className="text-[11px] text-terminal-text-muted flex justify-between">
                   <span>Thay đổi:</span>
-                  <span className={isUp ? 'text-terminal-up' : 'text-terminal-down'}>
-                    {isUp ? `+${idx.change.toFixed(2)}` : idx.change.toFixed(2)}
-                  </span>
+                  <span className={tone}>{formatPointChange(idx.change)}</span>
                 </div>
               </div>
             );

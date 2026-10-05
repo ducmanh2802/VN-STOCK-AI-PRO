@@ -27,6 +27,7 @@ import { AuditLog, AuthEventAuditSink, InMemoryAuditStore } from '../audit/audit
 import { AuthorizationService } from '../authorization/authorizationService.ts';
 import { InMemoryMembershipStore } from '../authorization/types.ts';
 import { correlationMiddleware, securityHeaders } from '../../../middleware/platform/security.ts';
+import { getAdminAuthState } from '../../firebase-admin.ts';
 import { StructuredLogger, MemoryLogSink } from '../observability/logger.ts';
 import { MetricsRegistry, registerPlatformMetrics } from '../observability/metrics.ts';
 import {
@@ -53,12 +54,31 @@ export interface PlatformContext {
 let context: PlatformContext | null = null;
 
 /**
- * §31 dependency probes. Database/provider probes are registered explicitly by the
- * deployment (see PLATFORM-05 config wiring); until a durable pool exists the probe
- * set is empty, which means readiness reports OK — stated here rather than faked.
+ * §31 dependency probes. The set was previously EMPTY, which made `/readyz` answer
+ * `{ready:true, dependencies:[]}` while `/api/health` simultaneously reported
+ * `database: DATABASE_CONFIGURATION_REQUIRED`. A readiness probe that cannot see an
+ * unconfigured dependency is a false green: a load balancer would route traffic to a
+ * container that cannot serve its database-backed routes.
+ *
+ * These probes report real CONFIGURATION state. Every entry is marked `optional` because
+ * the platform is designed to run without a database (market data comes from KBS/VPS) —
+ * an absent optional dependency degrades the report to `status:'degraded'` instead of
+ * silently disappearing from it. A dependency that is configured but UNREACHABLE must be
+ * registered by the deployment as a non-optional probe to actually gate traffic.
  */
 export function defaultProbes(): readonly DependencyProbe[] {
-  return [];
+  return [
+    {
+      name: 'database',
+      optional: true,
+      check: () =>
+        process.env.SQL_HOST && process.env.SQL_USER && process.env.SQL_PASSWORD && process.env.SQL_DB_NAME
+          ? 'OK'
+          : 'UNAVAILABLE',
+    },
+    { name: 'auth', optional: true, check: () => (getAdminAuthState().status === 'READY' ? 'OK' : 'UNAVAILABLE') },
+    { name: 'gemini', optional: true, check: () => (process.env.GEMINI_API_KEY ? 'OK' : 'UNAVAILABLE') },
+  ];
 }
 
 export function getPlatformContext(): PlatformContext {

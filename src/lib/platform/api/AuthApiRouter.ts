@@ -52,7 +52,7 @@ export function createAuthApiRouter(opts: AuthApiOptions): Router {
   const header = opts.tokenHeader ?? 'x-platform-session';
 
   router.post('/login', async (req: Request, res: Response) => {
-    if (!opts.limiter.allow('auth:login', req)) {
+    if (!opts.limiter.allow('auth:login', req).allowed) {
       return res.status(429).json({ error: 'rate_limited' });
     }
     const parsed = loginSchema.safeParse(req.body);
@@ -93,7 +93,7 @@ export function createAuthApiRouter(opts: AuthApiOptions): Router {
   });
 
   router.post('/password/change', async (req: Request, res: Response) => {
-    if (!opts.limiter.allow('auth:password', req)) {
+    if (!opts.limiter.allow('auth:password', req).allowed) {
       return res.status(429).json({ error: 'rate_limited' });
     }
     const token = bearerOf(req, header);
@@ -113,7 +113,7 @@ export function createAuthApiRouter(opts: AuthApiOptions): Router {
   });
 
   router.post('/password/reset', (req: Request, res: Response) => {
-    if (!opts.limiter.allow('auth:reset', req)) {
+    if (!opts.limiter.allow('auth:reset', req).allowed) {
       return res.status(429).json({ error: 'rate_limited' });
     }
     const parsed = resetSchema.safeParse(req.body);
@@ -125,7 +125,7 @@ export function createAuthApiRouter(opts: AuthApiOptions): Router {
 
   if (opts.verifier) {
     router.post('/session', async (req: Request, res: Response) => {
-      if (!opts.limiter.allow('auth:session', req)) return res.status(429).json({ error: 'rate_limited' });
+      if (!opts.limiter.allow('auth:session', req).allowed) return res.status(429).json({ error: 'rate_limited' });
       const token = bearerOf(req, header);
       if (!token) return unauthorized(res);
       const result = await opts.identity.authenticateExternalToken(token, opts.verifier!);

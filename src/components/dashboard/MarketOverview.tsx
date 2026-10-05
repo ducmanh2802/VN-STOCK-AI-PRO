@@ -3,7 +3,7 @@ import { Card, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Metric } from '../ui/Metric';
 import { DemoBadge } from '../common/DemoBadge';
-import { formatVolume, formatBillionVND } from '../../utils/formatters';
+import { formatVolume, formatBillionVND, formatIndexPoint, formatPercent } from '../../utils/formatters';
 
 interface MarketOverviewProps {
   indices: IndexData[];
@@ -26,7 +26,11 @@ export function MarketOverview({ indices }: MarketOverviewProps) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {indices.map((idx) => {
-          const isUp = idx.change >= 0;
+          // `change` is `number | null`. Treat a null level as UNKNOWN, never as a gain:
+          // `null >= 0` is true and would render every unavailable index green and up.
+          const isUp = idx.change !== null && Number.isFinite(idx.change) && idx.change > 0;
+          const hasChange = idx.change !== null && Number.isFinite(idx.change);
+          const trend = hasChange ? (isUp ? 'up' : 'down') : 'ref';
           const points = idx.sparkline || [];
           const statusBadge = idx.status === 'TRADING' ? 'Khớp lệnh' : 'Đóng cửa';
 
@@ -49,17 +53,17 @@ export function MarketOverview({ indices }: MarketOverviewProps) {
                       {statusBadge}
                     </Badge>
                   </div>
-                  <Badge variant={isUp ? 'up' : 'down'} size="xs" withDot>
-                    {isUp ? `+${idx.changePercent.toFixed(2)}%` : `${idx.changePercent.toFixed(2)}%`}
+                  <Badge variant={hasChange ? (isUp ? 'up' : 'down') : 'subtle'} size="xs" withDot>
+                    {formatPercent(idx.changePercent)}
                   </Badge>
                 </div>
 
                 {/* Primary Metric with Sparkline */}
                 <Metric
-                  value={idx.value.toFixed(2)}
-                  change={idx.change}
-                  changePercent={idx.changePercent}
-                  trend={isUp ? 'up' : 'down'}
+                  value={formatIndexPoint(idx.value)}
+                  change={idx.change ?? undefined}
+                  changePercent={idx.changePercent ?? undefined}
+                  trend={trend}
                   sparklineData={points}
                 />
 

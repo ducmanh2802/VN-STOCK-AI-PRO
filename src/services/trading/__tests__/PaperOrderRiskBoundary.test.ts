@@ -483,3 +483,74 @@ describe('P0-01 — zero-cause taxonomy is exhaustive and distinguishable', () =
     expect(classifyZeroCause('SOMETHING_NEW')).toBe('ZERO_BY_RISK');
   });
 });
+/**
+ * P1 CONCENTRATION-CAP REGRESSION SUITE
+ * ======================================================================
+ * `DEFAULT_RISK_GUARD_POLICY.maxPositionPercent` (20 %) is a governance rule: no single
+ * position may exceed 20 % of portfolio equity. RiskGuard already down-scales
+ * `approvedQuantity` to that cap (RiskGuard.ts, single-position allocation check), but the
+ * boundary used to submit `Math.min(requestedQuantity, sizing.quantity)` — where `sizing`
+ * comes from PositionSizer, which has no `maxPositionRate` parameter at all. The capped
+ * `guardResult.metrics.approvedQuantity` was computed and then thrown away, so the only
+ * concentration limit actually reaching the broker was the 80 % portfolio-exposure cap.
+ *
+ * These tests pin the real contract:
+ *   1. the submitted quantity may never exceed the 20 % single-position cap;
+ *   2. the capital/exposure checks must be evaluated against the quantity that is
+ *      actually approved (a tight stop must not make a legal order look unaffordable).
+ */
+describe('P1 — single-position concentration cap is enforced on the submitted quantity', () => {
+  // Equity 1 000 000 000, entry 28 500 => 20 % cap = 200 000 000 => 7 000 shares (70 lots).
+  const CAP_SHARES = 7_000;
+
+  it('never submits more shares than the 20 % single-position cap allows', async () => {
+    const h = await createHarness();
+    try {
+      // risk/share 1 000 (stop 27 500) against a 10 m risk budget => 10 000 shares by risk,
+      // which is ABOVE the 7 000-share concentration cap, so the cap must be what binds.
+      const res = await post(h.baseUrl, { symbol: 'HPG', side: 'BUY', quantity: 20000, orderType: 'MARKET', stopLoss: 27500, targetPrice: 30600 });
+      expect(res.status).toBe(201);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+
+      expect(json.riskTrace.submittedQuantity).toBeLessThanOrEqual(CAP_SHARES);
+      expect(json.data.quantity).toBe(json.riskTrace.submittedQuantity);
+      expect(json.data.quantity).toBeLessThanOrEqual(CAP_SHARES);
+      // The concentration cap must be the binding constraint, and it must be visible.
+      expect(json.riskTrace.submittedQuantity).toBe(CAP_SHARES);
+      expect(json.riskTrace.positionSizeReduced).toBe(true);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('reports the real concentration percentage, not the pre-clamp one', async () => {
+    const h = await createHarness();
+    try {
+      const res = await post(h.baseUrl, { symbol: 'HPG', side: 'BUY', quantity: 20000, orderType: 'MARKET', stopLoss: 27500, targetPrice: 30600 });
+      expect(res.status).toBe(201);
+      const json = await res.json();
+      const filled = json.data.quantity;
+      const concentrationPercent = (filled * 28_500 * 1.0015) / 1_000_000_000 * 100;
+      expect(concentrationPercent).toBeLessThanOrEqual(20);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('a tight stop does not make an affordable order look like INSUFFICIENT_CASH', async () => {
+    // risk/share 100 (stop 28 400) => risk sizing 100 000 shares. The cash check must be
+    // evaluated against the CAPPED quantity (7 000 shares = ~199.5 m), not the pre-clamp
+    // 100 000 shares (= 2.85 bn), otherwise every tight-stop order is wrongly rejected.
+    const h = await createHarness();
+    try {
+      const res = await post(h.baseUrl, { symbol: 'HPG', side: 'BUY', quantity: CAP_SHARES, orderType: 'MARKET', stopLoss: 28400, targetPrice: 28700 });
+      expect(res.status).toBe(201);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.data.quantity).toBe(CAP_SHARES);
+    } finally {
+      await h.close();
+    }
+  });
+});

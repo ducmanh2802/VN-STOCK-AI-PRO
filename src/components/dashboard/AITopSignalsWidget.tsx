@@ -248,8 +248,12 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
 
                   <div className="text-right">
                     <span className="text-[10px] text-terminal-text-muted block">Kỳ vọng</span>
+                    {/* `upsidePercent` is `number | null`: without a target price there is no
+                        upside to report, and `null.toFixed()` would take down the dashboard. */}
                     <span className="font-bold text-terminal-up">
-                      +{sig.upsidePercent.toFixed(1)}%
+                      {sig.upsidePercent !== null && Number.isFinite(sig.upsidePercent)
+                        ? `+${sig.upsidePercent.toFixed(1)}%`
+                        : '--'}
                     </span>
                   </div>
                 </div>

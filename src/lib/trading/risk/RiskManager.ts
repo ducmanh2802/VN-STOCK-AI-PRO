@@ -54,7 +54,8 @@ export class RiskManager {
   checkRisk(
     signal: TradingSignal,
     marketData: TradingMarketData,
-    context: RiskContext
+    context: RiskContext,
+    requestedQuantity?: number
   ): RiskCheckResult {
     // 1. Emergency Stop Check (Top Priority)
     if (context.emergencyStop) {
@@ -164,6 +165,7 @@ export class RiskManager {
       slippageRate: this.config.slippageRate,
       existingExposure: context.currentExposure,
       maxPortfolioExposureRate: this.config.maxPortfolioExposureRate,
+      requestedQuantity,
     });
 
     if (!sizingResult.canTrade) {

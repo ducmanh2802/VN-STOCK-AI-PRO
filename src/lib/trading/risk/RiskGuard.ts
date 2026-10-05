@@ -346,10 +346,10 @@ export class RiskGuard {
     }
 
     // Capital calculations
-    const buyCost = approvedQuantity * input.entryPrice;
-    const buyFee = Math.round(buyCost * this.policy.buyFeeRate);
-    const slippageBuffer = Math.round(buyCost * this.policy.slippageRate);
-    const totalCapitalRequirement = buyCost + buyFee + slippageBuffer;
+    let buyCost = approvedQuantity * input.entryPrice;
+    let buyFee = Math.round(buyCost * this.policy.buyFeeRate);
+    let slippageBuffer = Math.round(buyCost * this.policy.slippageRate);
+    let totalCapitalRequirement = buyCost + buyFee + slippageBuffer;
 
     // Single Position Allocation Check (% of Equity)
     const maxSinglePositionCapital = equity * (this.policy.maxPositionPercent / 100);
@@ -370,6 +370,18 @@ export class RiskGuard {
       // Re-adjust down to max allowable
       approvedQuantity = Math.min(approvedQuantity, maxSharesByPosition);
     }
+
+    // The concentration clamp above may have reduced `approvedQuantity`. Every capital
+    // figure below must be re-derived from the quantity that will ACTUALLY be traded,
+    // otherwise:
+    //   - the cash and exposure gates price a position that is never opened, which
+    //     rejects affordable orders (a tight stop made every order look unaffordable);
+    //   - `positionPercent` in the returned metrics reports the pre-clamp concentration,
+    //     so the audit trace disagrees with the quantity handed to the broker.
+    buyCost = approvedQuantity * input.entryPrice;
+    buyFee = Math.round(buyCost * this.policy.buyFeeRate);
+    slippageBuffer = Math.round(buyCost * this.policy.slippageRate);
+    totalCapitalRequirement = buyCost + buyFee + slippageBuffer;
 
     // Available Cash Check
     if (totalCapitalRequirement > cash) {

@@ -117,12 +117,31 @@ export function createCanonicalDataApiRouter(): Router {
     if (!/^[A-Z0-9_.]{1,20}$/.test(symbol)) {
       return res.status(400).json({ success: false, error: 'INVALID_SYMBOL' });
     }
-    const source = String((req.body?.source as CanonicalMarketSource) ?? 'KBS').toUpperCase() as CanonicalMarketSource;
-    if (!['KBS', 'VPS', 'VNDIRECT'].includes(source)) {
+    // The provenance of a canonical bar is a FACT about which provider produced it, not a
+    // caller-supplied label. `fetchKbsObservations` always talks to KBS, so a body-supplied
+    // `source` would let any anonymous caller stamp KBS bytes as VPS or VNDIRECT and poison
+    // the `canonical_market_bars.source` / `canonical_data_provenance` lineage that every
+    // point-in-time and cross-source audit depends on. Accept it only as an assertion that
+    // agrees with reality; otherwise report the truth.
+    const requestedSource = String((req.body?.source as CanonicalMarketSource) ?? 'KBS')
+      .trim()
+      .toUpperCase() as CanonicalMarketSource;
+    if (!['KBS', 'VPS', 'VNDIRECT'].includes(requestedSource)) {
       return res.status(400).json({
         success: false,
         error: 'UNSUPPORTED_SOURCE',
         detail: 'Source-of-truth identifiers are KBS, VPS and VNDIRECT. No synthetic source is accepted.',
+      });
+    }
+    const ACTUAL_INGEST_SOURCE: CanonicalMarketSource = 'KBS';
+    const source = ACTUAL_INGEST_SOURCE;
+    if (requestedSource !== ACTUAL_INGEST_SOURCE) {
+      return res.status(409).json({
+        success: false,
+        error: 'SOURCE_MISMATCH',
+        detail: `This endpoint ingests from KBS only. Requested source '${requestedSource}' does not match the provider actually queried; provenance cannot be caller-asserted.`,
+        actualSource: ACTUAL_INGEST_SOURCE,
+        written: false,
       });
     }
 
@@ -152,12 +171,13 @@ export function createCanonicalDataApiRouter(): Router {
     } catch (error: any) {
       // Fail-closed: a provider failure produces an explicit unavailable state and
       // writes nothing at all.
+      console.error('[canonical-data] ingest source unavailable:', error);
       return res.status(503).json({
         success: false,
         symbol,
         dataStatus: 'SOURCE_UNAVAILABLE',
         source,
-        error: error?.message ?? 'Canonical ingest source unavailable',
+        error: 'Canonical ingest source unavailable',
         written: false,
       });
     }
@@ -206,7 +226,9 @@ export function createCanonicalDataApiRouter(): Router {
         bars,
       });
     } catch (error: any) {
-      return res.status(400).json({ success: false, error: error?.message ?? 'Invalid canonical query' });
+      // Never echo a driver error: it carries the full SQL text and bound parameters.
+      console.error('[canonical-data] invalid canonical query:', error);
+      return res.status(400).json({ success: false, error: 'Invalid canonical query' });
     }
   });
 
@@ -299,10 +321,13 @@ export function createCanonicalDataApiRouter(): Router {
       });
       return res.status(201).json({ success: true, ...result });
     } catch (error: any) {
+      // The driver puts the entire SQL statement and its bound parameters in `message`
+      // (schema + value disclosure). Log it, never return it.
+      console.error('[canonical-data] instrument identity rejected:', error);
       return res.status(400).json({
         success: false,
         error: 'INSTRUMENT_IDENTITY_REJECTED',
-        detail: error?.message ?? 'The canonical identity engine rejected this instrument.',
+        detail: 'The canonical identity engine rejected this instrument.',
       });
     }
   });

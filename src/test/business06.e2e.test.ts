@@ -129,28 +129,14 @@ async function seedSubscription(w: World, subjectId: string, planId: PlanId, sta
  * §8 Entitlements are derived from DURABLE state through the certified BUSINESS-01 engine —
  * never from memory and never from `if (plan === 'PRO')` logic.
  */
-function entitlementFor(sub: { planId: string; status: string } | null, subjectId: string, at: number) {
+function entitlementFor(sub: Awaited<ReturnType<BillingPersistenceService['subscriptionOf']>>, subjectId: string, at: number) {
   return EntitlementEngine.evaluate({
     subject: { subjectId, kind: 'ORGANIZATION', organizationId: subjectId, sessionId: null, correlationId: null },
-    feature: 'AI_CHAT',
+    feature: 'AI_ASSISTANT',
     at: new Date(at).toISOString(),
-    subscription: sub
-      ? ({
-          subscriptionId: `sub-${subjectId}`,
-          subjectId,
-          planId: sub.planId as PlanId,
-          status: sub.status as SubscriptionStatus,
-          currentPeriodStart: null,
-          currentPeriodEnd: null,
-          cancelAtPeriodEnd: false,
-          cancelledAt: null,
-          gracePeriodEnd: null,
-          trialEndsAt: null,
-          createdAt: null,
-          updatedAt: null,
-          providerRef: null,
-        } as Subscription)
-      : null,
+    // The persisted row is passed through verbatim. Nulling the period bounds here would
+    // make `accessWindowElapsed` permanently false and silently grant access forever.
+    subscription: sub as Subscription | null,
   });
 }
 
@@ -272,7 +258,16 @@ describe('§17 E2E commercial journey (real persistence boundary)', () => {
     // ---------- ENTITLEMENT REMOVED + ACCESS DENIED ----------
     const cancelled = await w.billing.subscriptionOf('org-1');
     expect(cancelled?.status).toBe('CANCELLED');
-    expect(entitlementFor(cancelled, 'org-1', w.clock.now).allowed).toBe(false);
+    // Cancelling does NOT delete access: the paid period plus the grace window still stand.
+    expect(entitlementFor(cancelled, 'org-1', w.clock.now).allowed).toBe(true);
+    // Only once BOTH the paid period and the grace window have elapsed is access denied.
+    const windowEnd = Math.max(
+      Date.parse(cancelled!.currentPeriodEnd!),
+      Date.parse(cancelled!.gracePeriodEnd!),
+    );
+    const afterWindow = entitlementFor(cancelled, 'org-1', windowEnd + 1);
+    expect(afterWindow.allowed).toBe(false);
+    expect(afterWindow.decision).toBe('DENIED_GRACE_EXPIRED');
 
     // ---------- the session issued before all of this is still valid ----------
     expect((await w.identity.authenticateToken(token)).ok).toBe(true);
@@ -379,7 +374,7 @@ describe('§19 concurrency invariants', () => {
     await w.org.allocateSeat({ organizationId: 'org-d', actorUserId: 'u-c', targetUserId: 'u-1', seatId: 'org-d-seat-2', purchasedSeats: 3, correlationId: null });
     await expect(
       w.org.allocateSeat({ organizationId: 'org-d', actorUserId: 'u-c', targetUserId: 'u-1', seatId: 'org-d-seat-3', purchasedSeats: 3, correlationId: null }),
-    ).rejects.toThrow(/INVALID_INPUT|SEAT_CAPACITY/);
+    ).rejects.toMatchObject({ failure: 'INVALID_INPUT' });
     expect(await w.seatAllocation.allocatedCount('org-d')).toBe(1);
   });
 
@@ -421,7 +416,8 @@ describe('§19 concurrency invariants', () => {
     ]);
     expect(ok.status).toBe('fulfilled');
     expect(conflict.status).toBe('rejected');
-    expect(String((conflict as PromiseRejectedResult).reason)).toContain('PERSISTENCE_UNAVAILABLE');
+    // The loser is refused by the optimistic-concurrency guard, never applied.
+    expect((conflict as PromiseRejectedResult).reason).toMatchObject({ failure: 'PERSISTENCE_UNAVAILABLE' });
     const after = (await w.billing.subscriptionOf('org-s'))!;
     expect(after.version).toBe(current.version + 1);
     expect(after.status).toBe('ACTIVE'); // the losing write did NOT clobber the row

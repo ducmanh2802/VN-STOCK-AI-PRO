@@ -20,9 +20,17 @@ export const StockMoneyFlow: React.FC<StockMoneyFlowProps> = ({ moneyFlow, analy
   const buyPercent = canComputeRatio ? Math.round((moneyFlow.activeBuyVolume / totalBuySell) * 100) : null;
   const sellPercent = isFiniteNumber(buyPercent) ? 100 - buyPercent : null;
 
+  // `foreignNetValue` is `number | null`. A missing flow must read as UNKNOWN, not as a net buy:
+  // `null >= 0` is true and would fabricate a buy direction out of absent data.
   const isForeignNetBuy = analysis
-    ? (analysis.foreignFlow.net !== null ? analysis.foreignFlow.net >= 0 : moneyFlow.foreignNetValue >= 0)
-    : isFiniteNumber(moneyFlow.foreignNetValue) ? moneyFlow.foreignNetValue >= 0 : null;
+    ? analysis.foreignFlow.net !== null
+      ? analysis.foreignFlow.net >= 0
+      : isFiniteNumber(moneyFlow.foreignNetValue)
+      ? moneyFlow.foreignNetValue >= 0
+      : null
+    : isFiniteNumber(moneyFlow.foreignNetValue)
+    ? moneyFlow.foreignNetValue >= 0
+    : null;
 
   const getTrendBadge = (trend?: string) => {
     switch (trend) {

@@ -167,74 +167,49 @@ export const MarketSentimentWidget: React.FC<MarketSentimentWidgetProps> = ({
 
         {/* 3-Column Capital Flow Distribution */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
-          {/* Foreign Flow */}
-          <div className="p-2.5 rounded bg-terminal-surface-subtle border border-terminal-border flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] text-terminal-text-muted mb-1">
-              <span>KHỐI NGOẠI</span>
-              {sentiment.foreignFlow.netValue >= 0 ? (
-                <ArrowUpRight className="w-3.5 h-3.5 text-terminal-up" />
-              ) : (
-                <ArrowDownRight className="w-3.5 h-3.5 text-terminal-down" />
-              )}
-            </div>
-            <div
-              className={`text-sm font-bold ${
-                sentiment.foreignFlow.netValue >= 0 ? 'text-terminal-up' : 'text-terminal-down'
-              }`}
-            >
-              {sentiment.foreignFlow.netValue >= 0 ? '+' : ''}
-              {sentiment.foreignFlow.netValue.toFixed(1)} tỷ VND
-            </div>
-            <span className="text-[10px] text-terminal-text-muted truncate mt-0.5">
-              {sentiment.foreignFlow.type === 'NET_BUY' ? 'Mua ròng' : 'Bán ròng'}
-            </span>
-          </div>
-
-          {/* Proprietary Trading Flow */}
-          <div className="p-2.5 rounded bg-terminal-surface-subtle border border-terminal-border flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] text-terminal-text-muted mb-1">
-              <span>TỰ DOANH</span>
-              {sentiment.proprietaryFlow.netValue >= 0 ? (
-                <ArrowUpRight className="w-3.5 h-3.5 text-terminal-up" />
-              ) : (
-                <ArrowDownRight className="w-3.5 h-3.5 text-terminal-down" />
-              )}
-            </div>
-            <div
-              className={`text-sm font-bold ${
-                sentiment.proprietaryFlow.netValue >= 0 ? 'text-terminal-up' : 'text-terminal-down'
-              }`}
-            >
-              {sentiment.proprietaryFlow.netValue >= 0 ? '+' : ''}
-              {sentiment.proprietaryFlow.netValue.toFixed(1)} tỷ VND
-            </div>
-            <span className="text-[10px] text-terminal-text-muted truncate mt-0.5">
-              {sentiment.proprietaryFlow.type === 'NET_BUY' ? 'Mua ròng' : 'Bán ròng'}
-            </span>
-          </div>
-
-          {/* Retail Investors Flow */}
-          <div className="p-2.5 rounded bg-terminal-surface-subtle border border-terminal-border flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[10px] text-terminal-text-muted mb-1">
-              <span>CÁ NHÂN TRONG NƯỚC</span>
-              {sentiment.retailFlow.netValue >= 0 ? (
-                <ArrowUpRight className="w-3.5 h-3.5 text-terminal-up" />
-              ) : (
-                <ArrowDownRight className="w-3.5 h-3.5 text-terminal-down" />
-              )}
-            </div>
-            <div
-              className={`text-sm font-bold ${
-                sentiment.retailFlow.netValue >= 0 ? 'text-terminal-up' : 'text-terminal-down'
-              }`}
-            >
-              {sentiment.retailFlow.netValue >= 0 ? '+' : ''}
-              {sentiment.retailFlow.netValue.toFixed(1)} tỷ VND
-            </div>
-            <span className="text-[10px] text-terminal-text-muted truncate mt-0.5">
-              {sentiment.retailFlow.type === 'NET_BUY' ? 'Mua ròng' : 'Bán ròng / Chốt lời'}
-            </span>
-          </div>
+          {(
+            [
+              ['KHỐI NGOẠI', sentiment.foreignFlow, 'Bán ròng'],
+              ['TỰ DOANH', sentiment.proprietaryFlow, 'Bán ròng'],
+              ['CÁ NHÂN TRONG NƯỚC', sentiment.retailFlow, 'Bán ròng / Chốt lời'],
+            ] as const
+          ).map(([label, flow, sellLabel]) => {
+            // `netValue` is `number | null`. Neither KBS nor VPS exposes a market-wide money-flow
+            // series, so the provider honestly reports UNAVAILABLE with a null value. A null is
+            // UNKNOWN: it must render as unavailable, never tone-coded as a net buy.
+            const known = flow.netValue !== null && Number.isFinite(flow.netValue);
+            const isUp = known && flow.netValue! >= 0;
+            const tone = !known
+              ? 'text-terminal-text-muted'
+              : isUp
+              ? 'text-terminal-up'
+              : 'text-terminal-down';
+            return (
+              <div
+                key={label}
+                className="p-2.5 rounded bg-terminal-surface-subtle border border-terminal-border flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between text-[10px] text-terminal-text-muted mb-1">
+                  <span>{label}</span>
+                  {isUp ? (
+                    <ArrowUpRight className="w-3.5 h-3.5 text-terminal-up" />
+                  ) : known ? (
+                    <ArrowDownRight className="w-3.5 h-3.5 text-terminal-down" />
+                  ) : null}
+                </div>
+                <div className={`text-sm font-bold ${tone}`}>
+                  {known ? `${isUp ? '+' : ''}${flow.netValue!.toFixed(1)} tỷ VND` : '--'}
+                </div>
+                <span className="text-[10px] text-terminal-text-muted truncate mt-0.5">
+                  {flow.availability === 'DEMO' || flow.availability === 'UNAVAILABLE' || !known
+                    ? 'Không có dữ liệu'
+                    : flow.type === 'NET_BUY'
+                    ? 'Mua ròng'
+                    : sellLabel}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Key Drivers / Factors */}

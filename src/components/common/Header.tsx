@@ -256,8 +256,12 @@ export const Header: React.FC<HeaderProps> = ({
         {indices.length > 0 ? (
           <div className="flex items-center gap-4">
             {indices.map((idx) => {
-              const isUp = idx.change >= 0;
-              const tone = isUp ? 'text-terminal-up' : 'text-terminal-down';
+              // `change` is `number | null`. A null level must render as UNAVAILABLE and must
+              // NOT be tone-coded as a gain (`null >= 0` is true and would paint it green).
+              const tone =
+                idx.change === null || !Number.isFinite(idx.change)
+                  ? 'text-terminal-text-muted'
+                  : getPriceChangeColor(idx.change);
               return (
                 <div
                   key={idx.symbol}
@@ -267,7 +271,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="text-terminal-text-secondary font-semibold">
                     {idx.displayName}
                   </span>
-                  <span className={`tnum ${tone}`}>{idx.value.toFixed(2)}</span>
+                  <span className={`tnum ${tone}`}>{formatIndexPoint(idx.value)}</span>
                   <span className={`text-[10px] tnum ${tone}`}>
                     {formatPointChange(idx.change)}
                   </span>

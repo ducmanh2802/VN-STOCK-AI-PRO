@@ -32,6 +32,7 @@ export class PositionSizer {
       existingExposure = 0,
       maxPortfolioExposureRate = DEFAULT_RISK_CONFIG.maxPortfolioExposureRate,
       capitalCeiling,
+      requestedQuantity,
     } = input;
 
     // 0. Capital ceiling validation (fail-closed)
@@ -155,6 +156,28 @@ export class PositionSizer {
     // Ensure rounding did not exceed risk budget
     while (adjustedQuantity * riskPerShare > riskBudget && adjustedQuantity >= lotSize) {
       adjustedQuantity -= lotSize;
+    }
+
+    // 4b. Never size beyond what the caller will actually trade. The risk budget is a
+    // CEILING on size, not the order size: pricing the cash and exposure gates against the
+    // full budget-derived size would reject affordable orders and would let the broker see a
+    // position larger than any concentration limit. Rounded down to a whole board lot.
+    if (requestedQuantity !== undefined) {
+      if (!Number.isFinite(requestedQuantity) || requestedQuantity <= 0) {
+        return {
+          canTrade: false,
+          quantity: 0,
+          riskAmount: 0,
+          riskPerShare,
+          buyCost: 0,
+          buyFee: 0,
+          slippageBuffer: 0,
+          totalCapitalRequirement: 0,
+          code: 'INVALID_LOT_SIZE',
+          reason: `Requested quantity must be a positive finite value, got: ${requestedQuantity}`,
+        };
+      }
+      adjustedQuantity = Math.min(adjustedQuantity, Math.floor(requestedQuantity / lotSize) * lotSize);
     }
 
     // 5. Minimum lot check

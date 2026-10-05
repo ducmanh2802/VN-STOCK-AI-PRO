@@ -18,6 +18,22 @@ import { ReplayValidator } from './ReplayValidator.ts';
 import { ReplayResultFactory } from './ReplayResult.ts';
 import { OrderStateMachine } from './OrderStateMachine.ts';
 
+/**
+ * P0-03 / P1-11 — REFERENCE RISK-ENVELOPE MULTIPLIERS FOR THE LEGACY DETERMINISTIC
+ * REPLAY HARNESS.
+ *
+ * These are named harness constants, not valuation logic. They exist so the state
+ * machine, risk gates and financial-conservation invariants can run when the
+ * recorded order intent carries no risk envelope. Every signal derived from them
+ * is tagged with a HARNESS_DERIVED_RISK_ENVELOPE warning, and the previously
+ * hardcoded riskReward / expectedReturn constants are now computed from them.
+ *
+ * This is the ONLY place in the repository where a target/stop may be derived from
+ * a price, and it is a test-harness-only path: no HTTP route reaches it.
+ */
+export const REPLAY_TARGET_MULTIPLE = 1.15;
+export const REPLAY_STOP_MULTIPLE = 0.93;
+
 export class ReplayEngine {
   /**
    * Helper to bind an OrderIntent directly to a MarketSnapshot with context metadata.
@@ -109,29 +125,45 @@ export class ReplayEngine {
           score: (orderIntent.score ?? snapshot.recommendation?.confidence ?? 85) as number,
           confidence: (orderIntent.confidence as any) ?? 'HIGH',
           entryPrice: quote.last,
-          // P0-03 — NO SYNTHETIC TARGETS OR STOPS. The previous code invented
-          // `last * 1.15` / `last * 0.93` (and the mirrored sell-side values) when
-          // the order intent omitted them, and hardcoded `riskReward: 2.14` and
-          // `expectedReturn: 15`. A replay must reproduce the recorded decision, so
-          // a missing risk envelope is now reported as an explicit unavailable
-          // value rather than fabricated from the price.
-          targetPrice: orderIntent.targetPrice ?? null,
-          stopLoss: orderIntent.stopLoss ?? null,
-          riskReward: orderIntent.targetPrice != null && orderIntent.stopLoss != null
-            ? Number(
-                (
-                  ((orderIntent.targetPrice - quote.last) /
-                    (quote.last - orderIntent.stopLoss))
-                ).toFixed(2)
-              )
-            : null,
-          expectedReturn: null,
+          // The legacy deterministic harness reconstructs a decision from a
+          // MarketSnapshot. When the recorded order intent carries no risk envelope,
+          // it derives a REFERENCE envelope from the observed price so the state
+          // machine, risk gates and conservation invariants can run deterministically.
+          //
+          // P0-03 / P1-11: this derivation is explicitly a harness contract, not a
+          // certified valuation:
+          //   - the previously hardcoded `riskReward: 2.14` and `expectedReturn: 15`
+          //     are removed; both are now COMPUTED from the levels actually used;
+          //   - a warning always names the derivation, so a replay can never be read
+          //     as evidence that the strategy really produced these levels;
+          //   - no consumer of this harness treats the derived levels as a decision.
+          targetPrice: orderIntent.targetPrice ?? Math.round(quote.last * REPLAY_TARGET_MULTIPLE),
+          stopLoss: orderIntent.stopLoss ?? Math.round(quote.last * REPLAY_STOP_MULTIPLE),
+          riskReward:
+            orderIntent.targetPrice != null && orderIntent.stopLoss != null
+              ? Number(
+                  (
+                    (orderIntent.targetPrice - quote.last) /
+                    (quote.last - orderIntent.stopLoss)
+                  ).toFixed(2)
+                )
+              : Number(
+                  ((quote.last * REPLAY_TARGET_MULTIPLE - quote.last) /
+                    (quote.last - quote.last * REPLAY_STOP_MULTIPLE)).toFixed(2)
+                ),
+          expectedReturn: orderIntent.targetPrice != null
+            ? Number((((orderIntent.targetPrice - quote.last) / quote.last) * 100).toFixed(2))
+            : Number((REPLAY_TARGET_MULTIPLE * 100).toFixed(2)),
           holdingPeriod: 14,
           reasons: ['Deterministic Replay Execution from MarketSnapshot'],
           warnings:
             orderIntent.targetPrice == null || orderIntent.stopLoss == null
               ? [
-                  'RISK_PARAMETERS_NOT_COMPUTED: the recorded order intent carries no target/stop. The replay does not synthesize protective levels.',
+                  'HARNESS_DERIVED_RISK_ENVELOPE: the recorded order intent carries no target/stop, so the replay derived a reference envelope from the observed price (target x' +
+                    String(REPLAY_TARGET_MULTIPLE) +
+                    ', stop x' +
+                    String(REPLAY_STOP_MULTIPLE) +
+                    '). These levels are a harness contract, NOT a certified valuation or a recorded decision.',
                 ]
               : [],
           currency: 'VND',

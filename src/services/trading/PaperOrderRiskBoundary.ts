@@ -372,7 +372,7 @@ export class PaperOrderRiskBoundary {
         dataSource: quote.source,
       };
 
-      const riskCheck = riskManager.checkRisk(signal, marketSnapshot, context);
+      const riskCheck = riskManager.checkRisk(signal, marketSnapshot, context, requestedQuantity);
       if (!riskCheck.approved) {
         const code = riskCheck.code === 'APPROVED' ? 'INVALID_SIGNAL' : riskCheck.code;
         trace.zeroCause = classifyZeroCause(code);
@@ -395,6 +395,7 @@ export class PaperOrderRiskBoundary {
         existingExposure: context.currentExposure,
         maxPortfolioExposureRate: riskConfig.maxPortfolioExposureRate,
         capitalCeiling: riskCheck.metrics?.riskApprovedCapital,
+        requestedQuantity,
       });
 
       if (!sizing.canTrade || sizing.quantity < riskConfig.lotSize) {
@@ -407,8 +408,24 @@ export class PaperOrderRiskBoundary {
 
       // The operator asked for `requestedQuantity`; risk approved `sizing.quantity`.
       // Never submit more than requested and never more than risk approved.
-      const submittedQuantity = Math.min(requestedQuantity, sizing.quantity);
+      //
+      // RiskGuard additionally caps a single position at `maxPositionPercent` (20 %) of
+      // equity and publishes the capped figure as `metrics.approvedQuantity`.
+      // PositionSizer has no such parameter, so without this third term the 20 %
+      // concentration rule was computed and then discarded, leaving the 80 % portfolio
+      // exposure cap as the only concentration limit actually reaching the broker.
+      const guardApprovedQuantity = guardResult.metrics?.approvedQuantity;
+      const concentrationCap =
+        typeof guardApprovedQuantity === 'number' && Number.isFinite(guardApprovedQuantity) && guardApprovedQuantity > 0
+          ? guardApprovedQuantity
+          : Number.POSITIVE_INFINITY;
+      const submittedQuantity = Math.min(requestedQuantity, sizing.quantity, concentrationCap);
       const positionSizeReduced = submittedQuantity < requestedQuantity;
+      if (submittedQuantity < sizing.quantity) {
+        trace.notes.push(
+          `POSITION_CONCENTRATION_CAP: submitted=${submittedQuantity} capped from ${sizing.quantity} by maxPositionPercent=${this.riskGuard.getPolicy().maxPositionPercent}%.`
+        );
+      }
       if (positionSizeReduced) {
         trace.notes.push(
           `POSITION_SIZE_REDUCED: requested=${requestedQuantity} approved=${sizing.quantity} submitted=${submittedQuantity}.`

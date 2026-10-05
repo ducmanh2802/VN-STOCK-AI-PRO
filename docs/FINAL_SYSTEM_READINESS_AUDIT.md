@@ -6,6 +6,25 @@
 not accepted from a prior report. Concatenated evidence commands are recorded inline.
 **Verdict:** `NOT_READY` — **P0 = 4, P1 = 9**
 
+> ## REMEDIATION OUTCOME (2026-10-05, later the same day)
+>
+> The four P0 findings and all nine P1 findings below were remediated under
+> `docs/CODEGPT — P0 SYSTEM INTEGRATION REMEDIATION + CROSS-DOMAIN REACHABILITY.md`.
+>
+> - **P0 = 0**, **P1 = 0** (P1-07 formally deferred with registry evidence, not downgraded).
+> - Tests **2401 passed / 5 failed**; the 5 failures are in
+>   `src/test/business06.e2e.test.ts`, an **untracked** file owned by a concurrent agent
+>   working the BUSINESS-06 lane. They failed identically at the pre-remediation
+>   baseline and were not touched (roadmap §38).
+> - Typecheck **PASS**, build **PASS**, reachability gate **PASS** (49 assertions).
+> - A permanent reachability gate now exists:
+>   `src/lib/platform/observability/reachabilityRegistry.ts` +
+>   `src/test/reachabilityGate.test.ts`. Full report:
+>   `docs/CROSS_DOMAIN_REACHABILITY_AUDIT.md`.
+>
+> **Everything below is preserved unmodified as the original evidence record.**
+> The current verdict is in `docs/FINAL_SYSTEM_CERTIFICATION.md`.
+
 > This audit deliberately does **not** accept the roadmap's §1 premise that Platform is
 > `P0 = 0, P1 = 0`. Four P0 findings were verified by reading the code, and none appears in
 > any existing certification document. The most serious is a risk-stack bypass on the only
