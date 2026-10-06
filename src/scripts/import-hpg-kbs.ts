@@ -8,6 +8,10 @@
  * - Honest failure: if PostgreSQL is not configured/reachable, prints the exact
  *   blocker and exits non-zero. NEVER fabricates success.
  */
+// MUST stay first: populates process.env before ../db/index.ts constructs its eager
+// pool. `dotenv.config()` below is a no-op for that purpose because ES module imports
+// are evaluated before any statement in this file. See src/db/bootstrapEnv.ts.
+import '../db/bootstrapEnv.ts';
 import * as dotenv from 'dotenv';
 
 dotenv.config();

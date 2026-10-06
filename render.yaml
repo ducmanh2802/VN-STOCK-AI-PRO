@@ -1,0 +1,56 @@
+# VN-STOCK-AI-PRO — Render blueprint (single web service)
+#
+# ONE web service / ONE public URL, per P23. The Express process serves both the API and
+# the built SPA, so there is no separate frontend host and no CORS surface.
+#
+# Required environment variables (set these in the Render dashboard — do NOT commit them):
+#   SQL_HOST, SQL_USER, SQL_PASSWORD, SQL_DB_NAME   -> PostgreSQL (add SQL_PORT / SQL_SSL for a managed instance)
+#   GEMINI_API_KEY                                  -> optional; AI Copilot degrades honestly without it
+#   FIREBASE_PROJECT_ID                             -> optional; /api/users/me answers 401 without it
+#
+# The application boots with NONE of these set and reports the resulting state truthfully
+# at /api/health. It never fabricates market data to paper over a missing dependency.
+
+services:
+  - type: web
+    name: vn-stock-ai-pro
+    runtime: node
+    plan: starter # 'free' spins down after inactivity and is not appropriate for this
+                  # workload; use a single small instance, not a cluster.
+    region: singapore
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    # Bind 0.0.0.0 and honour the platform-provided PORT. Never hardcode a port.
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: LOG_LEVEL
+        value: INFO
+      - key: SQL_HOST
+        sync: false
+      - key: SQL_PORT
+        sync: false
+      - key: SQL_USER
+        sync: false
+      - key: SQL_PASSWORD
+        sync: false
+      - key: SQL_DB_NAME
+        sync: false
+      - key: SQL_SSL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      # Only PUBLIC Firebase web values. Never place a server secret in a VITE_* var.
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false

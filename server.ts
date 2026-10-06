@@ -1,3 +1,6 @@
+// MUST stay first: populates process.env before the eager Postgres pool in
+// src/db/index.ts is constructed. See src/db/bootstrapEnv.ts for the full rationale.
+import './src/db/bootstrapEnv.ts';
 import express from 'express';
 import http from 'http';
 import path from 'path';
@@ -22,8 +25,9 @@ import {
 import { requireAuth, type AuthRequest } from './src/middleware/auth.ts';
 import { getAdminAuthState } from './src/lib/firebase-admin.ts';
 // PLATFORM FOUNDATION — platform layer mounts below product/feature routes.
-import { createPlatformRouter } from './src/lib/platform/api/createPlatformRouter.ts';
+import { createPlatformRouter, defaultProbes } from './src/lib/platform/api/createPlatformRouter.ts';
 import { correlationMiddleware, securityHeaders, sendSafeError } from './src/middleware/platform/security.ts';
+import { runHealthCheck, statusCodeFor } from './src/lib/platform/observability/health.ts';
 import { getOrCreateUser } from './src/db/users.ts';
 // PHASE 8.5C — REAL market data (KBS historical OHLCV + VPS realtime/fundamentals)
 import {
@@ -109,21 +113,63 @@ async function startServer() {
   // API ROUTES (Backend Data Layer over PostgreSQL / Drizzle)
   // ========================================================
 
-  app.get('/api/health', (req, res) => {
-    // Honest dependency states — never a blanket "ok" while a required service is
-    // unusable. Liveness is proven by /api/platform/healthz (touches no dependency).
-    const databaseConfigured = Boolean(
-      process.env.SQL_HOST && process.env.SQL_USER && process.env.SQL_PASSWORD && process.env.SQL_DB_NAME
-    );
+  // Market-data provider reachability is observed, never assumed: a provider reports
+  // AVAILABLE only once THIS process has completed a real successful fetch. No synthetic
+  // or assumed-good state is ever produced.
+  const providerProbes = () => {
+    const keys = cacheStats().keys;
+    const kbs = keys.some((k) => k.startsWith('history:'));
+    const vps = keys.some((k) => k.startsWith('quote:') || k.startsWith('fundamentals:'));
+    return [
+      {
+        name: 'marketDataKbs',
+        optional: true,
+        check: (): 'OK' | 'DEGRADED' => (kbs ? 'OK' : 'DEGRADED'),
+      },
+      {
+        name: 'marketDataVps',
+        optional: true,
+        check: (): 'OK' | 'DEGRADED' => (vps ? 'OK' : 'DEGRADED'),
+      },
+    ];
+  };
+
+  app.get('/api/health', async (req, res) => {
+    // A blanket `status:'ok'` while a dependency is unusable is a false green: a load
+    // balancer would route traffic to a process that cannot serve its DB-backed routes.
+    // The top-level status is therefore DERIVED from the same dependency probes the
+    // platform readiness endpoint already uses, instead of being asserted. Liveness
+    // alone is proven by /api/platform/healthz (touches no dependency).
     const cache = cacheStats();
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
+    const report = await runHealthCheck({
+      now: () => Date.now(),
+      probes: [...defaultProbes(), ...providerProbes()],
+    });
+
+    res.status(statusCodeFor(report)).json({
+      // 'ok' | 'degraded' | 'unavailable' — truthful, never a hardcoded pass.
+      status: report.status,
+      process: 'PROCESS_OK',
+      ready: report.ready,
+      timestamp: new Date(report.checkedAt).toISOString(),
+      checkedAt: new Date(report.checkedAt).toISOString(),
       // Entry COUNT only. `cacheStats().keys` enumerates every symbol and timeframe the
       // process has fetched, and /api/health is unauthenticated — do not disclose it.
       marketDataCache: { size: cache.size },
+      providers: {
+        // Derived from observed real fetches in this process. 'UNVERIFIED' means "not yet
+        // proven reachable", which is distinct from "broken" and from a fabricated OK.
+        kbs: cache.keys.some((k) => k.startsWith('history:')) ? 'AVAILABLE' : 'UNVERIFIED',
+        vps: cache.keys.some((k) => k.startsWith('quote:') || k.startsWith('fundamentals:'))
+          ? 'AVAILABLE'
+          : 'UNVERIFIED',
+      },
+      dependencyProbes: report.dependencies.map((d) => ({ name: d.name, status: d.status, optional: d.optional })),
+      blockedBy: report.blockedBy,
       dependencies: {
-        database: databaseConfigured ? 'DATABASE_CONFIGURED' : 'DATABASE_CONFIGURATION_REQUIRED',
+        database: report.dependencies.find((d) => d.name === 'database')?.status === 'OK'
+          ? 'DATABASE_CONFIGURED'
+          : 'DATABASE_CONFIGURATION_REQUIRED',
         auth: getAdminAuthState().status,
         gemini: process.env.GEMINI_API_KEY ? 'GEMINI_CONFIGURED' : 'GEMINI_CONFIGURATION_REQUIRED',
       },
@@ -878,9 +924,39 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+
+    // An unmatched /api path must answer a JSON 404, never the SPA shell. Without this,
+    // the wildcard fallback below answers /api/typo with index.html and HTTP 200, which
+    // hides a client/server contract break behind an apparent success.
+    app.use('/api', (_req, res) => {
+      res.status(404).json({ error: 'NOT_FOUND' });
+    });
+
     app.use(express.static(distPath));
-    app.get('*', (req, res) => { res.sendFile(path.join(distPath, 'index.html')); });
+
+    // A missing hashed asset must 404 as an asset. Falling through to the SPA shell would
+    // return HTML with a 200 for a stale bundle reference, so a broken deploy looks healthy
+    // and the browser reports a MIME error instead of a missing file.
+    app.use('/assets', (_req, res) => {
+      res.status(404).type('text/plain').send('Not Found');
+    });
+
+    // SPA fallback for client-side routes only. Registered last, after /api and /assets
+    // have had their chance to claim the request.
+    app.get('*', (_req, res) => { res.sendFile(path.join(distPath, 'index.html')); });
   }
+
+  // A failed bind must be loud, deterministic and non-zero, never an unhandled 'error'
+  // event that prints a stack and leaves the exit code ambiguous to the platform.
+  httpServer.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`FATAL: cannot bind ${HOST}:${PORT} — address already in use.`);
+    } else {
+      console.error('FATAL: HTTP server error:', error);
+    }
+    process.exitCode = 1;
+  });
+
   httpServer.listen(PORT, HOST, () => { console.log(`VN STOCK AI Server running on http://${HOST}:${PORT}`); });
 }
 

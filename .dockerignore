@@ -1,0 +1,42 @@
+# Keep the build context honest and reproducible.
+#
+# Without this, `COPY . .` in the build stage copies the HOST's node_modules —
+# including Windows/macOS native binaries (esbuild, rollup, @tailwindcss/oxide) — over
+# the Linux tree produced by `npm ci`, so the build silently runs against foreign
+# platform binaries or fails only on some machines.
+
+# Installed in the image by `npm ci`; never take the host's copy.
+node_modules
+
+# Secrets and local config. Never bake credentials into a layer.
+.env
+.env.*
+!.env.example
+
+# Build output — the image builds its own.
+dist
+build
+
+# VCS and editor metadata.
+.git
+.gitignore
+.gitattributes
+.github
+.vscode
+.idea
+.clinerules
+.agents
+
+# Test/tooling caches and coverage.
+coverage
+*.tsbuildinfo
+
+# Logs and local debugging artifacts.
+*.log
+.tmp
+.tmp-*
+npm-debug.log*
+
+# OS noise.
+.DS_Store
+Thumbs.db
