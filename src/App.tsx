@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { useAppStore } from './store/useAppStore';
+import { useAppStore, resolveRouteFromPath } from './store/useAppStore';
 import {
   useMarketIndices,
   useMarketStatus,
@@ -80,24 +80,14 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Sync browser back/forward history buttons with app state
+  // Sync browser back/forward history buttons with app state.
+  // Uses the store's own route parser so a direct load, a pushState navigation and a
+  // back/forward step all resolve a path the same way. Previously this handler
+  // understood only three shapes, so a back step to any other deep link left the
+  // previous view on screen instead of the one the URL named.
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname;
-      const stockMatch = path.match(/^\/stock\/([a-zA-Z0-9_-]+)/i);
-      if (stockMatch) {
-        useAppStore.setState({
-          currentView: 'stock-detail',
-          selectedStockSymbol: stockMatch[1].toUpperCase(),
-          quickViewModalOpen: false,
-        });
-      } else if (path.startsWith('/dashboard') || path === '/') {
-        useAppStore.setState({
-          currentView: 'dashboard',
-          selectedStockSymbol: null,
-          quickViewModalOpen: false,
-        });
-      }
+      useAppStore.setState(resolveRouteFromPath(window.location.pathname));
     };
 
     window.addEventListener('popstate', handlePopState);

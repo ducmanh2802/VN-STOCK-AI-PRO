@@ -509,6 +509,71 @@ function extractImportSpecifiers(content: string): string[] {
 
 const SOURCE_EXTENSIONS = ['.ts', '.tsx'];
 
+const SKIPPED_DIRECTORIES = new Set(['node_modules', '.git', 'dist', '.agents']);
+
+/**
+ * Per-repoRoot cache of every non-test TypeScript source file under src/, plus server.ts,
+ * keyed by repo-relative path.
+ *
+ * Both scanners below used to re-walk the directory tree and re-read every source file
+ * on each call. The gate calls them dozens of times with different symbols, so a single
+ * full-suite run performed that entire I/O hundreds of times over. Under a parallel
+ * worker pool that pushed individual assertions past the 5 s default timeout, producing
+ * timeouts that had nothing to do with reachability. The snapshot is per-process, so it
+ * stays deterministic for one run and cannot go stale inside it.
+ */
+const SOURCE_SNAPSHOT_CACHE = new Map<string, ReadonlyMap<string, string>>();
+
+function sourceSnapshot(repoRoot: string): ReadonlyMap<string, string> {
+  const cached = SOURCE_SNAPSHOT_CACHE.get(repoRoot);
+  if (cached) return cached;
+
+  const files = new Map<string, string>();
+  const walk = (dir: string): void => {
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (SKIPPED_DIRECTORIES.has(entry)) continue;
+      const full = join(dir, entry);
+      let isDir = false;
+      try {
+        isDir = statSync(full).isDirectory();
+      } catch {
+        continue;
+      }
+      if (isDir) {
+        walk(full);
+        continue;
+      }
+      if (!/\.(ts|tsx)$/.test(entry)) continue;
+      const rel = relative(repoRoot, full).replace(/\\/g, '/');
+      // Only the test filter is applied here. buildImportGraph and findNonTestCallers
+      // historically used different additional filters, so each applies its own below.
+      if (isTestPath(rel)) continue;
+      try {
+        files.set(rel, readFileSync(full, 'utf8'));
+      } catch {
+        /* unreadable file contributes no edges */
+      }
+    }
+  };
+
+  walk(join(repoRoot, 'src'));
+  const server = join(repoRoot, 'server.ts');
+  try {
+    files.set('server.ts', readFileSync(server, 'utf8'));
+  } catch {
+    /* server.ts always exists in this repository */
+  }
+
+  SOURCE_SNAPSHOT_CACHE.set(repoRoot, files);
+  return files;
+}
+
 /** Resolves a relative module specifier to a repo-relative file, or null. */
 function resolveRelativeSpecifier(
   fromRelPath: string,
@@ -541,58 +606,13 @@ export type ImportGraph = ReadonlyMap<string, ReadonlySet<string>>;
 export function buildImportGraph(options: CallerScanOptions): ImportGraph {
   const { repoRoot } = options;
   const graph = new Map<string, Set<string>>();
-  const walk = (dir: string): void => {
-    let entries: string[];
-    try {
-      entries = readdirSync(dir);
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (entry === 'node_modules' || entry === '.git' || entry === 'dist' || entry === '.agents') {
-        continue;
-      }
-      const full = join(dir, entry);
-      let isDir = false;
-      try {
-        isDir = statSync(full).isDirectory();
-      } catch {
-        continue;
-      }
-      if (isDir) {
-        walk(full);
-        continue;
-      }
-      if (!/\.(ts|tsx)$/.test(entry)) continue;
-      const rel = relative(repoRoot, full).replace(/\\/g, '/');
-      if (isTestPath(rel)) continue;
-      let content: string;
-      try {
-        content = readFileSync(full, 'utf8');
-      } catch {
-        continue;
-      }
-      const deps = new Set<string>();
-      for (const spec of extractImportSpecifiers(content)) {
-        const resolved = resolveRelativeSpecifier(rel, spec, repoRoot);
-        if (resolved) deps.add(resolved);
-      }
-      graph.set(rel, deps);
-    }
-  };
-  walk(join(repoRoot, 'src'));
-
-  const server = join(repoRoot, 'server.ts');
-  try {
-    const content = readFileSync(server, 'utf8');
+  for (const [rel, content] of sourceSnapshot(repoRoot)) {
     const deps = new Set<string>();
     for (const spec of extractImportSpecifiers(content)) {
-      const resolved = resolveRelativeSpecifier('server.ts', spec, repoRoot);
+      const resolved = resolveRelativeSpecifier(rel, spec, repoRoot);
       if (resolved) deps.add(resolved);
     }
-    graph.set('server.ts', deps);
-  } catch {
-    /* server.ts always exists in this repository */
+    graph.set(rel, deps);
   }
   return graph;
 }
@@ -656,48 +676,10 @@ export function findNonTestCallers(symbolName: string, options: CallerScanOption
     `\\b${symbolName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`
   );
 
-  const walk = (dir: string): void => {
-    let entries: string[];
-    try {
-      entries = readdirSync(dir);
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (entry === 'node_modules' || entry === '.git' || entry === 'dist' || entry === '.agents') {
-        continue;
-      }
-      const full = join(dir, entry);
-      let isDir = false;
-      try {
-        isDir = statSync(full).isDirectory();
-      } catch {
-        continue;
-      }
-      if (isDir) {
-        walk(full);
-        continue;
-      }
-      if (!/\.(ts|tsx)$/.test(entry)) continue;
-      const rel = relative(repoRoot, full).replace(/\\/g, '/');
-      if (isTestPath(rel) || isNonSourcePath(rel)) continue;
-      if (rel === symbolName) continue;
-      let content: string;
-      try {
-        content = readFileSync(full, 'utf8');
-      } catch {
-        continue;
-      }
-      if (pattern.test(content)) hits.push(rel);
-    }
-  };
-
-  walk(join(repoRoot, 'src'));
-  const server = join(repoRoot, 'server.ts');
-  try {
-    if (pattern.test(readFileSync(server, 'utf8'))) hits.push('server.ts');
-  } catch {
-    /* server.ts always exists in this repository */
+  for (const [rel, content] of sourceSnapshot(repoRoot)) {
+    if (isNonSourcePath(rel)) continue;
+    if (rel === symbolName) continue;
+    if (pattern.test(content)) hits.push(rel);
   }
   return [...new Set(hits)].sort();
 }

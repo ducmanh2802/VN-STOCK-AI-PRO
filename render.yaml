@@ -3,13 +3,23 @@
 # ONE web service / ONE public URL, per P23. The Express process serves both the API and
 # the built SPA, so there is no separate frontend host and no CORS surface.
 #
-# Required environment variables (set these in the Render dashboard — do NOT commit them):
-#   SQL_HOST, SQL_USER, SQL_PASSWORD, SQL_DB_NAME   -> PostgreSQL (add SQL_PORT / SQL_SSL for a managed instance)
-#   GEMINI_API_KEY                                  -> optional; AI Copilot degrades honestly without it
-#   FIREBASE_PROJECT_ID                             -> optional; /api/users/me answers 401 without it
+# This blueprint is for Render only. It is NOT required by Google AI Studio, which drives
+# the same `npm ci && npm run build` / `npm start` pair from its own run configuration.
 #
-# The application boots with NONE of these set and reports the resulting state truthfully
-# at /api/health. It never fabricates market data to paper over a missing dependency.
+# REQUIRED to serve: nothing beyond NODE_ENV/HOST below. The application boots with no
+# secret set and reports every dependency's real state at /api/health. It never fabricates
+# market data to paper over a missing dependency.
+#
+#   SQL_HOST, SQL_USER, SQL_PASSWORD, SQL_DB_NAME -> PostgreSQL. Optional at boot.
+#       Without it the SPA, the real KBS/VPS market-data routes, analysis, recommendations
+#       and paper trading all work; only /api/stocks* and /api/signals answer 500.
+#       Add SQL_PORT / SQL_SSL for a managed instance.
+#   GEMINI_API_KEY   -> optional; POST /api/ai/chat degrades honestly without it.
+#   FIREBASE_PROJECT_ID -> optional; /api/users/me answers 401 AUTH_CONFIGURATION_REQUIRED.
+#
+#   VITE_FIREBASE_* -> optional AND currently unreferenced by any imported module, so
+#       they are tree-shaken out of the bundle. Listed only so they can be supplied the
+#       day a client sign-in UI imports them. Never place a server secret in a VITE_* var.
 
 services:
   - type: web
@@ -44,13 +54,4 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: FIREBASE_PROJECT_ID
-        sync: false
-      # Only PUBLIC Firebase web values. Never place a server secret in a VITE_* var.
-      - key: VITE_FIREBASE_API_KEY
-        sync: false
-      - key: VITE_FIREBASE_PROJECT_ID
-        sync: false
-      - key: VITE_FIREBASE_AUTH_DOMAIN
-        sync: false
-      - key: VITE_FIREBASE_APP_ID
         sync: false

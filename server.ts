@@ -907,30 +907,41 @@ async function startServer() {
   // VITE MIDDLEWARE / STATIC ASSETS
   // ========================================================
   const isProduction = process.env.NODE_ENV === 'production';
+
+  // An unmatched /api path must answer a JSON 404, never the SPA shell. Without this,
+  // the wildcard fallback below answers /api/typo with index.html and HTTP 200, which
+  // hides a client/server contract break behind an apparent success.
+  //
+  // Registered in BOTH modes on purpose. In production the SPA fallback is ours, so the
+  // guard is the only thing standing between a typo and an HTML 200. In development the
+  // Vite dev server applies the same rewrite, and it sits behind this guard — so a guard
+  // that only existed in the production branch would leave `npm run dev` (the command
+  // Google AI Studio runs by default) answering every unmatched /api path with HTML 200.
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'NOT_FOUND' });
+  });
+
   if (!isProduction) {
     // Loaded dynamically on purpose. `vite` is a devDependency, so a static
     // top-level import would emit `require("vite")` into dist/server.cjs and the
     // production server would die at startup whenever devDependencies are pruned.
     const { createServer: createViteServer } = await import('vite');
+    // AI Studio sets DISABLE_HMR=true to stop the page flickering and the file watcher
+    // burning CPU while an agent edits files. These are INLINE options, and inline
+    // options outrank vite.config.ts, so `hmr` had to be resolved here too — otherwise
+    // `hmr: { server: httpServer }` silently re-enabled HMR and defeated the flag.
+    const hmrDisabled = process.env.DISABLE_HMR === 'true';
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: {
-          server: httpServer,
-        },
+        watch: hmrDisabled ? null : {},
+        hmr: hmrDisabled ? false : { server: httpServer },
       },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-
-    // An unmatched /api path must answer a JSON 404, never the SPA shell. Without this,
-    // the wildcard fallback below answers /api/typo with index.html and HTTP 200, which
-    // hides a client/server contract break behind an apparent success.
-    app.use('/api', (_req, res) => {
-      res.status(404).json({ error: 'NOT_FOUND' });
-    });
 
     app.use(express.static(distPath));
 

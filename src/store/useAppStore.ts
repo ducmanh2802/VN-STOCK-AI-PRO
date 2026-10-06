@@ -26,16 +26,79 @@ export interface AppState {
 
 const STORAGE_KEY = 'vn_stock_ai_watchlist';
 
+/**
+ * Direct-path -> view id. The app renders views from this store rather than from a
+ * router, so without this table a deep link, a bookmark, a shared URL or a browser
+ * refresh lands on the dashboard no matter what was asked for: the server correctly
+ * serves index.html for /portfolio, and the client then ignored it.
+ *
+ * `dashboard` is deliberately absent — `/`, `/dashboard` and anything unrecognised all
+ * resolve to it, which is the pre-existing behaviour for an unknown path.
+ */
+const PATH_TO_VIEW: Readonly<Record<string, string>> = {
+  '/market': 'market',
+  '/sector-intelligence': 'sector-intelligence',
+  '/watchlist': 'watchlist',
+  '/screener': 'screener',
+  '/stocks': 'stocks',
+  '/portfolio': 'portfolio',
+  '/risk-center': 'risk-center',
+  '/paper-trading': 'paper-trading',
+  '/data-status': 'data-status',
+  '/recommendations': 'recommendations',
+  '/ai-analyst': 'ai-analyst',
+  '/learn': 'learn',
+  '/learn-path': 'learn-path',
+  '/learn-lesson': 'learn-lesson',
+  '/practice-lab': 'practice-lab',
+  '/journal': 'journal',
+  '/strategy-lab': 'strategy-lab',
+  '/backtest': 'backtest',
+  '/fundamentals': 'fundamentals',
+  '/news-macro': 'news-macro',
+  '/settings': 'settings',
+};
+
 const parseInitialRoute = (): { view: string; symbol: string | null } => {
   if (typeof window !== 'undefined') {
-    const path = window.location.pathname;
+    const path = window.location.pathname.replace(/\/+$/, '') || '/';
     const stockMatch = path.match(/^\/stock\/([a-zA-Z0-9_-]+)/i);
     if (stockMatch) {
       return { view: 'stock-detail', symbol: stockMatch[1].toUpperCase() };
     }
+    const mapped = PATH_TO_VIEW[path.toLowerCase()];
+    if (mapped) {
+      return { view: mapped, symbol: null };
+    }
   }
   return { view: 'dashboard', symbol: null };
 };
+
+/**
+ * Resolves a pathname to the store slice it describes. Exported so the popstate
+ * listener in App.tsx and the initial load cannot drift apart into two different
+ * route tables.
+ */
+export function resolveRouteFromPath(pathname: string): {
+  currentView: string;
+  selectedStockSymbol: string | null;
+  quickViewModalOpen: false;
+} {
+  const path = pathname.replace(/\/+$/, '') || '/';
+  const stockMatch = path.match(/^\/stock\/([a-zA-Z0-9_-]+)/i);
+  if (stockMatch) {
+    return {
+      currentView: 'stock-detail',
+      selectedStockSymbol: stockMatch[1].toUpperCase(),
+      quickViewModalOpen: false,
+    };
+  }
+  return {
+    currentView: PATH_TO_VIEW[path.toLowerCase()] ?? 'dashboard',
+    selectedStockSymbol: null,
+    quickViewModalOpen: false,
+  };
+}
 
 const initialRoute = parseInitialRoute();
 
