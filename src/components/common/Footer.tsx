@@ -1,4 +1,4 @@
-import { DemoBadge } from './DemoBadge';
+import { SourceBadge } from './SourceBadge';
 import { ShieldAlert, Terminal } from 'lucide-react';
 
 export function Footer() {
@@ -11,13 +11,13 @@ export function Footer() {
             <span>VN STOCK AI PLATFORM</span>
             <span className="text-terminal-text-muted font-normal">v1.0.0 (Phase 1 Foundation)</span>
           </div>
-          <DemoBadge size="sm" />
+          <SourceBadge size="sm" />
         </div>
 
         <div className="flex items-start gap-2.5 text-terminal-text-muted text-[11px] leading-relaxed">
           <ShieldAlert className="w-4 h-4 text-terminal-ref shrink-0 mt-0.5" />
           <p>
-            <strong>CẢNH BÁO PHÁP LÝ & TUYÊN BỐ MIỄN TRỪ TRÁCH NHIỆM:</strong> Nền tảng VN STOCK AI đang trong giai đoạn phát triển prototype thử nghiệm (Phase 1). Tất cả số liệu, chỉ số thị trường, giá cổ phiếu, thông số kỹ thuật và phân tích đều là <strong>DỮ LIỆU MÔ PHỎNG (DEMO DATA)</strong>. Ứng dụng không phải là hệ thống giao dịch trực tiếp và không đưa ra bất kỳ khuyến nghị mua/bán cổ phiếu thực tế nào. Người dùng tự chịu hoàn toàn trách nhiệm đối với các quyết định đầu tư trên thị trường chứng khoán.
+            <strong>CẢNH BÁO PHÁP LÝ & TUYÊN BỐ MIỄN TRỪ TRÁCH NHIỆM:</strong> Giá, thanh khoản và lịch sử giao dịch hiển thị <strong>REAL DATA</strong> được lấy trực tiếp từ nguồn thị trường (VPS, KBS); các nhãn <strong>CALCULATED</strong> là giá trị tính toán từ dữ liệu thật theo công thức được ghi rõ; trường nào không có nguồn sẽ hiển thị <strong>--</strong> (không khả dụng) thay vì một con số suy đoán. Nền tảng vẫn đang được phát triển, không phải hệ thống giao dịch trực tiếp, không phải tư vấn đầu tư và không đưa ra khuyến nghị mua/bán cổ phiếu thực tế. Người dùng tự chịu hoàn toàn trách nhiệm đối với các quyết định đầu tư của mình.
           </p>
         </div>
 

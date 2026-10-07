@@ -14,18 +14,23 @@ export type IndicatorKey = 'MA20' | 'MA50' | 'MA200' | 'RSI' | 'MACD' | 'Volume'
  */
 export type EvidenceStatus = 'REAL' | 'DERIVED' | 'NOT_COMPUTED' | 'UNAVAILABLE' | 'DEMO';
 
+/**
+ * P27 §9: every metric is nullable. `null` means the source payload did not
+ * carry that metric — it is NEVER replaced by `0`, because a fabricated `0%`
+ * ROE or `0x` P/E is indistinguishable from a real one on screen.
+ */
 export interface FundamentalMetrics {
-  pe: number;
-  pb: number;
-  eps: number; // in VND
-  roe: number; // %
-  roa: number; // %
-  dividendYield: number; // %
-  debtToEquity: number; // ratio e.g. 0.65
-  revenueGrowthYoY: number; // % e.g. +18.5
-  profitGrowthYoY: number; // % e.g. +24.2
-  netMargin: number; // %
-  grossMargin: number; // %
+  pe: number | null;
+  pb: number | null;
+  eps: number | null; // in VND
+  roe: number | null; // %
+  roa: number | null; // %
+  dividendYield: number | null; // %
+  debtToEquity: number | null; // ratio e.g. 0.65
+  revenueGrowthYoY: number | null; // % e.g. +18.5
+  profitGrowthYoY: number | null; // % e.g. +24.2
+  netMargin: number | null; // %
+  grossMargin: number | null; // %
   /** P0-03: million shares. `null` when no authoritative shares-outstanding source exists. */
   sharesOutstanding: number | null;
   /** P0-03: billion VND. `null` when shares outstanding are unavailable. */
@@ -142,7 +147,8 @@ export interface FullStockDetail extends StockSummary {
   aiExplanation: StockAIExplanationData;
   high52Week: number;
   low52Week: number;
-  avgVolume20D: number;
+  /** P27 §9: `null` when no volume observation is available for the window. */
+  avgVolume20D: number | null;
   /** P0-03: `null` when no authoritative free-float / room source is reachable. */
   foreignOwnershipPercent: number | null;
   roomRemainingPercent: number | null;

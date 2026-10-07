@@ -16,16 +16,18 @@ function calculateSMA(closes: number[], period: number): number | null {
 }
 
 /**
- * Derives canonical RSI(14) using standard Wilder's smoothing from closes
+ * Derives canonical RSI(14) using standard Wilder's smoothing from closes.
+ * P27 §9: fewer than 15 bars is NOT an RSI of 50 — it is no RSI at all, so the
+ * result is `null` and the UI renders the metric as unavailable.
  */
-function computeCanonicalRSI(closes: number[], dates?: string[]): number {
-  if (!closes || closes.length < 15) return 50;
+function computeCanonicalRSI(closes: number[], dates?: string[]): number | null {
+  if (!closes || closes.length < 15) return null;
   const data = closes.map((c, i) => ({
     time: dates && dates[i] ? dates[i] : i,
     close: c,
   }));
   const rsiSeries = calculateRSI(data, 14);
-  if (rsiSeries.length === 0) return 50;
+  if (rsiSeries.length === 0) return null;
   return rsiSeries[rsiSeries.length - 1].value;
 }
 
@@ -101,7 +103,7 @@ export async function getFullStockDetail(symbol: string): Promise<FullStockDetai
   const low52Week = Math.min(...lows);
 
   const recentVolumes = volumes.slice(-20);
-  const avgVolume20D = recentVolumes.length > 0
+  const avgVolume20D: number | null = recentVolumes.length > 0
     ? Math.round(recentVolumes.reduce((a, b) => a + b, 0) / recentVolumes.length)
     : baseSummary.volume;
 
@@ -146,7 +148,8 @@ export async function getFullStockDetail(symbol: string): Promise<FullStockDetai
   const company = meta?.companyName || baseSummary.companyName;
 
   const executiveThesis = `${company} (${normalized}) là doanh nghiệp hàng đầu trong nhóm ngành ${sector}, sở hữu vị thế cạnh tranh vững chắc và dòng tiền kinh doanh ổn định.`;
-  const technicalThesis = `Cổ phiếu đang vận động quanh vùng giá ${price.toLocaleString('vi-VN')} đ với hỗ trợ gần nhất tại ${nearestSupport.toLocaleString('vi-VN')} đ${ma20 != null ? ` (MA20: ${ma20.toLocaleString('vi-VN')} đ)` : ''} và chỉ báo RSI(14) đạt ${rsi}.`;
+  const rsiText = rsi != null ? ` và chỉ báo RSI(14) đạt ${rsi}` : '';
+  const technicalThesis = `Cổ phiếu đang vận động quanh vùng giá ${price.toLocaleString('vi-VN')} đ với hỗ trợ gần nhất tại ${nearestSupport.toLocaleString('vi-VN')} đ${ma20 != null ? ` (MA20: ${ma20.toLocaleString('vi-VN')} đ)` : ''}${rsiText}.`;
   const peText = fundamentals.pe != null && fundamentals.pe > 0 ? `P/E hiện tại ở mức ${fundamentals.pe.toFixed(1)}x` : 'P/E đang cập nhật';
   const pbText = fundamentals.pb != null && fundamentals.pb > 0 ? `P/B ${fundamentals.pb.toFixed(1)}x` : 'P/B đang cập nhật';
   const roeText = fundamentals.roe != null && fundamentals.roe > 0 ? `ROE ${fundamentals.roe.toFixed(1)}%` : 'ROE đang cập nhật';

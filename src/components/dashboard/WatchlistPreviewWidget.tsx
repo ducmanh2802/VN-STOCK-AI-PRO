@@ -2,7 +2,7 @@ import React, { useState, FormEvent } from 'react';
 import { StockSummary } from '../../types/stock';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { TableSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -97,7 +97,7 @@ export const WatchlistPreviewWidget: React.FC<WatchlistPreviewWidgetProps> = ({
               <CardTitle className="text-xs sm:text-sm font-bold tracking-tight uppercase font-mono">
                 Danh Mục Theo Dõi (Watchlist Preview)
               </CardTitle>
-              <DemoBadge size="sm" />
+              <SourceBadge size="sm" />
             </div>
             <p className="text-[11px] text-terminal-text-muted">
               Giám sát cổ phiếu ưu tiên, điểm số AI Score và cảnh báo RSI

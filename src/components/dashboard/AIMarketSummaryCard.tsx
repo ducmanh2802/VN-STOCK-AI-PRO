@@ -2,7 +2,7 @@ import { AIMarketSummary } from '../../types/market';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Signal } from '../ui/Signal';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { Sparkles, TrendingUp, AlertTriangle, ShieldAlert, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
 
 export interface AIMarketSummaryCardProps {
@@ -27,7 +27,7 @@ export function AIMarketSummaryCard({ summary, onSelectStock }: AIMarketSummaryC
               <CardTitle className="text-sm font-bold tracking-tight uppercase">
                 AI Market Analyst
               </CardTitle>
-              <DemoBadge size="sm" />
+              <SourceBadge size="sm" />
             </div>
             <p className="text-xs text-terminal-text-muted">
               Tổng hợp và đánh giá thị trường chứng khoán Việt Nam theo thời gian thực
@@ -156,7 +156,7 @@ export function AIMarketSummaryCard({ summary, onSelectStock }: AIMarketSummaryC
             </span>
           </div>
           <Badge variant="ref" size="xs">
-            DEMO DATA
+            CALCULATED
           </Badge>
         </div>
       </CardContent>

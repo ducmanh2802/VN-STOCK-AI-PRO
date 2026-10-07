@@ -4,7 +4,7 @@ import type { MarketIntelligenceSnapshot } from '../lib/analysis/market/types';
 import { MarketOverview } from '../components/dashboard/MarketOverview';
 import { MarketHeatmap } from '../components/dashboard/MarketHeatmap';
 import { TopMovers } from '../components/dashboard/TopMovers';
-import { DemoBadge } from '../components/common/DemoBadge';
+import { SourceBadge } from '../components/common/SourceBadge';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorBoundary';
 import { formatBillionVND, formatPercent } from '../utils/formatters';
@@ -86,7 +86,7 @@ export function MarketPage({
           <h1 className="text-2xl font-semibold tracking-tight text-terminal-text">Market Intelligence</h1>
           <p className="mt-1 max-w-[42rem] text-sm text-terminal-muted">A canonical view of market state, breadth, participation, structure and risk.</p>
         </div>
-        <DemoBadge size="md" />
+        <SourceBadge size="md" />
       </header>
 
       <MarketOverview indices={indices} />

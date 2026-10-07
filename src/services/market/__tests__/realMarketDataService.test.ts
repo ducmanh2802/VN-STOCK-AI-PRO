@@ -177,7 +177,11 @@ describe('getHistoricalStockData (KBS real OHLCV)', () => {
     await expect(getHistoricalStockData('HPG', '3M')).rejects.toBeInstanceOf(MarketDataUnavailableError);
     // Second call must hit the source again (failure was NOT cached) and fail again — no fake data.
     await expect(getHistoricalStockData('HPG', '3M')).rejects.toBeInstanceOf(MarketDataUnavailableError);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // P27 §19: each call is retried a bounded number of times (timeout/network
+    // failures are retryable), so more than one fetch per call is expected. What
+    // must hold is that BOTH calls reached the provider — a failure is never
+    // cached and never answered with synthetic data.
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it('treats an empty KBS history as DATA_UNAVAILABLE (never generates candles)', async () => {

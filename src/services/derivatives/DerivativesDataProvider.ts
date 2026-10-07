@@ -117,11 +117,14 @@ export class DerivativesDataProvider {
     );
 
     let change: number | null = null;
-    let changePercent = parseVpsNumeric(raw.changePc);
+    // P27 §9: `changePc` from the VPS feed is an unsigned magnitude — it is
+    // reported positive for falling symbols as well (verified 2026-10-07), so it
+    // is never trusted for the SIGN of a move. Derived from the real prices.
+    let changePercent: number | null = null;
 
     if (price != null && ref != null) {
       change = +(price - ref).toFixed(2);
-      if (changePercent == null && ref > 0) {
+      if (ref > 0) {
         changePercent = +((change / ref) * 100).toFixed(2);
       }
     }
@@ -187,7 +190,9 @@ export class DerivativesDataProvider {
     const price = parseVpsNumeric(raw.lastPrice);
     const ref = parseVpsNumeric(raw.r ?? raw.closePrice);
     const change = price != null && ref != null ? +(price - ref).toFixed(2) : null;
-    const changePercent = parseVpsNumeric(raw.changePc);
+    // P27 §9: `changePc` is an unsigned magnitude — direction comes from prices.
+    const changePercent =
+      price != null && ref != null && ref > 0 ? +(((price - ref) / ref) * 100).toFixed(2) : null;
     // P0-02: computed from the real observation timestamp, never asserted.
     const dataFreshness: DataFreshnessStatus =
       price != null && price > 0

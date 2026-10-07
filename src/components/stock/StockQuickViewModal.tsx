@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Metric } from '../ui/Metric';
 import { Signal } from '../ui/Signal';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { formatVND, formatVolume, formatBillionVND } from '../../utils/formatters';
 import { X, BookmarkPlus, BookmarkCheck, ShieldCheck } from 'lucide-react';
 
@@ -59,7 +59,7 @@ export function StockQuickViewModal({
                 {stock.sector}
               </Badge>
             </div>
-            <DemoBadge size="sm" />
+            <SourceBadge size="sm" />
           </div>
 
           <div className="flex items-center gap-2">

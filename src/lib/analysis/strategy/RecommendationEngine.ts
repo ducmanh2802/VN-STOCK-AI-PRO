@@ -219,8 +219,10 @@ export class RecommendationEngine {
         metric: 'Fundamental Quality Score',
         value: scores.fundamentalScore,
         period: 'TTM / Latest Quarter',
-        source: 'VPS Financial Statements',
-        calculation: 'Piotroski F-score, DuPont, Health & Margin ratios',
+        // P27 §9 provenance: label what actually produced the score. The endpoint
+        // scores ROE from VPS statements — it does not run Piotroski/DuPont here.
+        source: 'VPS Financial Statements (ROE)',
+        calculation: 'ROE-based scoring (roe x 3.5 + 15, clamped to 20-95)',
         confidence: 'HIGH',
       });
     }
@@ -229,8 +231,10 @@ export class RecommendationEngine {
         metric: 'Valuation Attractiveness',
         value: scores.valuationScore,
         period: 'Current',
-        source: 'ValuationEngine',
-        calculation: `P/E: ${peRatio ?? 'N/A'}, P/B: ${pbRatio ?? 'N/A'}, DCF & Multiple models`,
+        source: 'VPS Fundamentals (P/E)',
+        // P27 §9: no DCF / multiple / consensus model runs on this path, so it is
+        // not claimed as part of the calculation.
+        calculation: `P/E-based scoring (110 - pe x 3, clamped) — P/E: ${peRatio ?? 'N/A'}, P/B: ${pbRatio ?? 'N/A'}`,
         confidence: 'HIGH',
       });
     }
@@ -238,9 +242,11 @@ export class RecommendationEngine {
       evidence.push({
         metric: 'Institutional Money Flow',
         value: scores.moneyFlowScore,
-        period: 'Intraday / 20D',
-        source: 'VPS Order Flow',
-        calculation: 'Net foreign buy/sell + Active matching volume pressure',
+        period: 'Last 20 sessions',
+        // P27 §9: the score is a real-volume ratio from KBS daily candles, not a
+        // vendor order-flow feed — no such feed is connected.
+        source: 'KBS Daily Candle Volume',
+        calculation: 'Share of up-candle volume within the last 20 sessions (upVol / totalVol)',
         confidence: 'HIGH',
       });
     }

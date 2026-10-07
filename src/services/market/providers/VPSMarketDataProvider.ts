@@ -15,12 +15,17 @@ export interface VPSQuoteRaw {
   c?: number; // ceiling (in 1,000 VND)
   f?: number; // floor (in 1,000 VND)
   r?: number; // reference (in 1,000 VND)
+  closePrice?: number | string; // reference / previous close, already in VND
   sym?: string;
   lastPrice?: number; // matched price (in 1,000 VND)
   lastVolume?: number;
   lot?: number; // total volume
-  ot?: number; // change (in 1,000 VND)
-  changePc?: number; // change %
+  // P27 §9: `ot` and `changePc` are MAGNITUDES — the live feed reports them
+  // positive for declining symbols too (verified 2026-10-07: 68/68 rows positive
+  // while 38 of the same symbols closed down per KBS candles). They are never
+  // used to decide the direction of a move.
+  ot?: number | string; // absolute change (in 1,000 VND)
+  changePc?: number | string; // absolute change %
   avePrice?: number;
   highPrice?: number;
   lowPrice?: number;
@@ -117,32 +122,48 @@ export class VPSMarketDataProvider {
    */
   normalizeQuote(item: VPSQuoteRaw): MarketQuote {
     const sym = (item.sym || '').toUpperCase().trim();
-    const refPrice = item.r != null && item.r > 0 ? Number((item.r * 1000).toFixed(0)) : 0;
+
+    // P27 §9: a field the payload did not carry is `null`, never a substitute
+    // copied from a neighbouring field. `refPrice -> lastPrice`, `lastPrice ->
+    // high/low` and `?? 0` were silent fabrications: they produced a plausible
+    // OHLC that no exchange ever reported.
+    //
+    // Reference / previous close. `r` (kVND) is the exchange reference price and
+    // is the only field that is consistent across the whole universe: it is
+    // present on 68/68 rows and satisfies |lastPrice - r| == ot for 68/68 rows
+    // (verified live 2026-10-07). `closePrice` (VND) agrees for 65/68 rows only —
+    // MWG/KDH/GMD carry a stale value there — so it is a fallback, never first.
+    const refFromR = item.r != null && item.r > 0 ? Number((item.r * 1000).toFixed(0)) : null;
+    const refFromClose = item.closePrice != null ? Number(item.closePrice) : Number.NaN;
+    const refPrice =
+      refFromR ??
+      (Number.isFinite(refFromClose) && refFromClose > 0 ? Math.round(refFromClose) : null);
     const lastPrice =
-      item.lastPrice != null && item.lastPrice > 0
-        ? Number((item.lastPrice * 1000).toFixed(0))
-        : refPrice;
-    const ceilingPrice = item.c != null && item.c > 0 ? Number((item.c * 1000).toFixed(0)) : undefined;
-    const floorPrice = item.f != null && item.f > 0 ? Number((item.f * 1000).toFixed(0)) : undefined;
-    const openPrice = item.openPrice != null && item.openPrice > 0 ? Number((item.openPrice * 1000).toFixed(0)) : refPrice;
-    const highPrice = item.highPrice != null && item.highPrice > 0 ? Number((item.highPrice * 1000).toFixed(0)) : lastPrice;
-    const lowPrice = item.lowPrice != null && item.lowPrice > 0 ? Number((item.lowPrice * 1000).toFixed(0)) : lastPrice;
+      item.lastPrice != null && item.lastPrice > 0 ? Number((item.lastPrice * 1000).toFixed(0)) : null;
+    const ceilingPrice = item.c != null && item.c > 0 ? Number((item.c * 1000).toFixed(0)) : null;
+    const floorPrice = item.f != null && item.f > 0 ? Number((item.f * 1000).toFixed(0)) : null;
+    const openPrice = item.openPrice != null && item.openPrice > 0 ? Number((item.openPrice * 1000).toFixed(0)) : null;
+    const highPrice = item.highPrice != null && item.highPrice > 0 ? Number((item.highPrice * 1000).toFixed(0)) : null;
+    const lowPrice = item.lowPrice != null && item.lowPrice > 0 ? Number((item.lowPrice * 1000).toFixed(0)) : null;
 
-    // Change in VND
-    const change =
-      item.ot != null ? Number((item.ot * 1000).toFixed(0)) : lastPrice - refPrice;
+    // P27 §9: DIRECTION IS DERIVED FROM REAL PRICES ONLY.
+    // The vendor's `ot` / `changePc` are unsigned magnitudes (verified live on
+    // 2026-10-07: every one of the 68 universe rows reported a POSITIVE value,
+    // while KBS candles showed 38 of those symbols closing DOWN). Trusting them
+    // fabricated an all-green market, flipped `trend`/`aiScore`, and made the
+    // index ribbon report 57 advances and 0 declines on a day with real
+    // decliners. Without both prices the direction is unknowable, so it is null.
+    const change = lastPrice !== null && refPrice !== null ? lastPrice - refPrice : null;
     const changePercent =
-      item.changePc != null
-        ? Number(item.changePc)
-        : refPrice > 0
+      lastPrice !== null && refPrice !== null && refPrice > 0
         ? Number((((lastPrice - refPrice) / refPrice) * 100).toFixed(2))
-        : 0;
+        : null;
 
-    const volume = item.lot != null ? Number(item.lot) : 0;
+    const volume = item.lot != null ? Number(item.lot) : null;
     const totalValue =
-      item.avePrice != null && item.avePrice > 0 && volume > 0
+      item.avePrice != null && item.avePrice > 0 && volume !== null && volume > 0
         ? Number((item.avePrice * 1000 * volume).toFixed(0))
-        : undefined;
+        : null;
 
     const status = this.calculateDataStatus();
     const nowIso = new Date().toISOString();
@@ -173,9 +194,10 @@ export class VPSMarketDataProvider {
       refPrice,
       source: 'VPS',
       status,
-      dataStatus: status,
+      // P27 §9: a payload with no usable price is UNAVAILABLE, not "LIVE".
+      dataStatus: lastPrice === null ? 'UNAVAILABLE' : status,
       fetchedAt: nowIso,
-      freshnessMs: freshness.ageMs ?? 0,
+      freshnessMs: freshness.ageMs ?? null,
       marketTimestamp: freshness.normalizedSourceTimestamp,
       timestamp: observationMs,
     };
@@ -191,7 +213,7 @@ export class VPSMarketDataProvider {
     }
 
     const quotes = await this.getQuotes([clean]);
-    if (!quotes.length || quotes[0].price <= 0) {
+    if (!quotes.length || quotes[0].price === null || quotes[0].price <= 0) {
       throw new Error(`DATA_UNAVAILABLE: [VPS] Không tìm thấy dữ liệu báo giá cho mã ${clean}`);
     }
     return quotes[0];
@@ -286,14 +308,16 @@ export class VPSMarketDataProvider {
       const balanceQuy = Array.isArray(data.candoiKTQuy) ? data.candoiKTQuy : [];
       const incomeQuy = Array.isArray(data.ketquaKDQuy) ? data.ketquaKDQuy : [];
 
-      // Extract key metrics from quarterly ratios (Value1 is newest quarter)
-      const findRatioVal = (nameEn: string, fallbackName?: string): number => {
+      // Extract key metrics from quarterly ratios (Value1 is newest quarter).
+      // P27 §9: `null` means the ratio is absent from the payload — a missing P/E
+      // must never be presented as `0`.
+      const findRatioVal = (nameEn: string, fallbackName?: string): number | null => {
         const item = ratiosQuy.find(
           (r: any) =>
             (r.NameEn && r.NameEn.toLowerCase().includes(nameEn.toLowerCase())) ||
             (fallbackName && r.Name && r.Name.toLowerCase().includes(fallbackName.toLowerCase()))
         );
-        return item && item.Value1 != null && !isNaN(Number(item.Value1)) ? Number(item.Value1) : 0;
+        return item && item.Value1 != null && !isNaN(Number(item.Value1)) ? Number(item.Value1) : null;
       };
 
       const eps = findRatioVal('Trailing EPS', 'EPS');
@@ -303,27 +327,28 @@ export class VPSMarketDataProvider {
       const roa = findRatioVal('ROAA', 'ROA');
       const ros = findRatioVal('ROS', 'ROS');
 
-      // Calculate PB
-      let pb = 0;
-      if (currentPrice && currentPrice > 0 && bookValuePerShare > 0) {
+      // Calculate PB from two real inputs only; otherwise fall back to the
+      // vendor's own P/B, and otherwise stay null.
+      let pb: number | null = null;
+      if (currentPrice && currentPrice > 0 && bookValuePerShare !== null && bookValuePerShare > 0) {
         pb = Number((currentPrice / bookValuePerShare).toFixed(2));
-      } else if (bookValuePerShare > 0) {
+      } else {
         pb = findRatioVal('P/B', 'P/B');
       }
 
       // Re-derive PE from currentPrice / EPS if EPS > 0
-      if (currentPrice && currentPrice > 0 && eps > 0) {
+      if (currentPrice && currentPrice > 0 && eps !== null && eps > 0) {
         pe = Number((currentPrice / eps).toFixed(2));
       }
 
       // Extract Balance Sheet & Income Statement values
-      const findStatementVal = (list: any[], nameEn: string, fallbackName?: string): number => {
+      const findStatementVal = (list: any[], nameEn: string, fallbackName?: string): number | null => {
         const item = list.find(
           (r: any) =>
             (r.NameEn && r.NameEn.toLowerCase().includes(nameEn.toLowerCase())) ||
             (fallbackName && r.Name && r.Name.toLowerCase().includes(fallbackName.toLowerCase()))
         );
-        return item && item.Value1 != null && !isNaN(Number(item.Value1)) ? Number(item.Value1) : 0;
+        return item && item.Value1 != null && !isNaN(Number(item.Value1)) ? Number(item.Value1) : null;
       };
 
       const totalAssets = findStatementVal(balanceQuy, 'Total assets', 'Tổng tài sản');
@@ -333,21 +358,32 @@ export class VPSMarketDataProvider {
       const grossProfit = findStatementVal(incomeQuy, 'Gross profit', 'Lợi nhuận gộp');
       const netProfit = findStatementVal(incomeQuy, 'Net profit', 'LNST');
 
-      const debtToEquity = equity > 0 ? Number((liabilities / equity).toFixed(2)) : 0;
-      const netMargin = netRevenue > 0 ? Number(((netProfit / netRevenue) * 100).toFixed(2)) : 0;
-      const grossMargin = netRevenue > 0 ? Number(((grossProfit / netRevenue) * 100).toFixed(2)) : 0;
+      const debtToEquity =
+        equity !== null && equity > 0 && liabilities !== null
+          ? Number((liabilities / equity).toFixed(2))
+          : null;
+      const netMargin =
+        netRevenue !== null && netRevenue > 0 && netProfit !== null
+          ? Number(((netProfit / netRevenue) * 100).toFixed(2))
+          : null;
+      const grossMargin =
+        netRevenue !== null && netRevenue > 0 && grossProfit !== null
+          ? Number(((grossProfit / netRevenue) * 100).toFixed(2))
+          : null;
 
       const metrics: FundamentalMetrics = {
-        pe: pe || 0,
-        pb: pb || 0,
-        eps: eps || 0,
-        roe: roe || 0,
-        roa: roa || 0,
-        dividendYield: 0,
+        pe,
+        pb,
+        eps,
+        roe,
+        roa,
+        // P27 §9: the VPS base-info payload carries no dividend/growth series, so
+        // these are UNAVAILABLE (null) instead of a fabricated 0%.
+        dividendYield: null,
         debtToEquity,
-        revenueGrowthYoY: 0,
-        profitGrowthYoY: 0,
-        netMargin: netMargin || (ros > 0 ? ros : 0),
+        revenueGrowthYoY: null,
+        profitGrowthYoY: null,
+        netMargin: netMargin ?? ros,
         grossMargin,
         // P0-03: the VPS base-info payload exposes no shares-outstanding field and
         // no market-cap field. Reporting `0` here would render a fabricated zero as a

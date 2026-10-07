@@ -4,7 +4,7 @@ import { StockSummary } from '../types/stock';
 import { useAppStore } from '../store/useAppStore';
 import { useWatchlistData, MARKET_KEYS } from '../hooks/useMarketQueries';
 import { Card } from '../components/ui/Card';
-import { DemoBadge } from '../components/common/DemoBadge';
+import { SourceBadge } from '../components/common/SourceBadge';
 import { LoadingState, TableSkeleton } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorBoundary';
 import {
@@ -345,7 +345,7 @@ Nền tảng phân tích định lượng chứng khoán VN STOCK AI PRO`;
             <h1 className="page-title font-mono">
               Danh Mục Theo Dõi Định Lượng (Quant Watchlist)
             </h1>
-            <DemoBadge size="sm" />
+            <SourceBadge size="sm" />
           </div>
           <p className="text-xs text-terminal-text-muted mt-0.5">
             Bảng theo dõi thời gian thực kết hợp mô hình AI Score, Fair Value, RSI và Tín hiệu dòng tiền

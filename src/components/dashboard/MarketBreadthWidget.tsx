@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { MarketBreadth } from '../../types/market';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { CardSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -36,6 +36,7 @@ export const MarketBreadthWidget: React.FC<MarketBreadthWidgetProps> = ({
         <CardHeader className="pb-2">
           <div className="h-5 w-48 bg-terminal-surface-subtle animate-pulse rounded" />
         </CardHeader>
+
         <CardContent className="space-y-3">
           <CardSkeleton lines={3} />
           <div className="h-16 bg-terminal-surface-subtle animate-pulse rounded" />
@@ -107,7 +108,7 @@ export const MarketBreadthWidget: React.FC<MarketBreadthWidgetProps> = ({
           <CardTitle className="text-xs sm:text-sm font-bold tracking-tight uppercase font-mono">
             Độ Rộng Thị Trường (Market Breadth)
           </CardTitle>
-          <DemoBadge size="sm" />
+          <SourceBadge size="sm" />
         </div>
 
         {/* Exchange Tabs */}
@@ -128,6 +129,17 @@ export const MarketBreadthWidget: React.FC<MarketBreadthWidgetProps> = ({
           ))}
         </div>
       </CardHeader>
+
+      {/* P27 §12 — partial breadth must never read as whole-market breadth. */}
+      {breadth.coverage && (
+        <div
+          className="px-4 -mt-1 text-[10px] font-mono text-terminal-text-muted"
+          title={breadth.coverage.note}
+        >
+          Phạm vi: {breadth.coverage.coveredStocks} mã · có dữ liệu giá:{' '}
+          {breadth.coverage.pricedStocks} mã ({breadth.coverage.percentPriced}%)
+        </div>
+      )}
 
       <CardContent className="space-y-3 p-0">
         {/* Breadth Numbers Grid */}

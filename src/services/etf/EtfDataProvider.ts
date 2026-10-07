@@ -17,7 +17,6 @@ import type { CandlePoint } from '../../lib/indicators/types.ts';
 import type { VpsRawQuote } from '../market/providers/vps/types.ts';
 import {
   normalizeVpsLotVolume,
-  normalizeVpsPercent,
   normalizeVpsPrice,
   normalizeVpsReferencePrice,
   normalizeVpsValueThousands,
@@ -76,7 +75,9 @@ export class EtfDataProvider {
     const lowPrice = normalizeVpsPrice(raw.lowPrice);
     const refFromClose = normalizeVpsReferencePrice(raw.closePrice);
     const refFromR = normalizeVpsPrice(raw.r);
-    const referencePrice = refFromClose ?? refFromR;
+    // P27 §9: `r` (kVND) is the exchange reference price and is consistent for
+    // every symbol; `closePrice` (VND) carries a stale value for some rows.
+    const referencePrice = refFromR ?? refFromClose;
     const ceilingPrice = normalizeVpsPrice(raw.c);
     const floorPrice = normalizeVpsPrice(raw.f);
 
@@ -106,7 +107,13 @@ export class EtfDataProvider {
     }
 
     const change = referencePrice !== null ? Math.round(lastPrice - referencePrice) : null;
-    const changePercent = normalizeVpsPercent(raw.changePc);
+    // P27 §9: the VPS `changePc` field is an UNSIGNED magnitude (verified live
+    // on 2026-10-07 — it is reported positive for falling symbols too), so the
+    // percentage is always derived from the two real prices instead.
+    const changePercent =
+      referencePrice !== null && referencePrice > 0
+        ? Number((((lastPrice - referencePrice) / referencePrice) * 100).toFixed(2))
+        : null;
     const volume = normalizeVpsLotVolume(raw.lot);
 
     // Approximate trading value from foreign buy/sell or avePrice * lot

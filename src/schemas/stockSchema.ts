@@ -35,15 +35,21 @@ export const StockSummarySchema = z
   companyName: z.string().min(1),
   exchange: MarketExchangeSchema,
   sector: z.string(),
-  price: z.number().nonnegative(),
-  change: z.number(),
-  changePercent: z.number(),
-  volume: z.number().nonnegative(),
-  tradingValue: z.number().nonnegative(),
-  open: z.number().nonnegative(),
-  high: z.number().nonnegative(),
-  low: z.number().nonnegative(),
-  refPrice: z.number().nonnegative(),
+  /**
+   * P27 §9: `price` must be a real, positive traded price. `0` is never a
+   * substitute for "not quoted" — a symbol without a usable price produces no
+   * summary row at all, so a zero here is rejected at the boundary.
+   */
+  price: z.number().positive(),
+  /** P27 §9: nullable — the source did not supply the field, never faked as `0`. */
+  change: z.number().nullable(),
+  changePercent: z.number().nullable(),
+  volume: z.number().nonnegative().nullable(),
+  tradingValue: z.number().nonnegative().nullable(),
+  open: z.number().nonnegative().nullable(),
+  high: z.number().nonnegative().nullable(),
+  low: z.number().nonnegative().nullable(),
+  refPrice: z.number().nonnegative().nullable(),
   ceilingPrice: z.number().nonnegative().nullable(),
   floorPrice: z.number().nonnegative().nullable(),
   /** P0-03: `null` means UNAVAILABLE — never a fabricated value, never `0`. */
@@ -69,10 +75,11 @@ export const TopMoverSchema = z.object({
   companyName: z.string(),
   exchange: MarketExchangeSchema,
   price: z.number().nonnegative(),
-  change: z.number(),
-  changePercent: z.number(),
-  volume: z.number().nonnegative(),
-  tradingValue: z.number().nonnegative(),
+  /** P27 §9: nullable — omitted, never coerced to `0`. */
+  change: z.number().nullable(),
+  changePercent: z.number().nullable(),
+  volume: z.number().nonnegative().nullable(),
+  tradingValue: z.number().nonnegative().nullable(),
   isDemo: z.boolean().optional(),
 });
 
@@ -97,9 +104,10 @@ export const IndexDataSchema = z.object({
    */
   value: z.number().positive().nullable(),
   change: z.number().nullable(),
-  changePercent: z.number(),
-  totalVolume: z.number().nonnegative(),
-  totalValue: z.number().nonnegative(),
+  /** P27 §9: `null` when the constituent basket produced no usable move. */
+  changePercent: z.number().nullable(),
+  totalVolume: z.number().nonnegative().nullable(),
+  totalValue: z.number().nonnegative().nullable(),
   advances: z.number().int().nonnegative(),
   declines: z.number().int().nonnegative(),
   unchanged: z.number().int().nonnegative(),

@@ -2,7 +2,7 @@ import { useState, FormEvent } from 'react';
 import { StockSummary } from '../../types/stock';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { formatVND, formatPercent } from '../../utils/formatters';
 import { Bookmark, Plus, Trash2, Sparkles, ExternalLink } from 'lucide-react';
 
@@ -46,7 +46,7 @@ export function WatchlistWidget({
               <CardTitle className="text-sm font-bold tracking-tight uppercase">
                 Danh Mục Theo Dõi (Watchlist)
               </CardTitle>
-              <DemoBadge size="sm" />
+              <SourceBadge size="sm" />
             </div>
             <p className="text-[11px] text-terminal-text-muted">
               Quản lý danh mục cá nhân, theo dõi RSI, Xu hướng & Điểm AI Score

@@ -93,42 +93,60 @@ export class RealMarketDataProvider implements MarketDataProvider {
     try {
       const quotes = await vpsMarketDataProvider.getQuotes(UNIVERSE_SYMBOLS);
       const quoteMap = new Map(quotes.map((q) => [q.symbol.toUpperCase(), q]));
+      // Rebuild from this response only: a symbol the provider stopped quoting
+      // must not survive inside the cache under an old observation.
+      this.cachedSummaries.clear();
 
       const results: StockSummary[] = [];
 
       for (const meta of VIETNAM_STOCKS_UNIVERSE) {
         const quote = quoteMap.get(meta.symbol.toUpperCase());
-        const price = quote?.price ?? 0;
-        const refPrice = quote?.refPrice ?? price;
-        const change = quote?.change ?? 0;
-        const changePercent = quote?.changePercent ?? 0;
-        const volume = quote?.volume ?? 0;
-        const tradingValue = Number(((quote?.totalValue ?? price * volume) / 1e9).toFixed(2));
-        const ceilingPrice = quote?.ceilingPrice ?? null;
-        const floorPrice = quote?.floorPrice ?? null;
-        const open = quote?.open ?? refPrice;
-        const high = quote?.high ?? Math.max(price, open);
-        const low = quote?.low ?? Math.min(price, open);
 
-let trend: StockTrend = 'SIDEWAY';
-        if (changePercent > 0.5) trend = 'UPTREND';
-        else if (changePercent < -0.5) trend = 'DOWNTREND';
+        // P27 §9 / §5: a symbol the provider did not quote is NOT emitted as a
+        // zero-priced row. Previously this fabricated `price: 0`, `change: 0`,
+        // `volume: 0` and an OHLC synthesized from refPrice, which rendered a
+        // "real" ticker that no exchange ever reported.
+        if (!quote || quote.price === null) continue;
 
-        // Calculate score from momentum and volume
+        const price = quote.price;
+        const refPrice = quote.refPrice ?? price;
+        const change = quote.change;
+        const changePercent = quote.changePercent;
+        const volume = quote.volume;
+        const tradingValue =
+          quote.totalValue !== null && quote.totalValue !== undefined
+            ? Number((quote.totalValue / 1e9).toFixed(2))
+            : null;
+        const ceilingPrice = quote.ceilingPrice ?? null;
+        const floorPrice = quote.floorPrice ?? null;
+        const open = quote.open;
+        const high = quote.high;
+        const low = quote.low;
+
+        let trend: StockTrend = 'SIDEWAY';
+        if (changePercent !== null && changePercent > 0.5) trend = 'UPTREND';
+        else if (changePercent !== null && changePercent < -0.5) trend = 'DOWNTREND';
+
+        // Score from momentum and volume — only from values the source supplied.
         let aiScore = 50;
-        if (changePercent > 0) aiScore += Math.min(30, Math.round(changePercent * 5));
-        else if (changePercent < 0) aiScore -= Math.min(30, Math.round(Math.abs(changePercent) * 5));
-        if (volume > 5_000_000) aiScore += 10;
+        if (changePercent !== null && changePercent > 0) {
+          aiScore += Math.min(30, Math.round(changePercent * 5));
+        } else if (changePercent !== null && changePercent < 0) {
+          aiScore -= Math.min(30, Math.round(Math.abs(changePercent) * 5));
+        }
+        if (volume !== null && volume > 5_000_000) aiScore += 10;
         aiScore = Math.max(10, Math.min(95, aiScore));
 
         // P0-02: freshness is DERIVED from the real VPS observation timestamp.
         // P0-03: market cap requires authoritative shares outstanding; the VPS
         // realtime payload carries none, so it is explicitly UNAVAILABLE (null)
         // rather than assumed to be one million shares for every ticker.
-        const freshness = this.computeFreshness(quote?.marketTimestamp, now);
-        const sparkline = quote
-          ? [refPrice, open, Math.round((open + high) / 2), high, Math.round((high + low) / 2), price]
-          : [];
+        const freshness = this.computeFreshness(quote.marketTimestamp, now);
+        const sparklineParts =
+          refPrice !== null && open !== null && high !== null && low !== null
+            ? [refPrice, open, Math.round((open + high) / 2), high, Math.round((high + low) / 2), price]
+            : null;
+        const sparkline = sparklineParts ?? [];
 
         const summary: StockSummary = {
           symbol: meta.symbol,
@@ -156,7 +174,7 @@ let trend: StockTrend = 'SIDEWAY';
           fairValue: null,
           sparkline,
           isDemo: false,
-          dataStatus: quote ? 'PARTIAL' : 'UNAVAILABLE',
+          dataStatus: 'PARTIAL',
           dataFreshness: freshness.status,
           fetchedAt: new Date(now).toISOString(),
           sourceTimestamp: freshness.normalizedSourceTimestamp,
@@ -195,24 +213,47 @@ let trend: StockTrend = 'SIDEWAY';
     const all = await this.refreshUniverseQuotes();
     const session = this.getMarketSession();
 
+    // P27 §9: constituent aggregates are computed ONLY over members that
+    // supplied the field. An empty input yields `null` — never `0.00%` for a
+    // session that produced no usable observation.
+    const meanChangePct = (list: StockSummary[]): number | null => {
+      const vals = list
+        .map((s) => s.changePercent)
+        .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+      return vals.length > 0
+        ? Number((vals.reduce((sum, v) => sum + v, 0) / vals.length).toFixed(2))
+        : null;
+    };
+    const sumVolume = (list: StockSummary[]): number | null => {
+      const vals = list
+        .map((s) => s.volume)
+        .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+      return vals.length > 0 ? vals.reduce((sum, v) => sum + v, 0) : null;
+    };
+    const sumValueBn = (list: StockSummary[]): number | null => {
+      const vals = list
+        .map((s) => s.tradingValue)
+        .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+      return vals.length > 0 ? Number(vals.reduce((sum, v) => sum + v, 0).toFixed(1)) : null;
+    };
+    const counted = (list: StockSummary[], fn: (s: StockSummary) => boolean): number =>
+      list.filter((s) => typeof s.change === 'number' && fn(s)).length;
+
     // VN30 computation from real VN30 basket
     const vn30Stocks = all.filter((s) => {
       const meta = VIETNAM_STOCKS_UNIVERSE.find((m) => m.symbol === s.symbol);
       return meta?.isVN30;
     });
 
-    const vn30Adv = vn30Stocks.filter((s) => s.change > 0).length;
-    const vn30Dec = vn30Stocks.filter((s) => s.change < 0).length;
-    const vn30Unc = vn30Stocks.filter((s) => s.change === 0).length;
+    const vn30Adv = counted(vn30Stocks, (s) => (s.change as number) > 0);
+    const vn30Dec = counted(vn30Stocks, (s) => (s.change as number) < 0);
+    const vn30Unc = counted(vn30Stocks, (s) => (s.change as number) === 0);
     const vn30Ceil = vn30Stocks.filter((s) => s.ceilingPrice != null && s.ceilingPrice > 0 && s.price >= s.ceilingPrice).length;
     const vn30Floor = vn30Stocks.filter((s) => s.floorPrice != null && s.floorPrice > 0 && s.price <= s.floorPrice).length;
 
-    const vn30AvgChangePct = vn30Stocks.length > 0
-      ? vn30Stocks.reduce((sum, s) => sum + s.changePercent, 0) / vn30Stocks.length
-      : 0;
-
-    const vn30TotalVol = vn30Stocks.reduce((sum, s) => sum + s.volume, 0);
-    const vn30TotalVal = Number(vn30Stocks.reduce((sum, s) => sum + s.tradingValue, 0).toFixed(1));
+    const vn30AvgChangePct = meanChangePct(vn30Stocks);
+    const vn30TotalVol = sumVolume(vn30Stocks);
+    const vn30TotalVal = sumValueBn(vn30Stocks);
 
     // P0-03: no authoritative index-level feed is reachable from this provider.
     // The index LEVEL and its absolute CHANGE are therefore UNAVAILABLE (null).
@@ -229,36 +270,33 @@ let trend: StockTrend = 'SIDEWAY';
 
     // HOSE / Broad market aggregation
     const hoseStocks = all.filter((s) => s.exchange === 'HOSE');
-    const hoseAdv = hoseStocks.filter((s) => s.change > 0).length;
-    const hoseDec = hoseStocks.filter((s) => s.change < 0).length;
-    const hoseUnc = hoseStocks.filter((s) => s.change === 0).length;
+    const hoseAdv = counted(hoseStocks, (s) => (s.change as number) > 0);
+    const hoseDec = counted(hoseStocks, (s) => (s.change as number) < 0);
+    const hoseUnc = counted(hoseStocks, (s) => (s.change as number) === 0);
     const hoseCeil = hoseStocks.filter((s) => s.ceilingPrice != null && s.ceilingPrice > 0 && s.price >= s.ceilingPrice).length;
     const hoseFloor = hoseStocks.filter((s) => s.floorPrice != null && s.floorPrice > 0 && s.price <= s.floorPrice).length;
 
-    const hoseAvgChangePct = hoseStocks.length > 0
-      ? hoseStocks.reduce((sum, s) => sum + s.changePercent, 0) / hoseStocks.length
-      : 0;
-
-    const hoseTotalVol = hoseStocks.reduce((sum, s) => sum + s.volume, 0);
-    const hoseTotalVal = Number(hoseStocks.reduce((sum, s) => sum + s.tradingValue, 0).toFixed(1));
+    const hoseAvgChangePct = meanChangePct(hoseStocks);
+    const hoseTotalVol = sumVolume(hoseStocks);
+    const hoseTotalVal = sumValueBn(hoseStocks);
 
     // HNX & UPCOM
     const hnxStocks = all.filter((s) => s.exchange === 'HNX');
-    const hnxAvgChange = hnxStocks.length > 0 ? hnxStocks.reduce((sum, s) => sum + s.changePercent, 0) / hnxStocks.length : 0;
-    const hnxTotalVol = hnxStocks.reduce((sum, s) => sum + s.volume, 0);
-    const hnxTotalVal = Number(hnxStocks.reduce((sum, s) => sum + s.tradingValue, 0).toFixed(1));
+    const hnxAvgChange = meanChangePct(hnxStocks);
+    const hnxTotalVol = sumVolume(hnxStocks);
+    const hnxTotalVal = sumValueBn(hnxStocks);
 
     const upcomStocks = all.filter((s) => s.exchange === 'UPCOM');
-    const upcomAvgChange = upcomStocks.length > 0 ? upcomStocks.reduce((sum, s) => sum + s.changePercent, 0) / upcomStocks.length : 0;
-    const upcomTotalVol = upcomStocks.reduce((sum, s) => sum + s.volume, 0);
-    const upcomTotalVal = Number(upcomStocks.reduce((sum, s) => sum + s.tradingValue, 0).toFixed(1));
+    const upcomAvgChange = meanChangePct(upcomStocks);
+    const upcomTotalVol = sumVolume(upcomStocks);
+    const upcomTotalVal = sumValueBn(upcomStocks);
 
     return [
       {
         symbol: 'VN-INDEX',
         displayName: 'VN-Index (HOSE)',
         ...indexLevelUnavailable,
-        changePercent: Number(hoseAvgChangePct.toFixed(2)),
+        changePercent: hoseAvgChangePct,
         totalVolume: hoseTotalVol,
         totalValue: hoseTotalVal,
         advances: hoseAdv,
@@ -273,7 +311,7 @@ let trend: StockTrend = 'SIDEWAY';
         symbol: 'VN30',
         displayName: 'VN30-Index',
         ...indexLevelUnavailable,
-        changePercent: Number(vn30AvgChangePct.toFixed(2)),
+        changePercent: vn30AvgChangePct,
         totalVolume: vn30TotalVol,
         totalValue: vn30TotalVal,
         advances: vn30Adv,
@@ -288,12 +326,12 @@ let trend: StockTrend = 'SIDEWAY';
         symbol: 'HNX-INDEX',
         displayName: 'HNX-Index',
         ...indexLevelUnavailable,
-        changePercent: Number(hnxAvgChange.toFixed(2)),
+        changePercent: hnxAvgChange,
         totalVolume: hnxTotalVol,
         totalValue: hnxTotalVal,
-        advances: hnxStocks.filter((s) => s.change > 0).length,
-        declines: hnxStocks.filter((s) => s.change < 0).length,
-        unchanged: hnxStocks.filter((s) => s.change === 0).length,
+        advances: counted(hnxStocks, (s) => (s.change as number) > 0),
+        declines: counted(hnxStocks, (s) => (s.change as number) < 0),
+        unchanged: counted(hnxStocks, (s) => (s.change as number) === 0),
         ceilings: hnxStocks.filter((s) => s.ceilingPrice != null && s.ceilingPrice > 0 && s.price >= s.ceilingPrice).length,
         floors: hnxStocks.filter((s) => s.floorPrice != null && s.floorPrice > 0 && s.price <= s.floorPrice).length,
         status: session.state,
@@ -303,12 +341,12 @@ let trend: StockTrend = 'SIDEWAY';
         symbol: 'UPCOM-INDEX',
         displayName: 'UPCoM-Index',
         ...indexLevelUnavailable,
-        changePercent: Number(upcomAvgChange.toFixed(2)),
+        changePercent: upcomAvgChange,
         totalVolume: upcomTotalVol,
         totalValue: upcomTotalVal,
-        advances: upcomStocks.filter((s) => s.change > 0).length,
-        declines: upcomStocks.filter((s) => s.change < 0).length,
-        unchanged: upcomStocks.filter((s) => s.change === 0).length,
+        advances: counted(upcomStocks, (s) => (s.change as number) > 0),
+        declines: counted(upcomStocks, (s) => (s.change as number) < 0),
+        unchanged: counted(upcomStocks, (s) => (s.change as number) === 0),
         ceilings: upcomStocks.filter((s) => s.ceilingPrice != null && s.ceilingPrice > 0 && s.price >= s.ceilingPrice).length,
         floors: upcomStocks.filter((s) => s.floorPrice != null && s.floorPrice > 0 && s.price <= s.floorPrice).length,
         status: session.state,
@@ -345,7 +383,13 @@ let trend: StockTrend = 'SIDEWAY';
 
     for (const [secId, stocks] of sectorGroups.entries()) {
       const meta = SECTOR_MAP[secId] || { name: stocks[0]?.sector || secId, id: secId };
-      const avgChange = stocks.reduce((sum, s) => sum + s.changePercent, 0) / stocks.length;
+      // P27 §9: a sector tile is only emitted when at least one constituent
+      // supplied a usable change. A sector of unknown direction is not a 0.00% sector.
+      const changes = stocks
+        .map((s) => s.changePercent)
+        .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+      if (changes.length === 0) continue;
+      const avgChange = changes.reduce((sum, v) => sum + v, 0) / changes.length;
       // P0-03: a sector market cap is only reported when at least one constituent
       // has an authoritative market cap. With no shares-outstanding source the
       // aggregate is UNAVAILABLE (null), never a sum of fabricated caps.
@@ -354,10 +398,13 @@ let trend: StockTrend = 'SIDEWAY';
         capped.length === stocks.length && stocks.length > 0
           ? Number(capped.reduce((sum, s) => sum + (s.marketCap as number), 0).toFixed(1))
           : null;
-      const totalVol = stocks.reduce((sum, s) => sum + s.volume, 0);
+      const volumes = stocks
+        .map((s) => s.volume)
+        .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+      const totalVol = volumes.reduce((sum, v) => sum + v, 0);
 
       // Leader is the stock with highest volume or highest gain
-      const sorted = [...stocks].sort((a, b) => b.volume - a.volume);
+      const sorted = [...stocks].sort((a, b) => (b.volume ?? -1) - (a.volume ?? -1));
       const leader = sorted[0]?.symbol ?? '';
 
       items.push({
@@ -395,19 +442,19 @@ let trend: StockTrend = 'SIDEWAY';
     });
 
     const gainers = [...all]
-      .filter((s) => s.changePercent > 0)
-      .sort((a, b) => b.changePercent - a.changePercent)
+      .filter((s) => s.changePercent !== null && s.changePercent > 0)
+      .sort((a, b) => (b.changePercent as number) - (a.changePercent as number))
       .slice(0, 10)
       .map(toTopMover);
 
     const losers = [...all]
-      .filter((s) => s.changePercent < 0)
-      .sort((a, b) => a.changePercent - b.changePercent)
+      .filter((s) => s.changePercent !== null && s.changePercent < 0)
+      .sort((a, b) => (a.changePercent as number) - (b.changePercent as number))
       .slice(0, 10)
       .map(toTopMover);
 
     const active = [...all]
-      .sort((a, b) => b.volume - a.volume)
+      .sort((a, b) => (b.volume ?? -1) - (a.volume ?? -1))
       .slice(0, 10)
       .map(toTopMover);
 
@@ -521,20 +568,23 @@ let trend: StockTrend = 'SIDEWAY';
       // P0-02: recomputed from this quote's own observation timestamp. A cached
       // STALE summary can never be re-stamped as CURRENT here.
       const freshness = this.computeFreshness(quote.marketTimestamp, now);
+      const price = quote.price as number;
       const summary: StockSummary = {
         symbol: clean,
         companyName: `Cổ phiếu ${clean}`,
         exchange: 'HOSE',
         sector: 'Chưa phân loại',
-        price: quote.price,
+        price,
         change: quote.change,
         changePercent: quote.changePercent,
         volume: quote.volume,
-        tradingValue: Number(((quote.totalValue ?? quote.price * quote.volume) / 1e9).toFixed(2)),
+        // P27 §9: no traded value without both a traded value field and a price.
+        tradingValue:
+          quote.totalValue != null ? Number((quote.totalValue / 1e9).toFixed(2)) : null,
         open: quote.open,
         high: quote.high,
         low: quote.low,
-        refPrice: quote.refPrice ?? quote.price,
+        refPrice: quote.refPrice ?? price,
         ceilingPrice: quote.ceilingPrice ?? null,
         floorPrice: quote.floorPrice ?? null,
         // P0-03: no authoritative shares outstanding for an off-universe ticker.
@@ -543,10 +593,17 @@ let trend: StockTrend = 'SIDEWAY';
         pb: null,
         roe: null,
         rsi: null,
-        trend: quote.changePercent > 0 ? 'UPTREND' : quote.changePercent < 0 ? 'DOWNTREND' : 'SIDEWAY',
+        trend:
+          quote.changePercent === null
+            ? 'SIDEWAY'
+            : quote.changePercent > 0
+              ? 'UPTREND'
+              : quote.changePercent < 0
+                ? 'DOWNTREND'
+                : 'SIDEWAY',
         aiScore: 60,
         fairValue: null,
-        sparkline: [quote.price, quote.price],
+        sparkline: [price, price],
         isDemo: false,
         dataStatus: 'PARTIAL',
         dataFreshness: freshness.status,
@@ -592,6 +649,9 @@ let trend: StockTrend = 'SIDEWAY';
 
     const vn30List = all.filter((s) => VIETNAM_STOCKS_UNIVERSE.find((m) => m.symbol === s.symbol)?.isVN30);
 
+    // P27 §12: report the scope the counts actually cover.
+    const pricedStocks = all.filter((s) => typeof s.change === 'number').length;
+
     return {
       advances,
       declines,
@@ -599,6 +659,13 @@ let trend: StockTrend = 'SIDEWAY';
       ceilings,
       floors,
       totalStocks,
+      coverage: {
+        universe: 'VN_STOCK_UNIVERSE',
+        coveredStocks: all.length,
+        pricedStocks,
+        percentPriced: all.length > 0 ? Number(((pricedStocks / all.length) * 100).toFixed(1)) : 0,
+        note: 'Counts are over the covered stock universe served by the VPS realtime feed, not over every listing on HOSE/HNX/UPCOM.',
+      },
       advanceDeclineRatio: ratio,
       breadthStatus,
       volumeBreadth: {

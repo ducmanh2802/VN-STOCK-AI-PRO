@@ -21,11 +21,17 @@
  * Therefore:
  *   - `lastPrice`, `openPrice`, `highPrice`, `lowPrice`, `avePrice`, `r`, `c`, `f`
  *     are quoted in THOUSANDS of VND (kVND) -> multiply by 1000.
- *   - `closePrice` is ALREADY in VND and holds the reference / previous-session close.
+ *   - `closePrice` is ALREADY in VND and usually holds the previous-session close.
+ *     P27 (2026-10-07): it is only a FALLBACK — MWG/KDH/GMD carried a stale value
+ *     while `r` matched the vendor's own `ot` and KBS's previous close for 68/68
+ *     symbols, so `r` is the reference of record.
  *   - `lot`, `fBVol`, `fSVolume` are in LOTS; 1 lot = 10 shares.
  *   - `fBValue`, `fSValue` are in THOUSANDS of VND.
  *   - `fRoom` is in shares.
- *   - `changePc` is a percentage string ("0.46" == +0.46 %).
+ *   - `changePc` is a MAGNITUDE string ("0.73" == 0.73 %, sign NOT included).
+ *     P27 (2026-10-07): the live feed reports `changePc` and `ot` positive even
+ *     for symbols that closed DOWN, so the direction of a move is always derived
+ *     from `lastPrice` vs the reference price — never from these two fields.
  *
  * The normalization itself lives in `normalize.ts` and is unit-tested; the quote
  * service additionally cross-checks the normalized last price against the latest
@@ -49,9 +55,9 @@ export interface VpsRawQuote {
   lowPrice?: number | string | null;
   /** Volume-weighted average price, kVND. */
   avePrice?: number | string | null;
-  /** Reference / previous-session close, ALREADY VND (not kVND). */
+  /** Previous-session close, ALREADY VND (not kVND). Fallback reference only. */
   closePrice?: number | string | null;
-  /** Reference price, kVND (== closePrice / 1000). */
+  /** Reference price, kVND (== closePrice / 1000 for most symbols). Authoritative. */
   r?: number | string | null;
   /** Ceiling price, kVND. */
   c?: number | string | null;
@@ -148,7 +154,7 @@ export interface VpsNormalizedQuote {
   lowPrice: number | null;
   /** Volume-weighted average price, VND/share. */
   averagePrice: number | null;
-  /** Reference / previous-session close, VND/share (source closePrice, already VND). */
+  /** Reference / previous-session close, VND/share (source `r`, else `closePrice`). */
   referencePrice: number | null;
   /** Ceiling price, VND/share. */
   ceilingPrice: number | null;

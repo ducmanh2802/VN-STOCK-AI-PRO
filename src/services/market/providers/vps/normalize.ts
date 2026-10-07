@@ -43,8 +43,10 @@ export function normalizeVpsPrice(raw: unknown): number | null {
 }
 
 /**
- * `closePrice` from the VPS quote is ALREADY expressed in VND and holds the
- * reference / previous-session close (e.g. "21600.0" == 21,600 VND).
+ * `closePrice` from the VPS quote is ALREADY expressed in VND. It is a FALLBACK
+ * reference only: the exchange reference `r` (kVND, via `normalizeVpsPrice`) is
+ * authoritative — `closePrice` carried a stale value for MWG/KDH/GMD on
+ * 2026-10-07 while `r` agreed with the vendor's own `ot` and with KBS.
  * It must NOT be multiplied by 1000.
  */
 export function normalizeVpsReferencePrice(raw: unknown): number | null {

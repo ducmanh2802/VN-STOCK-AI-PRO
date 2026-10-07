@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { SectorHeatmapItem } from '../../types/stock';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { formatPercent, formatBillionVND } from '../../utils/formatters';
 import { Layers, ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
 
@@ -33,7 +33,7 @@ export function MarketHeatmap({ sectors, onSelectStock }: MarketHeatmapProps) {
           <CardTitle className="text-sm font-bold tracking-tight uppercase">
             Bản Đồ Nhiệt Ngành (Market Heatmap)
           </CardTitle>
-          <DemoBadge size="sm" />
+          <SourceBadge size="sm" />
         </div>
 
         {/* Legend */}

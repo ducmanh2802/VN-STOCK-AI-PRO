@@ -3,7 +3,7 @@ import { StockSummary } from '../types/stock';
 import { Card, CardContent } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
-import { DemoBadge } from '../components/common/DemoBadge';
+import { SourceBadge } from '../components/common/SourceBadge';
 import { formatVND, formatPercent, formatVolume, formatBillionVND, getPriceChangeColor } from '../utils/formatters';
 import { Search, Filter, Sparkles, BookmarkPlus, BookmarkCheck } from 'lucide-react';
 
@@ -59,7 +59,7 @@ if (sortBy === 'marketCap') return (b.marketCap ?? -1) - (a.marketCap ?? -1);
             <h1 className="page-title font-mono">
               Danh Sách Cổ Phiếu Việt Nam
             </h1>
-            <DemoBadge size="sm" />
+            <SourceBadge size="sm" />
           </div>
           <p className="text-xs text-terminal-text-muted">
             Tra cứu và sàng lọc cổ phiếu trên cả 3 sàn HOSE, HNX, UPCOM

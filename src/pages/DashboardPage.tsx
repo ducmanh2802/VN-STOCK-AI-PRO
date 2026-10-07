@@ -26,7 +26,7 @@ import { SectorHeatmapWidget } from '../components/dashboard/SectorHeatmapWidget
 import { AITopSignalsWidget } from '../components/dashboard/AITopSignalsWidget';
 import { WatchlistPreviewWidget } from '../components/dashboard/WatchlistPreviewWidget';
 import { AIMarketSummaryCard } from '../components/dashboard/AIMarketSummaryCard';
-import { DemoBadge } from '../components/common/DemoBadge';
+import { SourceBadge } from '../components/common/SourceBadge';
 import { RefreshCw } from 'lucide-react';
 
 export interface DashboardPageProps {
@@ -107,7 +107,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           <h1 className="page-title mt-0.5">Bàn làm việc thị trường</h1>
         </div>
         <div className="flex items-center gap-2">
-          <DemoBadge size="sm" />
+          <SourceBadge size="sm" />
           <button
             id="btn-refresh-dashboard"
             onClick={() => refreshMarket()}

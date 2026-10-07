@@ -42,6 +42,10 @@ import { RecommendationEngine } from './src/lib/analysis/strategy/Recommendation
 import { InvestmentHorizon } from './src/types/recommendation.ts';
 import { VIETNAM_STOCKS_UNIVERSE } from './src/services/market/stockUniverse.ts';
 import { cacheStats } from './src/services/market/marketDataCache.ts';
+// P27 §7/§18 — provider failure observability + in-flight request dedup stats.
+import { providerHealth } from './src/services/market/providers/providerHealth.ts';
+import { fallbackStats } from './src/services/market/providers/providerMatrix.ts';
+import { inflightStats } from './src/services/market/requestCoalescer.ts';
 import { PaperBroker } from './src/lib/trading/paper/PaperBroker.ts';
 import { TradingEngine } from './src/lib/trading/engine/TradingEngine.ts';
 import { createTradingApiRouter } from './src/lib/trading/api/TradingApiRouter.ts';
@@ -141,6 +145,7 @@ async function startServer() {
     // platform readiness endpoint already uses, instead of being asserted. Liveness
     // alone is proven by /api/platform/healthz (touches no dependency).
     const cache = cacheStats();
+    const inflight = inflightStats();
     const report = await runHealthCheck({
       now: () => Date.now(),
       probes: [...defaultProbes(), ...providerProbes()],
@@ -153,9 +158,18 @@ async function startServer() {
       ready: report.ready,
       timestamp: new Date(report.checkedAt).toISOString(),
       checkedAt: new Date(report.checkedAt).toISOString(),
-      // Entry COUNT only. `cacheStats().keys` enumerates every symbol and timeframe the
-      // process has fetched, and /api/health is unauthenticated — do not disclose it.
-      marketDataCache: { size: cache.size },
+      // Entry COUNT plus measured hit rate. `cacheStats().keys` enumerates every
+      // symbol and timeframe the process has fetched, and /api/health is
+      // unauthenticated — do not disclose it.
+      marketDataCache: {
+        size: cache.size,
+        hits: cache.hits,
+        misses: cache.misses,
+        hitRate:
+          cache.hits + cache.misses > 0
+            ? Math.round((cache.hits / (cache.hits + cache.misses)) * 1000) / 10
+            : null,
+      },
       providers: {
         // Derived from observed real fetches in this process. 'UNVERIFIED' means "not yet
         // proven reachable", which is distinct from "broken" and from a fabricated OK.
@@ -164,6 +178,27 @@ async function startServer() {
           ? 'AVAILABLE'
           : 'UNVERIFIED',
       },
+      /**
+       * P27 §7 — per-provider health as observed by the guard: state, failure
+       * streak and the LAST ERROR CODE only. Messages are deliberately omitted
+       * so an unauthenticated endpoint never leaks vendor response detail.
+       * `lastLatencyMs`/`avgLatencyMs` are §27 measurements of real round trips.
+       */
+      providerHealth: providerHealth.all().map((p) => ({
+        provider: p.provider,
+        state: p.state,
+        consecutiveFailures: p.consecutiveFailures,
+        lastErrorCode: p.lastErrorCode,
+        lastSuccessAt: p.lastSuccessAt,
+        lastFailureAt: p.lastFailureAt,
+        lastLatencyMs: p.lastLatencyMs,
+        avgLatencyMs: p.avgLatencyMs,
+      })),
+      /** P27 §18 — how many provider requests are currently being shared; §27 — how many were de-duplicated in total. */
+      inFlightProviderRequests: inflight.size,
+      coalescedRequests: inflight.coalesced,
+      /** P27 §27 — measured fallback rate: primary failures vs exhausted chains. */
+      fallback: fallbackStats(),
       dependencyProbes: report.dependencies.map((d) => ({ name: d.name, status: d.status, optional: d.optional })),
       blockedBy: report.blockedBy,
       dependencies: {
@@ -514,6 +549,18 @@ async function startServer() {
     res.status(200).json({ symbol, dataStatus: 'DATA_UNAVAILABLE', dataSource: source, error: reason });
   }
 
+  /**
+   * P27 §9: first usable element of a periodic VPS series, or `null`.
+   * A series of `[null, …]` must not become `0`.
+   */
+  function latestNumber(series: readonly (number | null | undefined)[] | undefined | null): number | null {
+    if (!Array.isArray(series)) return null;
+    for (const v of series) {
+      if (typeof v === 'number' && Number.isFinite(v)) return v;
+    }
+    return null;
+  }
+
   // Real historical OHLCV + technical indicator bundle (KBS)
   app.get('/api/market-data/history/:symbol', async (req, res) => {
     try {
@@ -707,11 +754,18 @@ async function startServer() {
       const currentPrice = candles[candles.length - 1].close;
 
       // 2. Fetch real fundamentals from VPS if available
+      // P27 §9: the normalized VPS payload exposes ratios as periodic series, not
+      // as `peRatio`/`pbRatio` top-level fields — reading those always produced
+      // `null`, silently discarding the real P/E and ROE that were present.
       const fundamentals = await getStockFundamentals(symbol).catch(() => null);
-      const pe = fundamentals?.peRatio ?? null;
-      const pb = fundamentals?.pbRatio ?? null;
-      const roe = fundamentals?.roe ?? null;
-      const eps = fundamentals?.eps ?? null;
+      const pe = latestNumber(fundamentals?.quarterly?.pe);
+      const roe = latestNumber(fundamentals?.quarterly?.roe);
+      const eps = latestNumber(fundamentals?.quarterly?.eps);
+      const bvps = latestNumber(fundamentals?.quarterly?.bvps);
+      const pb =
+        bvps !== null && bvps > 0 && currentPrice > 0
+          ? Number((currentPrice / bvps).toFixed(2))
+          : null;
 
       // 3. Score derivations
       const technicalScore = technicalAnalysis.score;
@@ -808,9 +862,9 @@ async function startServer() {
             const fundamentals = await getStockFundamentals(sym).catch(() => null);
             // Fail-closed fundamentals — NEVER substitute a placeholder for a missing
             // ROE / P/E / EPS. Missing values stay null (see .clinerules/20 no-mock rule).
-            const roe = fundamentals?.roe ?? null;
-            const pe = fundamentals?.peRatio ?? null;
-            const eps = fundamentals?.eps ?? null;
+            const roe = latestNumber(fundamentals?.quarterly?.roe);
+            const pe = latestNumber(fundamentals?.quarterly?.pe);
+            const eps = latestNumber(fundamentals?.quarterly?.eps);
 
             const fundamentalScore = roe !== null ? Math.min(95, Math.max(20, Math.round(roe * 3.5 + 15))) : null;
             const valuationScore = pe !== null && pe > 0 ? Math.min(95, Math.max(20, Math.round(110 - pe * 3))) : null;

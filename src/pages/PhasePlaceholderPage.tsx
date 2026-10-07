@@ -1,4 +1,4 @@
-import { DemoBadge } from '../components/common/DemoBadge';
+import { SourceBadge } from '../components/common/SourceBadge';
 import { LineChart, PieChart, Calculator, Scale, ArrowLeft, CheckCircle2, Clock } from 'lucide-react';
 import { ActiveNavView } from '../components/common/Sidebar';
 
@@ -103,7 +103,7 @@ export function PhasePlaceholderPage({ view, onBackToDashboard }: PhasePlacehold
                 <h1 className="page-title font-mono">
                   {config.title}
                 </h1>
-                <DemoBadge size="sm" />
+                <SourceBadge variant="demo" size="sm" />
               </div>
               <p className="text-xs text-slate-400 mt-1">{config.description}</p>
             </div>

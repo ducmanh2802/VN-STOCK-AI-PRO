@@ -17,13 +17,26 @@ interface CacheEntry {
 
 const store = new Map<string, CacheEntry>();
 
+/**
+ * P27 §27 — cache hit rate is MEASURED, not assumed. Counters are monotonic for
+ * the process lifetime (a restart zeroes them, like every other stat here).
+ * An expired entry counts as a miss: it was requested but could not be served.
+ */
+let hits = 0;
+let misses = 0;
+
 export function cacheGet<T>(key: string): T | undefined {
   const hit = store.get(key);
-  if (!hit) return undefined;
-  if (Date.now() >= hit.expiresAt) {
-    store.delete(key);
+  if (!hit) {
+    misses += 1;
     return undefined;
   }
+  if (Date.now() >= hit.expiresAt) {
+    store.delete(key);
+    misses += 1;
+    return undefined;
+  }
+  hits += 1;
   return hit.value as T;
 }
 
@@ -40,7 +53,7 @@ export function cacheClear(): void {
   store.clear();
 }
 
-/** Introspection for diagnostics (exposed via /api/health in dev). */
-export function cacheStats(): { size: number; keys: string[] } {
-  return { size: store.size, keys: Array.from(store.keys()) };
+/** Introspection for diagnostics (exposed via /api/health). */
+export function cacheStats(): { size: number; hits: number; misses: number; keys: string[] } {
+  return { size: store.size, hits, misses, keys: Array.from(store.keys()) };
 }

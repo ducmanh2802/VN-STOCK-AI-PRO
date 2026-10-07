@@ -13,9 +13,15 @@ export interface IndexData {
   displayName: string;
   value: number | null;
   change: number | null;
-  changePercent: number;
-  totalVolume: number;
-  totalValue: number; // in billion VND
+  /**
+   * P27 §9: `changePercent` is derived from constituent moves, so it is `null`
+   * when no constituent supplied a usable change — an empty basket is not a
+   * "0.00% session".
+   */
+  changePercent: number | null;
+  /** P27 §9: `null` when no constituent supplied a usable volume/value. */
+  totalVolume: number | null;
+  totalValue: number | null; // in billion VND
   advances: number;
   declines: number;
   unchanged: number;
@@ -88,6 +94,20 @@ export interface MarketBreadth {
   floors: number;
   unchanged: number;
   totalStocks: number;
+  /**
+   * P27 §12: breadth is computed over the covered universe, not over every
+   * listing on the exchanges. The coverage block makes that scope explicit so
+   * partial breadth is never read as whole-market breadth.
+   */
+  coverage: {
+    universe: string;
+    /** Symbols in the covered universe. */
+    coveredStocks: number;
+    /** Symbols that supplied a usable change for this computation. */
+    pricedStocks: number;
+    percentPriced: number;
+    note: string;
+  };
   advanceDeclineRatio: number;
   breadthStatus: 'BÊN MUA CHIẾM ƯU THẾ' | 'CÂN BẰNG' | 'BÊN BÁN CHIẾM ƯU THẾ';
   volumeBreadth: {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AITopSignal } from '../../types/market';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { CardSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -156,7 +156,7 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
               <CardTitle className="text-xs sm:text-sm font-bold tracking-tight uppercase font-mono">
                 Tín Hiệu Định Lượng AI (AI Top Signals)
               </CardTitle>
-              <DemoBadge size="sm" />
+              <SourceBadge size="sm" />
             </div>
             <p className="text-[11px] text-terminal-text-muted">
               Định giá cơ bản, điểm mua kỹ thuật và xác suất thành công từ mô hình AI

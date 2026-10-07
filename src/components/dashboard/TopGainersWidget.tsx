@@ -2,7 +2,7 @@ import React from 'react';
 import { TopMover } from '../../types/stock';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { TableSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -92,7 +92,7 @@ export const TopGainersWidget: React.FC<TopGainersWidgetProps> = ({
           <CardTitle className="text-xs font-bold tracking-tight uppercase font-mono text-terminal-up">
             Top Cổ Phiếu Tăng (Gainers)
           </CardTitle>
-          <DemoBadge size="sm" />
+          <SourceBadge size="sm" />
         </div>
         <span className="text-[10px] font-mono text-terminal-text-muted">Top {limit}</span>
       </CardHeader>

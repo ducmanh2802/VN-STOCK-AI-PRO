@@ -1,6 +1,6 @@
 import { AIMarketSummary } from '../types/market';
 import { AIMarketSummaryCard } from '../components/dashboard/AIMarketSummaryCard';
-import { DemoBadge } from '../components/common/DemoBadge';
+import { SourceBadge } from '../components/common/SourceBadge';
 import { Sparkles, Brain, ShieldAlert, Cpu } from 'lucide-react';
 
 interface AIAnalystPageProps {
@@ -17,7 +17,7 @@ export function AIAnalystPage({ aiSummary }: AIAnalystPageProps) {
             <h1 className="page-title font-mono">
               Trung Tâm Phân Tích Trí Tuệ Nhân Tạo (AI Analyst)
             </h1>
-            <DemoBadge size="sm" />
+            <SourceBadge size="sm" />
           </div>
           <p className="text-xs text-slate-400">
             Hệ thống phân tích thị trường và cổ phiếu tự động dựa trên mô hình dữ liệu tài chính

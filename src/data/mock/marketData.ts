@@ -883,6 +883,13 @@ export const MOCK_MARKET_BREADTH: MarketBreadth = {
   floors: 2,
   unchanged: 78,
   totalStocks: 500,
+  coverage: {
+    universe: 'DEMO_FIXTURE_UNIVERSE',
+    coveredStocks: 500,
+    pricedStocks: 500,
+    percentPriced: 100,
+    note: 'DEMO_FIXTURE_ONLY: static fixture in src/data/mock/marketData.ts, not measured breadth.',
+  },
   advanceDeclineRatio: 1.74,
   breadthStatus: 'BÊN MUA CHIẾM ƯU THẾ',
   volumeBreadth: {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { IndexData } from '../../types/market';
 import { Badge } from '../ui/Badge';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { CardSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -77,7 +77,7 @@ export const MarketIndexRibbon: React.FC<MarketIndexRibbonProps> = ({
           <span className="font-mono font-bold text-terminal-text-primary uppercase tracking-wider text-[11px]">
             Chỉ số thị trường (Market Indices)
           </span>
-          <DemoBadge size="sm" />
+          <SourceBadge size="sm" />
         </div>
         <div className="flex items-center gap-2 text-[11px] font-mono text-terminal-text-muted">
           <span className="hidden sm:inline">Thời gian thực · Sàn HOSE, HNX, UPCOM</span>

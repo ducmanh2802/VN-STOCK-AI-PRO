@@ -1,7 +1,7 @@
 import React from 'react';
 import { MarketExchange } from '../../types/stock';
 import { Badge } from '../ui/Badge';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import {
   ArrowLeft,
   Bookmark,
@@ -81,7 +81,7 @@ export const StockHeader: React.FC<StockHeaderProps> = ({
               <span className="w-1.5 h-1.5 rounded-full bg-terminal-up animate-pulse" />
               Đang giao dịch
             </span>
-            <DemoBadge size="sm" />
+            <SourceBadge size="sm" />
           </div>
 
           <div className="text-xs sm:text-sm text-terminal-text-secondary font-medium">

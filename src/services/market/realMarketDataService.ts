@@ -5,6 +5,14 @@ import type { VpsNormalizedFundamentals, VpsNormalizedQuote } from './providers/
 import { KbsHistoricalProvider } from './providers/kbs/index.ts';
 import { VpsProvider } from './providers/vps/index.ts';
 import { cacheGet, cacheSet } from './marketDataCache.ts';
+import { coalesceInFlight } from './requestCoalescer.ts';
+import { withProviderGuard } from './providers/providerGuard.ts';
+import {
+  DataUnavailableError,
+  resolveChain,
+  runWithFallback,
+  type MarketDataCapability,
+} from './providers/providerMatrix.ts';
 
 /**
  * Real market data service — the ONLY market-data path for stock analysis.
@@ -12,12 +20,17 @@ import { cacheGet, cacheSet } from './marketDataCache.ts';
  *   Historical OHLCV : KBS  (kbbuddywts.kbsec.com.vn data_day)
  *   Realtime quote   : VPS  (getliststockdata)  + KBS cross-check
  *   Fundamentals     : VPS  (getliststockbaseinfo)
+ *   Index level      : UNAVAILABLE — no reachable source (see PROVIDER_MATRIX)
  *
  * STRICT RULES enforced here:
  *   - NO synthetic/mock fallback: every failure throws MarketDataUnavailableError
  *     so callers return an explicit DATA_UNAVAILABLE state.
  *   - Errors are NEVER cached; only successful provider results are.
  *   - Unsupported timeframes (intraday) are refused instead of fake-generated.
+ *   - Every provider call goes through the P27 guard (timeout + bounded retry +
+ *     circuit breaker) and the P27 capability matrix, so the order, the source
+ *     that actually answered and the failure history are all auditable.
+ *   - Concurrent identical requests are coalesced into one provider call.
  */
 
 export type MarketDataSourceId = 'KBS' | 'VPS';
@@ -109,6 +122,71 @@ function toCandle(b: NormalizedDailyBar): CandlePoint {
 }
 
 /**
+ * P27 §6/§7/§8/§19 — one place where every provider call is made:
+ *   1. the capability matrix decides whether this capability has any source at
+ *      all (a capability declared UNAVAILABLE fails immediately, without a
+ *      pointless network round trip);
+ *   2. the ordered fallback engine records which provider actually answered and
+ *      retains every failed attempt;
+ *   3. the guard applies timeout + bounded retry + circuit breaker and updates
+ *      the shared provider-health registry.
+ */
+async function callProvider<T>(
+  capability: MarketDataCapability,
+  provider: MarketDataSourceId,
+  timeoutMs: number,
+  fn: () => Promise<T>
+): Promise<T> {
+  const route = resolveChain(capability);
+  if (!route.providers.includes(provider)) {
+    // The matrix says this capability is not served by this provider (or at all).
+    throw new MarketDataUnavailableError(
+      provider,
+      route.providers.length === 0
+        ? `NO_PROVIDER_REGISTERED: ${capability} — ${route.note}`
+        : `WRONG_PROVIDER: ${capability} is served by ${route.providers.join(', ')}`
+    );
+  }
+
+  try {
+    const outcome = await runWithFallback<T>(capability, [
+      {
+        provider,
+        run: () =>
+          withProviderGuard(
+            // The provider aborts its own socket at `timeoutMs`; the guard gives it
+            // a little slack before it forcibly cancels the attempt.
+            { provider, timeoutMs: timeoutMs + 1_000 },
+            () => fn()
+          ),
+      },
+    ]);
+    return outcome.value;
+  } catch (err) {
+    if (err instanceof DataUnavailableError) {
+      const attempt = err.attempts[0];
+      const reason = attempt ? `${attempt.errorCode} — ${attempt.message}` : err.message;
+      throw new MarketDataUnavailableError(provider, reason);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Cache read → (miss) single-flight fetch → cache write.
+ * Failures are never cached and never memoized in the in-flight map.
+ */
+async function cached<T>(cacheKey: string, ttlMs: number, forceRefresh: boolean, load: () => Promise<T>): Promise<T> {
+  if (!forceRefresh) {
+    const hit = cacheGet<T>(cacheKey);
+    if (hit !== undefined && hit !== null) return hit;
+  }
+  const value = await coalesceInFlight(cacheKey, load);
+  cacheSet(cacheKey, value, ttlMs);
+  return value;
+}
+
+/**
  * STEP 6 — real historical data entry point.
  * Daily timeframes load REAL KBS OHLCV; anything else is an explicit
  * DATA_UNAVAILABLE (never a generated series).
@@ -130,43 +208,48 @@ export async function getHistoricalStockData(
   }
 
   const cacheKey = `history:${sym}:${timeframe}`;
-  if (!options?.forceRefresh) {
-    const cached = cacheGet<HistoricalStockData>(cacheKey);
-    if (cached) return cached;
-  }
-
   const endDate = toIsoDateToday();
   const startDate = isoDaysAgo(windowDays);
 
-  let bars: NormalizedDailyBar[];
-  try {
-    bars = await KbsHistoricalProvider.getDailyHistory(sym, startDate, endDate, {
-      timeoutMs: options?.timeoutMs ?? HISTORY_TIMEOUT_MS,
-    });
-  } catch (err) {
-    const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-    throw new MarketDataUnavailableError('KBS', `KBS_REQUEST_FAILED — ${reason}`);
-  }
+  const result = await cached<HistoricalStockData>(
+    cacheKey,
+    HISTORY_TTL_MS,
+    options?.forceRefresh === true,
+    async () => {
+      let bars: NormalizedDailyBar[];
+      try {
+        bars = await callProvider('history', 'KBS', options?.timeoutMs ?? HISTORY_TIMEOUT_MS, () =>
+          KbsHistoricalProvider.getDailyHistory(sym, startDate, endDate, {
+            timeoutMs: options?.timeoutMs ?? HISTORY_TIMEOUT_MS,
+          })
+        );
+      } catch (err) {
+        if (err instanceof MarketDataUnavailableError) throw err;
+        const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+        throw new MarketDataUnavailableError('KBS', `KBS_REQUEST_FAILED — ${reason}`);
+      }
 
-  if (bars.length === 0) {
-    throw new MarketDataUnavailableError(
-      'KBS',
-      `KBS_EMPTY_HISTORY: no daily bars returned for ${sym} between ${startDate} and ${endDate}`
-    );
-  }
+      if (bars.length === 0) {
+        throw new MarketDataUnavailableError(
+          'KBS',
+          `KBS_EMPTY_HISTORY: no daily bars returned for ${sym} between ${startDate} and ${endDate}`
+        );
+      }
 
-  const result: HistoricalStockData = {
-    symbol: sym,
-    timeframe,
-    source: 'KBS',
-    candles: bars.map(toCandle),
-    bars,
-    from: bars[0].date,
-    to: bars[bars.length - 1].date,
-    count: bars.length,
-    retrievedAt: new Date().toISOString(),
-  };
-  cacheSet(cacheKey, result, HISTORY_TTL_MS);
+      return {
+        symbol: sym,
+        timeframe,
+        source: 'KBS' as const,
+        candles: bars.map(toCandle),
+        bars,
+        from: bars[0].date,
+        to: bars[bars.length - 1].date,
+        count: bars.length,
+        retrievedAt: new Date().toISOString(),
+      };
+    }
+  );
+
   return result;
 }
 
@@ -203,70 +286,69 @@ export async function getRealtimeQuote(
   const sym = normalizeSymbol(symbol);
 
   const cacheKey = `quote:${sym}`;
-  if (!options?.forceRefresh) {
-    const cached = cacheGet<RealtimeQuote>(cacheKey);
-    if (cached) return cached;
-  }
 
-  let quote: VpsNormalizedQuote;
-  try {
-    quote = await VpsProvider.getQuote(sym, { timeoutMs: options?.timeoutMs ?? QUOTE_TIMEOUT_MS });
-  } catch (err) {
-    const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-    throw new MarketDataUnavailableError('VPS', `VPS_QUOTE_FAILED — ${reason}`);
-  }
+  return cached<RealtimeQuote>(cacheKey, QUOTE_TTL_MS, options?.forceRefresh === true, async () => {
+    let quote: VpsNormalizedQuote;
+    try {
+      quote = await callProvider('quote', 'VPS', options?.timeoutMs ?? QUOTE_TIMEOUT_MS, () =>
+        VpsProvider.getQuote(sym, { timeoutMs: options?.timeoutMs ?? QUOTE_TIMEOUT_MS })
+      );
+    } catch (err) {
+      if (err instanceof MarketDataUnavailableError) throw err;
+      const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      throw new MarketDataUnavailableError('VPS', `VPS_QUOTE_FAILED — ${reason}`);
+    }
 
-  // --- Cross-check the kVND->VND normalization against the latest KBS close ---
-  let crossCheck: QuoteCrossCheck;
-  try {
-    const bench = await KbsHistoricalProvider.getDailyHistory(sym, isoDaysAgo(45), toIsoDateToday(), {
-      timeoutMs: QUOTE_TIMEOUT_MS,
-    });
-    const last = bench.length > 0 ? bench[bench.length - 1] : null;
-    if (last && last.close > 0) {
-      const deviation = +(((quote.lastPrice - last.close) / last.close) * 100).toFixed(2);
-      const ok = Math.abs(deviation) <= QUOTE_CROSSCHECK_TOLERANCE_PERCENT;
-      crossCheck = {
-        benchmarkSource: 'KBS',
-        kbsDate: last.date,
-        kbsClose: last.close,
-        deviationPercent: deviation,
-        status: ok ? 'OK' : 'MISMATCH',
-        detail: ok
-          ? `VPS lastPrice ${quote.lastPrice} within ${QUOTE_CROSSCHECK_TOLERANCE_PERCENT}% of KBS close ${last.close} (${last.date}).`
-          : `VPS lastPrice ${quote.lastPrice} deviates ${deviation}% from KBS close ${last.close} (${last.date}). Inspect before use.`,
-      };
-    } else {
+    // --- Cross-check the kVND->VND normalization against the latest KBS close ---
+    let crossCheck: QuoteCrossCheck;
+    try {
+      const bench = await KbsHistoricalProvider.getDailyHistory(sym, isoDaysAgo(45), toIsoDateToday(), {
+        timeoutMs: QUOTE_TIMEOUT_MS,
+      });
+      const last = bench.length > 0 ? bench[bench.length - 1] : null;
+      if (last && last.close > 0) {
+        const deviation = +(((quote.lastPrice - last.close) / last.close) * 100).toFixed(2);
+        const ok = Math.abs(deviation) <= QUOTE_CROSSCHECK_TOLERANCE_PERCENT;
+        crossCheck = {
+          benchmarkSource: 'KBS',
+          kbsDate: last.date,
+          kbsClose: last.close,
+          deviationPercent: deviation,
+          status: ok ? 'OK' : 'MISMATCH',
+          detail: ok
+            ? `VPS lastPrice ${quote.lastPrice} within ${QUOTE_CROSSCHECK_TOLERANCE_PERCENT}% of KBS close ${last.close} (${last.date}).`
+            : `VPS lastPrice ${quote.lastPrice} deviates ${deviation}% from KBS close ${last.close} (${last.date}). Inspect before use.`,
+        };
+      } else {
+        crossCheck = {
+          benchmarkSource: 'KBS',
+          kbsDate: null,
+          kbsClose: null,
+          deviationPercent: null,
+          status: 'UNVERIFIED',
+          detail: 'KBS returned no benchmark bar in the last 45 days.',
+        };
+      }
+    } catch (err) {
       crossCheck = {
         benchmarkSource: 'KBS',
         kbsDate: null,
         kbsClose: null,
         deviationPercent: null,
         status: 'UNVERIFIED',
-        detail: 'KBS returned no benchmark bar in the last 45 days.',
+        detail: `KBS cross-check unavailable: ${err instanceof Error ? err.message : String(err)}`,
       };
     }
-  } catch (err) {
-    crossCheck = {
-      benchmarkSource: 'KBS',
-      kbsDate: null,
-      kbsClose: null,
-      deviationPercent: null,
-      status: 'UNVERIFIED',
-      detail: `KBS cross-check unavailable: ${err instanceof Error ? err.message : String(err)}`,
-    };
-  }
 
-  const result: RealtimeQuote = {
-    symbol: sym,
-    source: 'VPS',
-    dataStatus: 'OK',
-    quote,
-    crossCheck,
-    retrievedAt: new Date().toISOString(),
-  };
-  cacheSet(cacheKey, result, QUOTE_TTL_MS);
-  return result;
+    return {
+      symbol: sym,
+      source: 'VPS' as const,
+      dataStatus: 'OK' as const,
+      quote,
+      crossCheck,
+      retrievedAt: new Date().toISOString(),
+    };
+  });
 }
 
 /**
@@ -282,21 +364,23 @@ export async function getStockFundamentals(
   const sym = normalizeSymbol(symbol);
 
   const cacheKey = `fundamentals:${sym}`;
-  if (!options?.forceRefresh) {
-    const cached = cacheGet<VpsNormalizedFundamentals>(cacheKey);
-    if (cached) return cached;
-  }
 
-  let fundamentals: VpsNormalizedFundamentals;
-  try {
-    fundamentals = await VpsProvider.getFundamentals(sym, {
-      timeoutMs: options?.timeoutMs ?? FUNDAMENTALS_TIMEOUT_MS,
-    });
-  } catch (err) {
-    const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-    throw new MarketDataUnavailableError('VPS', `VPS_FUNDAMENTALS_FAILED — ${reason}`);
-  }
-
-  cacheSet(cacheKey, fundamentals, FUNDAMENTALS_TTL_MS);
-  return fundamentals;
+  return cached<VpsNormalizedFundamentals>(
+    cacheKey,
+    FUNDAMENTALS_TTL_MS,
+    options?.forceRefresh === true,
+    async () => {
+      try {
+        return await callProvider('fundamentals', 'VPS', options?.timeoutMs ?? FUNDAMENTALS_TIMEOUT_MS, () =>
+          VpsProvider.getFundamentals(sym, {
+            timeoutMs: options?.timeoutMs ?? FUNDAMENTALS_TIMEOUT_MS,
+          })
+        );
+      } catch (err) {
+        if (err instanceof MarketDataUnavailableError) throw err;
+        const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+        throw new MarketDataUnavailableError('VPS', `VPS_FUNDAMENTALS_FAILED — ${reason}`);
+      }
+    }
+  );
 }

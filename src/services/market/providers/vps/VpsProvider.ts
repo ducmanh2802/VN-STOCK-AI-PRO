@@ -10,7 +10,6 @@ import type {
 import { VPS_VALUE_SLOTS } from './types.ts';
 import {
   normalizeVpsLotVolume,
-  normalizeVpsPercent,
   normalizeVpsPrice,
   normalizeVpsReferencePrice,
   normalizeVpsValueThousands,
@@ -205,11 +204,22 @@ export class VpsProvider {
 
     const referencePrice = normalizeVpsReferencePrice(raw.closePrice);
     const referenceFromR = normalizeVpsPrice(raw.r);
-    // Prefer closePrice (already VND); fall back to r (kVND) — both are real source fields.
-    const resolvedReference = referencePrice ?? referenceFromR;
+    // P27 §9: `r` (kVND) is the exchange reference price and is the only field
+    // consistent across the whole universe — |lastPrice - r| equals the vendor's
+    // own `ot` for 68/68 symbols (verified live 2026-10-07). `closePrice` (VND)
+    // disagreed for MWG/KDH/GMD, so it is the FALLBACK, never the first choice.
+    const resolvedReference = referenceFromR ?? referencePrice;
 
     const change = resolvedReference !== null ? Math.round(lastPrice - resolvedReference) : null;
-    const changePercent = normalizeVpsPercent(raw.changePc);
+    // P27 §9: `changePc` from the VPS feed is an unsigned magnitude — it is
+    // reported positive for declining symbols as well (verified 2026-10-07), so
+    // it is never trusted for the SIGN of a move. The percentage is derived from
+    // the two real prices; without a reference price the direction is unknown
+    // and the field stays null.
+    const changePercent =
+      resolvedReference !== null && resolvedReference > 0
+        ? Number((((lastPrice - resolvedReference) / resolvedReference) * 100).toFixed(2))
+        : null;
 
     return {
       symbol: typeof raw.sym === 'string' && raw.sym.trim() ? raw.sym.trim().toUpperCase() : sym,

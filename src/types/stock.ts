@@ -12,14 +12,20 @@ export interface StockSummary {
   exchange: MarketExchange;
   sector: string;
   price: number; // in VND (e.g., 28500)
-  change: number; // e.g., +650
-  changePercent: number; // e.g., +2.33
-  volume: number; // e.g., 24500000
-  tradingValue: number; // in billion VND
-  open: number;
-  high: number;
-  low: number;
-  refPrice: number;
+  /**
+   * P27 §9: nullable. A summary row is only emitted when a real `price` exists,
+   * but every *derived* session field is `null` when the vendor omitted it —
+   * `volume: 0` for a symbol with no reported volume would read as "no trading"
+   * when the truth is "not supplied".
+   */
+  change: number | null; // e.g., +650
+  changePercent: number | null; // e.g., +2.33
+  volume: number | null; // e.g., 24500000
+  tradingValue: number | null; // in billion VND
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  refPrice: number | null;
   ceilingPrice: number | null;
   floorPrice: number | null;
   /**
@@ -50,10 +56,11 @@ export interface TopMover {
   companyName: string;
   exchange: MarketExchange;
   price: number;
-  change: number;
-  changePercent: number;
-  volume: number;
-  tradingValue: number; // in billion VND
+  /** P27 §9: nullable — omitted rather than faked when the vendor did not send it. */
+  change: number | null;
+  changePercent: number | null;
+  volume: number | null;
+  tradingValue: number | null; // in billion VND
   isDemo?: boolean;
 }
 

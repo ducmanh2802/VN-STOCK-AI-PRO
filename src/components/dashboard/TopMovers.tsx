@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { TopMover } from '../../types/stock';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { formatVND, formatPercent, formatVolume, formatBillionVND } from '../../utils/formatters';
 import { ArrowUpRight, ArrowDownRight, Flame, BarChart2 } from 'lucide-react';
 
@@ -32,7 +32,7 @@ export function TopMovers({ gainers, losers, active, onSelectStock }: TopMoversP
           <CardTitle className="text-sm font-bold tracking-tight uppercase">
             Biến Động Nổi Bật (Top Movers)
           </CardTitle>
-          <DemoBadge size="sm" />
+          <SourceBadge size="sm" />
         </div>
 
         {/* Tab Buttons */}

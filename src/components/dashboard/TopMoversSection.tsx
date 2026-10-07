@@ -4,7 +4,7 @@ import { TopGainersWidget } from './TopGainersWidget';
 import { TopLosersWidget } from './TopLosersWidget';
 import { MostActiveWidget } from './MostActiveWidget';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { Flame, ArrowUpRight, ArrowDownRight, BarChart2, LayoutGrid, Columns } from 'lucide-react';
 
 export interface TopMoversSectionProps {
@@ -89,7 +89,7 @@ export const TopMoversSection: React.FC<TopMoversSectionProps> = ({
               <CardTitle className="text-xs sm:text-sm font-bold tracking-tight uppercase font-mono">
                 Biến Động Nổi Bật (Top Movers)
               </CardTitle>
-              <DemoBadge size="sm" />
+              <SourceBadge size="sm" />
             </div>
 
             {/* Tab Controls */}

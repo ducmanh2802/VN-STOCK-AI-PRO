@@ -2,7 +2,7 @@ import React from 'react';
 import { MarketSentiment } from '../../types/market';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { CardSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -104,7 +104,7 @@ export const MarketSentimentWidget: React.FC<MarketSentimentWidgetProps> = ({
           <CardTitle className="text-xs sm:text-sm font-bold tracking-tight uppercase font-mono">
             Tâm Lý Thị Trường (Market Sentiment)
           </CardTitle>
-          <DemoBadge size="sm" />
+          <SourceBadge size="sm" />
         </div>
         <div className="flex items-center gap-2 text-[10px] font-mono text-terminal-text-muted">
           <span>Cập nhật: {sentiment.updatedAt}</span>

@@ -2,7 +2,7 @@ import { IndexData } from '../../types/market';
 import { Card, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Metric } from '../ui/Metric';
-import { DemoBadge } from '../common/DemoBadge';
+import { SourceBadge } from '../common/SourceBadge';
 import { formatVolume, formatBillionVND, formatIndexPoint, formatPercent } from '../../utils/formatters';
 
 interface MarketOverviewProps {
@@ -17,7 +17,7 @@ export function MarketOverview({ indices }: MarketOverviewProps) {
           <h2 className="text-sm font-bold text-terminal-text-primary tracking-tight font-mono uppercase">
             Tổng quan Chỉ số (Market Overview)
           </h2>
-          <DemoBadge size="sm" />
+          <SourceBadge size="sm" />
         </div>
         <span className="text-xs text-terminal-text-muted font-mono">
           Cập nhật liên tục · Sàn HOSE, HNX, UPCOM
@@ -84,7 +84,7 @@ export function MarketOverview({ indices }: MarketOverviewProps) {
                     <span className="text-terminal-ref">■ {idx.unchanged}</span>
                     <span className="text-terminal-down">▼ {idx.declines}</span>
                   </div>
-                  <span className="text-[9px] text-terminal-ref/80">DEMO DATA</span>
+                  <span className="text-[9px] text-terminal-ref/80">VPS · REAL</span>
                 </div>
               </CardContent>
             </Card>
