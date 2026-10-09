@@ -121,10 +121,27 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
           chartBundle.candles.slice(-20).reduce((sum, c) => sum + c.volume, 0) / 20
         )
       : undefined;
+  // Matched turnover: the history bundle carries a session value only when its
+  // source published one (currently null), so fall back to the live quote and
+  // DERIVE it exactly like the board provider does — VWAP(averagePrice) x
+  // matched shares. With neither input this stays undefined and the card
+  // renders `—`; it is never coerced to 0 (0 would claim an empty session).
+  const quoteMatchedValueVnd =
+    quote &&
+    typeof quote.averagePrice === 'number' &&
+    Number.isFinite(quote.averagePrice) &&
+    quote.averagePrice > 0 &&
+    typeof quote.matchedVolumeShares === 'number' &&
+    Number.isFinite(quote.matchedVolumeShares) &&
+    quote.matchedVolumeShares > 0
+      ? Math.round(quote.averagePrice * quote.matchedVolumeShares)
+      : null;
   const realTradingValueBillion =
     chartBundle?.latestValueVnd && chartBundle.latestValueVnd > 0
       ? chartBundle.latestValueVnd / 1e9
-      : undefined;
+      : quoteMatchedValueVnd && quoteMatchedValueVnd > 0
+        ? quoteMatchedValueVnd / 1e9
+        : undefined;
 
   // Fetch deterministic money flow analysis
   const { data: moneyFlowAnalysis } = useMoneyFlowAnalysis(symbol);
@@ -208,16 +225,16 @@ export const StockDetailPage: React.FC<StockDetailPageProps> = ({
       {quote ? (
         <StockPriceSummary
           price={quote.lastPrice}
-          change={quote.change ?? 0}
-          changePercent={quote.changePercent ?? 0}
+          change={quote.change}
+          changePercent={quote.changePercent}
           refPrice={quote.referencePrice ?? undefined}
           ceilingPrice={quote.ceilingPrice ?? undefined}
           floorPrice={quote.floorPrice ?? undefined}
           open={quote.openPrice ?? undefined}
           high={quote.highPrice ?? undefined}
           low={quote.lowPrice ?? undefined}
-          volume={quote.matchedVolumeShares ?? 0}
-          tradingValue={realTradingValueBillion ?? 0}
+          volume={quote.matchedVolumeShares}
+          tradingValue={realTradingValueBillion}
           high52Week={realHigh52}
           low52Week={realLow52}
           avgVolume20D={realAvgVolume20}

@@ -2,6 +2,7 @@
 // src/db/index.ts is constructed. See src/db/bootstrapEnv.ts for the full rationale.
 import './src/db/bootstrapEnv.ts';
 import express from 'express';
+import compression from 'compression';
 import http from 'http';
 import path from 'path';
 import * as dotenv from 'dotenv';
@@ -26,7 +27,9 @@ import { requireAuth, type AuthRequest } from './src/middleware/auth.ts';
 import { getAdminAuthState } from './src/lib/firebase-admin.ts';
 // PLATFORM FOUNDATION — platform layer mounts below product/feature routes.
 import { createPlatformRouter, defaultProbes } from './src/lib/platform/api/createPlatformRouter.ts';
-import { correlationMiddleware, securityHeaders, sendSafeError } from './src/middleware/platform/security.ts';
+import { correlationMiddleware, securityHeaders, sendDataError } from './src/middleware/platform/security.ts';
+import { rateLimit } from './src/middleware/platform/rateLimit.ts';
+import { InMemoryRateLimiter } from './src/lib/platform/security/rateLimiter.ts';
 import { runHealthCheck, statusCodeFor } from './src/lib/platform/observability/health.ts';
 import { getOrCreateUser } from './src/db/users.ts';
 // PHASE 8.5C — REAL market data (KBS historical OHLCV + VPS realtime/fundamentals)
@@ -49,7 +52,12 @@ import { inflightStats } from './src/services/market/requestCoalescer.ts';
 import { PaperBroker } from './src/lib/trading/paper/PaperBroker.ts';
 import { TradingEngine } from './src/lib/trading/engine/TradingEngine.ts';
 import { createTradingApiRouter } from './src/lib/trading/api/TradingApiRouter.ts';
+import { createBacktestApiRouter } from './src/lib/trading/api/BacktestApiRouter.ts';
 import { createMacroApiRouter } from './src/lib/macro/api/macroRouter.ts';
+// NEWS / MACRO list lane — one shared repository + service behind all four
+// list routes (news, policy-events, earnings-calendar, macro-observations).
+import { createNewsMacroListRouter } from './src/lib/newsMacro/api/NewsMacroListRouter.ts';
+import { MacroIntelligenceService } from './src/services/macro/MacroIntelligenceService.ts';
 import { MarketIntelligenceService } from './src/services/market/MarketIntelligenceService.ts';
 // P0-04 — canonical bar / provenance / quality persistence, mounted so the tables
 // and the repository have a real production caller instead of being orphans.
@@ -69,6 +77,8 @@ async function startServer() {
   dotenv.config();
 
   const app = express();
+  // §28/§54: do not advertise the framework — one less fingerprint for a scanner.
+  app.disable('x-powered-by');
   // AI Studio forwards a dynamic port, so the port must never be hardcoded.
   const PORT = Number(process.env.PORT) || 3000;
   const HOST = process.env.HOST || '0.0.0.0';
@@ -80,12 +90,50 @@ async function startServer() {
   app.use(correlationMiddleware);
   app.use(securityHeaders);
 
+  // §50 — throttle only the externally-billable / CPU-heavy lanes (Gemini proxy,
+  // real-KBS backtest). Auth is already limited inside the platform router; data
+  // reads are never throttled so a dashboard cannot be refused by another tab.
+  const apiLimiter = new InMemoryRateLimiter(() => Date.now());
+
   // Paper-only process-local runtime. Portfolio/account state stays in PaperBroker.
   const tradingEngine = new TradingEngine({ broker: new PaperBroker() });
   app.use('/api/trading', createTradingApiRouter(tradingEngine));
 
   // Macroeconomic Intelligence layer (Phase 19.1)
   app.use('/api/macro', createMacroApiRouter());
+
+  // PHASE 18.2 — real-KBS historical backtest runner (research output only).
+  app.use(
+    '/api/backtest',
+    rateLimit({ limiter: apiLimiter, bucket: 'expensive' }),
+    createBacktestApiRouter()
+  );
+
+  // NEWS / MACRO list routes — GET /api/news, /api/policy-events,
+  // /api/earnings-calendar, /api/macro/observations. Shared repository +
+  // service; DB unavailable maps to 503 DATA_UNAVAILABLE (never an empty 200).
+  app.use('/api', createNewsMacroListRouter());
+
+  // PHASE 25+ — canonical Macro Radar snapshot.
+  // Server-side only: the snapshot builder reads persisted `macro_observations`
+  // through Drizzle, which must never run in the browser bundle. With an empty
+  // store the builder fails closed to an UNKNOWN regime instead of inventing one.
+  app.get('/api/macro/radar', async (req, res) => {
+    try {
+      const asOfDate =
+        typeof req.query.asOfDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.asOfDate)
+          ? req.query.asOfDate
+          : undefined;
+      const snapshot = await MacroIntelligenceService.getSnapshot({
+        asOfDate,
+        forceRefresh: req.query.refresh === 'true',
+      });
+      res.json(snapshot);
+    } catch (error: any) {
+      console.error('Error in GET /api/macro/radar:', error);
+      sendDataError(res, 'Macro radar evaluation failed', error);
+    }
+  });
 
   // P0-04 — canonical market-data persistence surface:
   // POST /api/canonical-data/ingest/:symbol  (provider -> validation -> persistence
@@ -221,7 +269,7 @@ async function startServer() {
       res.json(user);
     } catch (error: any) {
       console.error('Error in GET /api/users/me:', error);
-      sendSafeError(res, 500, 'Lỗi khi đồng bộ thông tin người dùng', error);
+      sendDataError(res, 'Lỗi khi đồng bộ thông tin người dùng', error);
     }
   });
 
@@ -236,7 +284,7 @@ async function startServer() {
       res.json(stocksList);
     } catch (error: any) {
       console.error('Error in GET /api/stocks:', error);
-      sendSafeError(res, 500, 'Lỗi khi tải danh sách cổ phiếu', error);
+      sendDataError(res, 'Lỗi khi tải danh sách cổ phiếu', error);
     }
   });
 
@@ -251,7 +299,7 @@ async function startServer() {
       res.json(results);
     } catch (error: any) {
       console.error('Error in GET /api/stocks/search:', error);
-      sendSafeError(res, 500, 'Lỗi khi tìm kiếm', error);
+      sendDataError(res, 'Lỗi khi tìm kiếm', error);
     }
   });
 
@@ -266,7 +314,7 @@ async function startServer() {
       res.json(stock);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}:`, error);
-      sendSafeError(res, 500, 'Lỗi hệ thống', error);
+      sendDataError(res, 'Lỗi hệ thống', error);
     }
   });
 
@@ -286,7 +334,7 @@ async function startServer() {
       res.json(history);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/daily:`, error);
-      sendSafeError(res, 500, 'Lỗi khi tải lịch sử giá', error);
+      sendDataError(res, 'Lỗi khi tải lịch sử giá', error);
     }
   });
 
@@ -303,7 +351,7 @@ async function startServer() {
       res.json(intraday);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/intraday:`, error);
-      sendSafeError(res, 500, 'Lỗi khi tải dữ liệu giao dịch trong ngày', error);
+      sendDataError(res, 'Lỗi khi tải dữ liệu giao dịch trong ngày', error);
     }
   });
 
@@ -320,7 +368,7 @@ async function startServer() {
       res.json(indicators || {});
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/technicals:`, error);
-      sendSafeError(res, 500, 'Lỗi khi tải chỉ báo kỹ thuật', error);
+      sendDataError(res, 'Lỗi khi tải chỉ báo kỹ thuật', error);
     }
   });
 
@@ -345,7 +393,7 @@ async function startServer() {
       });
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/fundamentals:`, error);
-      sendSafeError(res, 500, 'Lỗi khi tải dữ liệu tài chính', error);
+      sendDataError(res, 'Lỗi khi tải dữ liệu tài chính', error);
     }
   });
 
@@ -361,7 +409,7 @@ async function startServer() {
       res.json(valuations);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/valuations:`, error);
-      sendSafeError(res, 500, 'Lỗi khi tải kết quả định giá', error);
+      sendDataError(res, 'Lỗi khi tải kết quả định giá', error);
     }
   });
 
@@ -375,7 +423,7 @@ async function startServer() {
       res.json(activeSignals);
     } catch (error: any) {
       console.error('Error in GET /api/signals:', error);
-      sendSafeError(res, 500, 'Lỗi khi tải tín hiệu khuyến nghị', error);
+      sendDataError(res, 'Lỗi khi tải tín hiệu khuyến nghị', error);
     }
   });
 
@@ -401,7 +449,7 @@ async function startServer() {
       res.json(evaluation);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/technical-analysis:`, error);
-      sendSafeError(res, 500, 'Lỗi khi tính toán phân tích kỹ thuật', error);
+      sendDataError(res, 'Lỗi khi tính toán phân tích kỹ thuật', error);
     }
   });
 
@@ -434,7 +482,7 @@ async function startServer() {
       res.json(evaluation);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/fundamental-analysis:`, error);
-      sendSafeError(res, 500, 'Lỗi khi tính toán phân tích cơ bản', error);
+      sendDataError(res, 'Lỗi khi tính toán phân tích cơ bản', error);
     }
   });
 
@@ -473,7 +521,7 @@ async function startServer() {
       res.json(valuation);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/valuation-analysis:`, error);
-      sendSafeError(res, 500, 'Lỗi khi phân tích định giá', error);
+      sendDataError(res, 'Lỗi khi phân tích định giá', error);
     }
   });
 
@@ -527,7 +575,7 @@ async function startServer() {
       res.json(moneyFlowResult);
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/money-flow-analysis:`, error);
-      sendSafeError(res, 500, 'Lỗi khi phân tích dòng tiền', error);
+      sendDataError(res, 'Lỗi khi phân tích dòng tiền', error);
     }
   });
 
@@ -601,7 +649,7 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error(`Error in GET /api/market-data/history/${req.params.symbol}:`, error);
-      sendSafeError(res, 500, 'Lỗi khi tải dữ liệu lịch sử thật', error);
+      sendDataError(res, 'Lỗi khi tải dữ liệu lịch sử thật', error);
     }
   });
 
@@ -623,7 +671,7 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error(`Error in GET /api/market-data/quote/${req.params.symbol}:`, error);
-      sendSafeError(res, 500, 'Lỗi khi tải giá realtime thật', error);
+      sendDataError(res, 'Lỗi khi tải giá realtime thật', error);
     }
   });
 
@@ -636,7 +684,7 @@ async function startServer() {
       res.json(snapshot);
     } catch (error: any) {
       console.error('Error in GET /api/market-intelligence:', error);
-      sendSafeError(res, 500, 'Market intelligence evaluation failed', error);
+      sendDataError(res, 'Market intelligence evaluation failed', error);
     }
   });
 
@@ -658,7 +706,7 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error(`Error in GET /api/market-data/fundamentals/${req.params.symbol}:`, error);
-      sendSafeError(res, 500, 'Lỗi khi tải dữ liệu tài chính thật', error);
+      sendDataError(res, 'Lỗi khi tải dữ liệu tài chính thật', error);
     }
   });
 
@@ -720,7 +768,7 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error('Error in GET /api/analysis/' + req.params.symbol + ':', error);
-      sendSafeError(res, 500, 'Analysis failed', error);
+      sendDataError(res, 'Analysis failed', error);
     }
   });
 
@@ -827,7 +875,7 @@ async function startServer() {
       });
     } catch (error: any) {
       console.error(`Error in GET /api/stocks/${req.params.symbol}/recommendations:`, error);
-      sendSafeError(res, 500, 'Recommendation generation failed', error);
+      sendDataError(res, 'Recommendation generation failed', error);
     }
   });
 
@@ -918,7 +966,7 @@ async function startServer() {
       res.json(rankingResult);
     } catch (error: any) {
       console.error('Error in GET /api/recommendations/rankings:', error);
-      sendSafeError(res, 500, 'Rankings calculation failed', error);
+      sendDataError(res, 'Rankings calculation failed', error);
     }
   });
 
@@ -927,7 +975,9 @@ async function startServer() {
   // Server-side Gemini API proxy. Advisory only.
   // Cannot execute trades, cannot mutate balances or positions.
   // ========================================================
-  app.post('/api/ai/chat', async (req, res) => {
+  // §50: the Gemini call is billable — one identity may only open 20 conversations
+  // per minute, so a runaway loop cannot burn the API key quota.
+  app.post('/api/ai/chat', rateLimit({ limiter: apiLimiter, bucket: 'expensive' }), async (req, res) => {
     const { message, context } = req.body ?? {};
     if (typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ error: 'Nội dung tin nhắn không được để trống' });
@@ -997,7 +1047,17 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
 
-    app.use(express.static(distPath));
+    // The production bundle is ~1.3 MB of JS — compress text assets on the way out.
+    // Mounted here (after every /api route) so API JSON is deliberately untouched.
+    app.use(compression({ threshold: 1024 }));
+
+    // Vite content-hashes the bundle, so the browser may keep it forever; index.html
+    // is NOT hashed and is revalidated by the SPA fallback below.
+    app.use(
+      '/assets',
+      express.static(path.join(distPath, 'assets'), { immutable: true, maxAge: '365d' })
+    );
+    app.use(express.static(distPath, { index: false }));
 
     // A missing hashed asset must 404 as an asset. Falling through to the SPA shell would
     // return HTML with a 200 for a stale bundle reference, so a broken deploy looks healthy
@@ -1008,7 +1068,12 @@ async function startServer() {
 
     // SPA fallback for client-side routes only. Registered last, after /api and /assets
     // have had their chance to claim the request.
-    app.get('*', (_req, res) => { res.sendFile(path.join(distPath, 'index.html')); });
+    app.get('*', (_req, res) => {
+      // The shell names the hashed bundle — a cached shell would pin a stale asset
+      // name after every deploy, so it is always revalidated.
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
   }
 
   // A failed bind must be loud, deterministic and non-zero, never an unhandled 'error'

@@ -7,6 +7,7 @@
  */
 import { randomBytes } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
+import { isDatabaseUnavailable } from '../../db/dbFailure.ts';
 
 const SAFE_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 
@@ -106,4 +107,28 @@ export function sendSafeError(res: Response, status: number, publicMessage: stri
     return;
   }
   res.status(status).json({ error: publicMessage });
+}
+
+/**
+ * Handler error helper for data routes.
+ *
+ * A dependency outage (Postgres unreachable / not configured) is answered with
+ * 503 + `code: DATA_UNAVAILABLE` so clients and operators can tell "the store is
+ * down" from "the handler is broken"; everything else stays a 500. The public
+ * message is unchanged and no internal detail is exposed in production (§29).
+ */
+export function sendDataError(res: Response, publicMessage: string, internal?: unknown): void {
+  if (!isDatabaseUnavailable(internal)) {
+    sendSafeError(res, 500, publicMessage, internal);
+    return;
+  }
+  const body: Record<string, unknown> = {
+    error: publicMessage,
+    code: 'DATA_UNAVAILABLE',
+    dataStatus: 'DATA_UNAVAILABLE',
+  };
+  if (!isProduction() && internal !== undefined) {
+    body.dev = internal instanceof Error ? internal.message : String(internal);
+  }
+  res.status(503).json(body);
 }

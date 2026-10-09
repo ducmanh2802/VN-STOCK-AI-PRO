@@ -63,6 +63,24 @@ function quoteWithTimestamp(base: MarketQuote, iso: string): MarketQuote {
   return { ...base, marketTimestamp: iso };
 }
 
+describe('§24.0 — VPS `lot` is LOTS, never shares (10x unit bug)', () => {
+  it('normalizes lot to shares and derives turnover as VWAP x shares', () => {
+    const quote = vpsMarketDataProvider.normalizeQuote(REAL_HPG_RAW);
+
+    // 1,392,090 lots x 10 = 13,920,900 shares == KBS volume for the same session.
+    expect(quote.volume).toBe(13_920_900);
+    // Turnover is derived from the real VWAP and the real share volume.
+    expect(quote.totalValue).toBe(Math.round(21.7 * 1000 * 13_920_900));
+  });
+
+  it('leaves volume and turnover null when `lot` is absent instead of reporting 0', () => {
+    const quote = vpsMarketDataProvider.normalizeQuote({ ...REAL_HPG_RAW, lot: undefined });
+
+    expect(quote.volume).toBeNull();
+    expect(quote.totalValue).toBeNull();
+  });
+});
+
 describe('§24.1 — provider unavailable yields DATA_UNAVAILABLE, never a 0 quote', () => {
   it('a VPS record with no price normalizes to price=null and dataStatus=UNAVAILABLE', () => {
     const quote = vpsMarketDataProvider.normalizeQuote({ sym: 'HPG' });

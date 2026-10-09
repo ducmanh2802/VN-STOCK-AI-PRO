@@ -288,5 +288,10 @@ describe('MarketIntelligenceWidget (Dashboard Step 1)', () => {
     // Must NOT fabricate 0.00% or 0 điểm
     expect(html).not.toContain('0.00%');
     expect(html).not.toContain('>0 điểm<');
+    // A missing support/resistance level has no strength rating either — the
+    // label must not print a fabricated `0★` beside "DATA UNAVAILABLE".
+    expect(html).not.toContain('0★');
+    const text = html.replaceAll('<!-- -->', '');
+    expect(text).toContain('Độ mạnh: —');
   });
 });

@@ -102,7 +102,13 @@ export function resolveRouteFromPath(pathname: string): {
 
 const initialRoute = parseInitialRoute();
 
+const hasLocalStorage = (): boolean =>
+  typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+
 const getInitialWatchlist = (): string[] => {
+  // Guarded: this module is evaluated at import time, and importing it in a
+  // Node/SSR context (tests, prerender) must not throw ReferenceError.
+  if (!hasLocalStorage()) return ['HPG', 'FPT', 'SSI', 'MWG', 'TCB', 'VNM'];
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -116,6 +122,7 @@ const getInitialWatchlist = (): string[] => {
 };
 
 const saveWatchlist = (list: string[]) => {
+  if (!hasLocalStorage()) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch (e) {

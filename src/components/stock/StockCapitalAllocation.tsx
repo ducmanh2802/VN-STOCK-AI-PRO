@@ -12,7 +12,7 @@ export const StockCapitalAllocation: React.FC<{ analysis: CapitalAllocationResul
     ) : <>
       <div className="text-2xl font-bold font-mono text-terminal-up">{analysis.score}/100</div>
       <p className="text-xs text-terminal-text-secondary">{analysis.explanations[0]?.summary}</p>
-      <div className="grid grid-cols-2 gap-2 text-xs font-mono"><span>Cổ tức / 1.000 tỷ: {analysis.normalizedPer1000Billion.dividend?.toFixed(0)}</span><span>Giữ lại: {analysis.normalizedPer1000Billion.retained?.toFixed(0)}</span></div>
+      <div className="grid grid-cols-2 gap-2 text-xs font-mono"><span>Cổ tức / 1.000 tỷ: {analysis.normalizedPer1000Billion.dividend?.toFixed(0) ?? '—'}</span><span>Giữ lại: {analysis.normalizedPer1000Billion.retained?.toFixed(0) ?? '—'}</span></div>
     </>}
     <p className="text-[10px] text-terminal-text-muted">Nguồn: BCTC thực tế; không suy diễn dòng tiền khi thiếu dữ liệu.</p>
   </section>

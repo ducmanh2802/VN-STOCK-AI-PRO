@@ -174,9 +174,24 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-mono font-semibold ${stock.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {stock.change >= 0 ? '+' : ''}{stock.changePercent?.toFixed(2)}%
-                      </span>
+                      {/* P27 §9: an absent session change is `null` — showing `+%`
+                          or colouring it green would fabricate a direction. */}
+                      {stock.changePercent != null ? (
+                        <span
+                          className={`text-xs font-mono font-semibold ${
+                            stock.changePercent > 0
+                              ? 'text-emerald-400'
+                              : stock.changePercent < 0
+                                ? 'text-rose-400'
+                                : 'text-slate-400'
+                          }`}
+                        >
+                          {stock.changePercent > 0 ? '+' : ''}
+                          {stock.changePercent.toFixed(2)}%
+                        </span>
+                      ) : (
+                        <span className="text-xs font-mono font-semibold text-slate-500">--</span>
+                      )}
                       <ArrowRight className="w-4 h-4 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </button>

@@ -5,8 +5,10 @@ import { isFiniteNumber, isPositiveFiniteNumber } from './metrics';
 
 export interface StockPriceSummaryProps {
   price: number;
-  change: number;
-  changePercent: number;
+  /** `null`/omitted = source published no change — rendered as `--`, never as a flat 0. */
+  change?: number | null;
+  /** `null`/omitted = no derived percentage — rendered as `--`, never as `0.00%`. */
+  changePercent?: number | null;
   /** Optional since Phase 8.5C: only shown when the real source provides them. */
   refPrice?: number;
   ceilingPrice?: number;
@@ -14,8 +16,14 @@ export interface StockPriceSummaryProps {
   open?: number;
   high?: number;
   low?: number;
-  volume: number;
-  tradingValue: number;
+  /** `null`/omitted = no matched volume published — rendered as `—`, never `0 CP`. */
+  volume?: number | null;
+  /**
+   * Billions of VND matched this session. `null`/omitted = the source carries no
+   * matched value, rendered as `—`. Passing `0` is a positive statement that the
+   * session genuinely matched nothing, so callers must not coerce `undefined` to `0`.
+   */
+  tradingValue?: number | null;
   high52Week?: number;
   low52Week?: number;
   avgVolume20D?: number;

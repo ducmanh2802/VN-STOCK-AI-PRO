@@ -35,7 +35,11 @@ import { LearningPathPage } from './pages/LearningPathPage';
 import { LearningLessonPage } from './pages/LearningLessonPage';
 import { PracticeLabPage } from './pages/PracticeLabPage';
 import { JournalPage } from './pages/JournalPage';
-import { PhasePlaceholderPage } from './pages/PhasePlaceholderPage';
+import { BacktestPage } from './pages/BacktestPage';
+import { StrategyLabPage } from './pages/StrategyLabPage';
+import { FundamentalsPage } from './pages/FundamentalsPage';
+import { MacroNewsPage } from './pages/MacroNewsPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { LoadingState } from './components/ui/LoadingState';
 import { ErrorState } from './components/ui/ErrorBoundary';
 import { marketService } from './services/market';
@@ -299,12 +303,11 @@ export default function App() {
 
                 {currentView === 'journal' && <JournalPage />}
 
-                {['strategy-lab', 'backtest', 'fundamentals', 'news-macro', 'settings'].includes(currentView) && (
-                  <PhasePlaceholderPage
-                    view={currentView as any}
-                    onBackToDashboard={() => setCurrentView('dashboard')}
-                  />
-                )}
+                {currentView === 'strategy-lab' && <StrategyLabPage />}
+                {currentView === 'backtest' && <BacktestPage />}
+                {currentView === 'fundamentals' && <FundamentalsPage />}
+                {currentView === 'news-macro' && <MacroNewsPage />}
+                {currentView === 'settings' && <SettingsPage />}
               </>
             )}
           </div>

@@ -659,7 +659,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                         : '--'}
                     </span>
                     <span className="text-[10px] text-terminal-text-muted block">
-                      Độ mạnh: {supportResistance?.nearestResistance?.strength ?? 0}★
+                      Độ mạnh: {supportResistance?.nearestResistance?.strength != null ? `${supportResistance.nearestResistance.strength}★` : '—'}
                     </span>
                   </div>
                 </div>
@@ -701,7 +701,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                         : '--'}
                     </span>
                     <span className="text-[10px] text-terminal-text-muted block">
-                      Độ mạnh: {supportResistance?.nearestSupport?.strength ?? 0}★
+                      Độ mạnh: {supportResistance?.nearestSupport?.strength != null ? `${supportResistance.nearestSupport.strength}★` : '—'}
                     </span>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 import { MarketQuote, MarketDataStatus } from '../types';
 import { FundamentalMetrics } from '../../../types/stockDetail';
 import { resolveDataFreshness } from '../freshness/dataFreshness';
+import { normalizeVpsLotVolume } from './vps/normalize.ts';
 
 /**
  * TTL for a VPS realtime quote observation, in ms. Matches the 120 s staleness
@@ -19,7 +20,7 @@ export interface VPSQuoteRaw {
   sym?: string;
   lastPrice?: number; // matched price (in 1,000 VND)
   lastVolume?: number;
-  lot?: number; // total volume
+  lot?: number; // accumulated matched volume in LOTS (1 lot = 10 shares)
   // P27 §9: `ot` and `changePc` are MAGNITUDES — the live feed reports them
   // positive for declining symbols too (verified 2026-10-07: 68/68 rows positive
   // while 38 of the same symbols closed down per KBS candles). They are never
@@ -159,10 +160,19 @@ export class VPSMarketDataProvider {
         ? Number((((lastPrice - refPrice) / refPrice) * 100).toFixed(2))
         : null;
 
-    const volume = item.lot != null ? Number(item.lot) : null;
+    // VPS publishes `lot` in LOTS (1 lot = 10 shares). Treating it as shares
+    // understated every volume by 10x and every turnover by 10x — the index
+    // ribbon reported GT 981 tỷ for a session that really matched ~9,810 tỷ,
+    // and the aiScore volume gate (>5M shares) never fired. `normalizeVpsLotVolume`
+    // is the same verified conversion (lot x10 == KBS share volume) the
+    // single-symbol provider already uses.
+    const volume = normalizeVpsLotVolume(item.lot);
+    // Turnover is DERIVED: VWAP(avePrice, kVND -> VND) x matched shares. This is
+    // the same derivation the board provider documents; without both inputs the
+    // field stays null and the UI renders `—`, never 0.
     const totalValue =
       item.avePrice != null && item.avePrice > 0 && volume !== null && volume > 0
-        ? Number((item.avePrice * 1000 * volume).toFixed(0))
+        ? Math.round(item.avePrice * 1000 * volume)
         : null;
 
     const status = this.calculateDataStatus();

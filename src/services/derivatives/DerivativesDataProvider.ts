@@ -107,7 +107,12 @@ export class DerivativesDataProvider {
     const ceiling = parseVpsNumeric(raw.c);
     const floor = parseVpsNumeric(raw.f);
     const volume = parseVpsNumeric(raw.lot);
-    const tradingValue = parseVpsNumeric(raw.fBValue);
+    // P27 §9 / §24: there is NO total-turnover field in the VPS futures payload.
+    // `fBValue` is the FOREIGN BUY value in THOUSANDS of VND (normalize.ts:70) —
+    // reporting it as `tradingValue` would publish a foreign-flow number as the
+    // contract's turnover, 1000x off in units as well. Turnover stays
+    // UNAVAILABLE (null) until the source exposes a real one.
+    const tradingValue = null;
 
     // Extract Open Interest if reported in raw payload
     const openInterest = parseVpsNumeric(

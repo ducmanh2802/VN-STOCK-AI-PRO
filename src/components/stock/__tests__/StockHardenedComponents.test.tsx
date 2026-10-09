@@ -55,6 +55,22 @@ describe('Stock Component Hardening & Fail-Closed Integrity', () => {
       expect(html).toContain('--');
       expect(html).not.toContain('NaN');
     });
+
+    it('renders `—` for a turnover the source never published, never a fabricated 0.0 tỷ', () => {
+      const html = renderToStaticMarkup(
+        <StockPriceSummary price={20150} change={-200} changePercent={-0.98} volume={12877800} />
+      );
+      expect(html).toContain('12.88M'); // real matched volume still shown
+      expect(html).toContain('—'); // turnover unavailable
+      expect(html).not.toContain('0.0 tỷ'); // "0.0 tỷ" would claim an empty session
+    });
+
+    it('renders `--` for an absent change instead of a flat 0 / 0.00%', () => {
+      const html = renderToStaticMarkup(<StockPriceSummary price={20150} />);
+      expect(html).toContain('--');
+      expect(html).not.toContain('0.00%');
+      expect(html).not.toContain('0 CP');
+    });
   });
 
   describe('StockTechnicalIndicators', () => {
