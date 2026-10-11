@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { MarketExchange } from '../../types/stock';
 import { Badge } from '../ui/Badge';
 import { SourceBadge } from '../common/SourceBadge';
@@ -36,13 +36,23 @@ export const StockHeader: React.FC<StockHeaderProps> = ({
   isRefreshing = false,
 }) => {
   const [copied, setCopied] = React.useState(false);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cancel the "Đã sao chép!" reset timer on unmount so a late timeout cannot
+  // call setState on an unmounted component.
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    };
+  }, []);
 
   const handleCopyLink = () => {
     try {
       const url = `${window.location.origin}/stock/${symbol}`;
       navigator.clipboard.writeText(url);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // Ignore clipboard write failures in restricted iframe
     }

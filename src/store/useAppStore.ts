@@ -36,6 +36,7 @@ const STORAGE_KEY = 'vn_stock_ai_watchlist';
  * resolve to it, which is the pre-existing behaviour for an unknown path.
  */
 const PATH_TO_VIEW: Readonly<Record<string, string>> = {
+  '/dashboard': 'dashboard',
   '/market': 'market',
   '/sector-intelligence': 'sector-intelligence',
   '/watchlist': 'watchlist',
@@ -57,6 +58,52 @@ const PATH_TO_VIEW: Readonly<Record<string, string>> = {
   '/fundamentals': 'fundamentals',
   '/news-macro': 'news-macro',
   '/settings': 'settings',
+};
+
+/**
+ * Inverse of PATH_TO_VIEW. `setCurrentView` mirrors a view transition into the
+ * address bar through this table so the browser back/forward buttons work for
+ * in-app navigation, not only for the stock and dashboard deep links. Views with
+ * no standalone route (e.g. `stock-detail`) are deliberately absent: they are
+ * reached through `navigateToStock`, which owns the `/stock/:symbol` path.
+ */
+const VIEW_TO_PATH: Readonly<Record<string, string>> = {
+  dashboard: '/dashboard',
+  market: '/market',
+  'sector-intelligence': '/sector-intelligence',
+  watchlist: '/watchlist',
+  screener: '/screener',
+  stocks: '/stocks',
+  portfolio: '/portfolio',
+  'risk-center': '/risk-center',
+  'paper-trading': '/paper-trading',
+  'data-status': '/data-status',
+  recommendations: '/recommendations',
+  'ai-analyst': '/ai-analyst',
+  learn: '/learn',
+  'learn-path': '/learn-path',
+  'learn-lesson': '/learn-lesson',
+  'practice-lab': '/practice-lab',
+  journal: '/journal',
+  'strategy-lab': '/strategy-lab',
+  backtest: '/backtest',
+  fundamentals: '/fundamentals',
+  'news-macro': '/news-macro',
+  settings: '/settings',
+};
+
+/**
+ * Pushes the path that names `view` unless the address bar already shows it.
+ * The equality guard matters: without it, re-clicking the active sidebar tab
+ * (or the mobile bar) would append a duplicate history entry every time, so a
+ * single Browser Back would appear to do nothing.
+ */
+const syncViewToUrl = (view: string): void => {
+  if (typeof window === 'undefined') return;
+  const path = VIEW_TO_PATH[view];
+  if (!path) return;
+  if ((window.location.pathname.replace(/\/+$/, '') || '/') === path) return;
+  window.history.pushState(null, '', path);
 };
 
 const parseInitialRoute = (): { view: string; symbol: string | null } => {
@@ -138,14 +185,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarCollapsed: false,
   watchlistSymbols: getInitialWatchlist(),
 
-  setCurrentView: (view: string) => set({ currentView: view }),
+  setCurrentView: (view: string) => {
+    syncViewToUrl(view);
+    set({ currentView: view });
+  },
 
   setSelectedStockSymbol: (symbol: string | null) => set({ selectedStockSymbol: symbol }),
 
   navigateToStock: (symbol: string) => {
     const upper = symbol.toUpperCase();
-    if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', `/stock/${upper}`);
+    const path = `/stock/${upper}`;
+    if (typeof window !== 'undefined' && (window.location.pathname.replace(/\/+$/, '') || '/') !== path) {
+      window.history.pushState(null, '', path);
     }
     set({
       currentView: 'stock-detail',
@@ -155,9 +206,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   navigateToDashboard: () => {
-    if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', '/dashboard');
-    }
+    syncViewToUrl('dashboard');
     set({
       currentView: 'dashboard',
       selectedStockSymbol: null,

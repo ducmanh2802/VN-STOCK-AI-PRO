@@ -69,6 +69,9 @@ import { createResearchApiRouter } from './src/services/research/ResearchApiRout
 import { createPaperReplayApiRouter } from './src/services/replay/PaperReplayApiRouter.ts';
 // P1-08 — commercial lane entrypoint (entitlements, subscriptions, usage, audit).
 import { createBusinessApiRouterComposition } from './src/services/business-api/BusinessApiRouterComposition.ts';
+import { createStrategyApiRouter } from './src/services/strategy/StrategyApiRouter.ts';
+import { createScenarioApiRouter } from './src/services/scenario/ScenarioApiRouter.ts';
+import { createAlertApiRouter } from './src/services/alerts/AlertApiRouter.ts';
 import { runAiChat } from './src/services/assistant/aiChatService.ts';
 
 async function startServer() {
@@ -154,6 +157,15 @@ async function startServer() {
   // P1-08 — commercial layer: entitlements, subscription, usage, commercial audit.
   // Identity comes from the shared PLATFORM IdentityService; status probes fail closed.
   app.use('/api/billing', createBusinessApiRouterComposition());
+
+  // PHASE 25 — multi-asset strategy signal lane. Advisory only: a strategy signal
+  // can never place an order; execution stays behind the protected trading boundary.
+  app.use('/api/strategy', createStrategyApiRouter());
+  // PHASE 31 — scenario what-if lane. Advisory only: scenarios never mutate positions.
+  app.use('/api/scenario', createScenarioApiRouter());
+
+  // PHASE 31 — alerts rule evaluation lane. Advisory only: alert rules never mutate positions.
+  app.use('/api/alerts', createAlertApiRouter());
 
   // ========================================================
   // PLATFORM FOUNDATION (identity/auth, authorization, audit, health)
@@ -1075,6 +1087,26 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Global error terminal. Express 4 does not forward rejected async handlers to
+  // the error stack on its own, so any route that throws outside its try/catch
+  // would leave the request hanging; this converts such a failure into a truthful
+  // JSON 500 instead. It is mounted after every route so it only ever fires as a
+  // last resort.
+  app.use(
+    (
+      error: unknown,
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction
+    ) => {
+      console.error('Unhandled server error:', error);
+      if (res.headersSent) {
+        return; // The response is already on the wire; do not attempt a second write.
+      }
+      res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
+    }
+  );
 
   // A failed bind must be loud, deterministic and non-zero, never an unhandled 'error'
   // event that prints a stack and leaves the exit code ambiguous to the platform.

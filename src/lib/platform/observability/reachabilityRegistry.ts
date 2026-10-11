@@ -439,6 +439,26 @@ export const REACHABILITY_REGISTRY: readonly CapabilityEntry[] = [
     rationale:
       'Extracted from server.ts into src/ so the feature registry cites a real reachable module rather than a test-only one.',
   },
+  {
+    capability: 'STRATEGY_SIGNAL',
+    owner: 'STRATEGY',
+    engine: 'src/services/strategy/StrategyIntelligenceService.ts',
+    service: 'src/services/strategy/StrategyApiRouter.ts',
+    repository: 'src/lib/strategy (strategy factory + generators)',
+    productionEntrypoint: 'POST /api/strategy/signal',
+    productionCaller: 'src/services/strategy/StrategyApiRouter.ts',
+    executionContext: 'SERVER',
+    test: 'src/services/strategy/__tests__/StrategyApiRouter.test.ts',
+    securityBoundary: {
+      authentication: 'NONE',
+      authorization: 'NONE',
+      notes:
+        'ADVISORY ONLY: a strategy signal can never place an order. It is a deterministic, provenance-stamped recommendation; execution remains behind the protected trading boundary (RiskGuard / TradingEngine / PositionSizer). Unauthenticated and unmetered (P2) like the other data-read lanes.',
+    },
+    state: 'REACHABLE',
+    rationale:
+      'Phase 21–25 intelligence cluster (MarketIntelligenceService, Derivatives/ETF/Corporate-Actions/Earnings/Capital-Cycle/Macro-Regime snapshots) was reachable only from tests until the /api/strategy lane was mounted.',
+  },
 
   // --------------------------------------------------------------- learning ---
   {

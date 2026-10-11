@@ -43,11 +43,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-    } else {
-      setSearch('');
-      setStockResults([]);
+      const timer = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(timer);
     }
+    setSearch('');
+    setStockResults([]);
   }, [isOpen]);
 
   // Keyboard shortcut listener for Escape

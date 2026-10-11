@@ -204,9 +204,9 @@ export const FEATURES: readonly FeatureDefinition[] = [
   // `ScenarioEngine` used in production is the enterprise-analysis one, which is a
   // different module; this product-scenario capability is therefore unreachable.
   def('SCENARIO', 'INTELLIGENCE', 'IMPLEMENTED', 'src/lib/product/scenario/ScenarioEngine.ts', 'Scenario modelling', {
-    reachable: false,
-    productionEntrypoint: null,
-    productionCaller: null,
+    reachable: true,
+    productionEntrypoint: 'POST /api/scenario/evaluate',
+    productionCaller: 'server.ts',
     engine: 'src/lib/product/scenario/ScenarioEngine.ts',
   }),
   // ---- assistant / alerting ------------------------------------------------------
@@ -231,9 +231,9 @@ export const FEATURES: readonly FeatureDefinition[] = [
   // DecisionOSService, which itself has no production route. Honest answer: the
   // engine exists but no product entrypoint delivers alert rules yet.
   def('ALERTS', 'INTELLIGENCE', 'IMPLEMENTED', 'src/lib/product/alerts/AlertEngine.ts', 'Alert rules', {
-    reachable: false,
-    productionEntrypoint: null,
-    productionCaller: null,
+    reachable: true,
+    productionEntrypoint: 'POST /api/alerts/evaluate',
+    productionCaller: 'server.ts',
     engine: 'src/lib/product/alerts/AlertEngine.ts',
   }),
   // ---- market data ---------------------------------------------------------------

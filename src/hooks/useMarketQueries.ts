@@ -359,7 +359,8 @@ export function useStockAnalysis(symbol: string | null) {
 export interface StockRecommendationsResponse {
   symbol: string;
   dataStatus: 'OK' | 'INSUFFICIENT_DATA' | 'DATA_UNAVAILABLE';
-  currentPrice: number;
+  /** Present only with `dataStatus: 'OK'`; omitted by the fail-closed INSUFFICIENT_DATA branch. */
+  currentPrice?: number;
   recommendations?: Record<InvestmentHorizon, InvestmentRecommendation>;
   message?: string;
   retrievedAt?: string;
