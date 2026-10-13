@@ -33,7 +33,10 @@ interface HealthPayload {
   readonly timestamp?: string;
   readonly providers?: { readonly kbs?: string; readonly vps?: string };
   readonly dependencies?: {
+    /** Configuration presence only. */
     readonly database?: string;
+    /** 'CONNECTED' only after a real database round trip. */
+    readonly databaseConnectivity?: string;
     readonly auth?: string;
     readonly gemini?: string;
   };
@@ -208,11 +211,11 @@ export const SettingsPage: React.FC = () => {
         />
         <MetricCard
           label="CƠ SỞ DỮ LIỆU"
-          value={health.data?.dependencies?.database ?? '…'}
+          value={health.data?.dependencies?.databaseConnectivity ?? health.data?.dependencies?.database ?? '…'}
           subValue="Route DB trả lỗi fail-closed khi thiếu"
           badge="SQL"
           badgeVariant="neutral"
-          status={health.data?.dependencies?.database === 'DATABASE_CONFIGURED' ? 'LIVE' : 'DATA_UNAVAILABLE'}
+          status={health.data?.dependencies?.databaseConnectivity === 'CONNECTED' ? 'LIVE' : 'DATA_UNAVAILABLE'}
         />
         <MetricCard
           label="NGUỒN KBS / VPS"

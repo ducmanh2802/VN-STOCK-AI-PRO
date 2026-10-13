@@ -32,6 +32,15 @@ import { rateLimit } from './src/middleware/platform/rateLimit.ts';
 import { InMemoryRateLimiter } from './src/lib/platform/security/rateLimiter.ts';
 import { runHealthCheck, statusCodeFor } from './src/lib/platform/observability/health.ts';
 import { getOrCreateUser } from './src/db/users.ts';
+import { missingDatabaseConfiguration } from './src/db/databaseHealth.ts';
+import { createDailyPriceRouter } from './src/services/data/DailyPriceApiRouter.ts';
+import { getDailyPrices, toCandles } from './src/services/data/DailyPriceService.ts';
+import { EodIngestionScheduler, readEodSchedulerConfig } from './src/services/data/EodIngestionScheduler.ts';
+import { EOD_DAILY_BARS_JOB, runDailyBarIngestion } from './src/services/data/DailyBarIngestionJob.ts';
+import { createDatabaseIngestionDeps } from './src/services/data/dailyIngestionRuntime.ts';
+import { createIngestionStatusRouter } from './src/services/data/IngestionStatusApiRouter.ts';
+import { IngestionRunRepository } from './src/lib/db/data/IngestionRunRepository.ts';
+import { lastFinalizedSession } from './src/lib/data/vnTradingCalendar.ts';
 // PHASE 8.5C — REAL market data (KBS historical OHLCV + VPS realtime/fundamentals)
 import {
   getHistoricalStockData,
@@ -146,6 +155,24 @@ async function startServer() {
   // POST /api/canonical-data/cross-source-check
   // GET  /api/canonical-data/identity/:symbol
   app.use('/api/canonical-data', createCanonicalDataApiRouter());
+
+  // Scheduled end-of-day daily-bar ingestion (opt-in: EOD_INGEST_ENABLED=true) and its
+  // read-only status. Manual backfills run from `npm run ingest:backfill`, never over HTTP.
+  const eodConfig = readEodSchedulerConfig();
+  const eodScheduler = eodConfig.enabled
+    ? new EodIngestionScheduler(
+        () => runDailyBarIngestion({ mode: 'SCHEDULED' }, createDatabaseIngestionDeps()),
+        eodConfig,
+        {
+          needsCatchUp: async () => {
+            const lastFinal = lastFinalizedSession(new Date());
+            const lastComplete = await IngestionRunRepository.latestRunWithStatus(EOD_DAILY_BARS_JOB, 'COMPLETE');
+            return lastFinal !== null && lastComplete?.targetSession !== lastFinal;
+          },
+        }
+      )
+    : null;
+  app.use('/api/canonical-data/ingestion', createIngestionStatusRouter({ scheduler: eodScheduler }));
 
   // P1-02 / P1-04 — research: metrics, certification, experiments, decisions, PIT.
   // `AuditEngine.certify` is reachable only here; nothing else may claim CERTIFIED.
@@ -262,9 +289,16 @@ async function startServer() {
       dependencyProbes: report.dependencies.map((d) => ({ name: d.name, status: d.status, optional: d.optional })),
       blockedBy: report.blockedBy,
       dependencies: {
-        database: report.dependencies.find((d) => d.name === 'database')?.status === 'OK'
+        // Configuration only — kept for existing consumers. Never read it as "reachable".
+        database: missingDatabaseConfiguration().length === 0
           ? 'DATABASE_CONFIGURED'
           : 'DATABASE_CONFIGURATION_REQUIRED',
+        // Proven by the probe's real round trip, not by environment variables.
+        databaseConnectivity: missingDatabaseConfiguration().length > 0
+          ? 'NOT_CONFIGURED'
+          : report.dependencies.find((d) => d.name === 'database')?.status === 'OK'
+            ? 'CONNECTED'
+            : 'UNAVAILABLE',
         auth: getAdminAuthState().status,
         gemini: process.env.GEMINI_API_KEY ? 'GEMINI_CONFIGURED' : 'GEMINI_CONFIGURATION_REQUIRED',
       },
@@ -330,25 +364,26 @@ async function startServer() {
     }
   });
 
-  // Stock Daily OHLCV Bars
-  app.get('/api/stocks/:symbol/daily', async (req, res) => {
-    try {
-      const stock = await StockRepository.getBySymbol(req.params.symbol);
-      if (!stock) {
-        return res.status(404).json({ error: 'Không tìm thấy cổ phiếu' });
-      }
+  // Stock Daily OHLCV Bars — the canonical daily series (canonical_market_bars).
+  app.use('/api/stocks', createDailyPriceRouter());
 
-      const from = req.query.from as string | undefined;
-      const to = req.query.to as string | undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 120;
-
-      const history = await PriceRepository.getDailyHistory(stock.id, { from, to, limit });
-      res.json(history);
-    } catch (error: any) {
-      console.error(`Error in GET /api/stocks/${req.params.symbol}/daily:`, error);
-      sendDataError(res, 'Lỗi khi tải lịch sử giá', error);
+  /**
+   * Latest canonical daily bars for the analysis routes below. Answers the response
+   * itself (404/503) and returns null when the caller must stop.
+   */
+  async function canonicalDailyBarsOr(res: express.Response, symbol: string, limit: number) {
+    const result = await getDailyPrices(symbol, { limit, now: new Date() });
+    if (result.status === 'UNSUPPORTED_SYMBOL') {
+      res.status(404).json({ error: 'Không tìm thấy cổ phiếu' });
+      return null;
     }
-  });
+    if (result.status === 'DATABASE_UNAVAILABLE') {
+      res.status(503).json({ error: 'Dữ liệu giá không khả dụng', code: 'DATA_UNAVAILABLE', dataStatus: 'DATA_UNAVAILABLE', databaseState: result.databaseState });
+      return null;
+    }
+    if (result.status === 'INVALID_QUERY') throw new Error(result.detail);
+    return result.bars;
+  }
 
   // Stock Intraday Ticks
   app.get('/api/stocks/:symbol/intraday', async (req, res) => {
@@ -442,20 +477,9 @@ async function startServer() {
   // Deterministic Technical Analysis Score
   app.get('/api/stocks/:symbol/technical-analysis', async (req, res) => {
     try {
-      const stock = await StockRepository.getBySymbol(req.params.symbol);
-      if (!stock) {
-        return res.status(404).json({ error: 'Không tìm thấy cổ phiếu' });
-      }
-
-      const history = await PriceRepository.getDailyHistory(stock.id, { limit: 100 });
-      const candles = history.map((h) => ({
-        time: h.date,
-        open: Number(h.open),
-        high: Number(h.high),
-        low: Number(h.low),
-        close: Number(h.close),
-        volume: Number(h.volume),
-      }));
+      const bars = await canonicalDailyBarsOr(res, req.params.symbol, 100);
+      if (!bars) return;
+      const candles = toCandles(bars);
 
       const evaluation = TechnicalScoreEngine.evaluate(candles);
       res.json(evaluation);
@@ -474,9 +498,10 @@ async function startServer() {
       }
 
       const latestRatios = await FundamentalRepository.getLatestRatios(stock.id);
-      const latestDaily = await PriceRepository.getLatestDaily(stock.id);
+      const latestBars = await canonicalDailyBarsOr(res, req.params.symbol, 1);
+      if (!latestBars) return;
 
-      const priceVal = latestDaily ? Number(latestDaily.close) : null;
+      const priceVal = latestBars[0]?.close ?? null;
       const epsVal = latestRatios?.eps ? Number(latestRatios.eps) : null;
       const bvpsVal = latestRatios?.bvps ? Number(latestRatios.bvps) : null;
       const roeVal = latestRatios?.roe ? Number(latestRatios.roe) : null;
@@ -506,10 +531,11 @@ async function startServer() {
         return res.status(404).json({ error: 'Không tìm thấy cổ phiếu' });
       }
 
-      const latestDaily = await PriceRepository.getLatestDaily(stock.id);
+      const latestBars = await canonicalDailyBarsOr(res, req.params.symbol, 1);
+      if (!latestBars) return;
       const latestRatios = await FundamentalRepository.getLatestRatios(stock.id);
 
-      const rawClose = latestDaily?.close != null ? Number(latestDaily.close) : NaN;
+      const rawClose = latestBars[0]?.close ?? NaN;
       if (!Number.isFinite(rawClose) || rawClose <= 0) {
         return res.status(404).json({
           symbol: req.params.symbol,
@@ -545,15 +571,9 @@ async function startServer() {
         return res.status(404).json({ error: 'Không tìm thấy cổ phiếu' });
       }
 
-      const history = await PriceRepository.getDailyHistory(stock.id, { limit: 60 });
-      const candles = history.map((h) => ({
-        time: h.date,
-        open: Number(h.open),
-        high: Number(h.high),
-        low: Number(h.low),
-        close: Number(h.close),
-        volume: Number(h.volume),
-      }));
+      const bars = await canonicalDailyBarsOr(res, req.params.symbol, 60);
+      if (!bars) return;
+      const candles = toCandles(bars);
 
       // Retrieve foreign trading data if available (do not infer if absent)
       const foreignRow = await MoneyFlowRepository.getLatestForeign(stock.id);
@@ -1119,7 +1139,15 @@ async function startServer() {
     process.exitCode = 1;
   });
 
-  httpServer.listen(PORT, HOST, () => { console.log(`VN STOCK AI Server running on http://${HOST}:${PORT}`); });
+  httpServer.listen(PORT, HOST, () => {
+    console.log(`VN STOCK AI Server running on http://${HOST}:${PORT}`);
+    if (eodScheduler) {
+      void eodScheduler.start().then(() => {
+        const { nextRunAt, blockedReason } = eodScheduler.status();
+        console.log(`[eod-ingest] scheduler enabled; next run ${nextRunAt ?? 'none'}${blockedReason ? ` — ${blockedReason}` : ''}`);
+      });
+    }
+  });
 }
 
 startServer().catch((error) => {

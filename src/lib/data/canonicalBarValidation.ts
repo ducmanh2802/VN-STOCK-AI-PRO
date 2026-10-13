@@ -31,6 +31,7 @@ import {
   type CanonicalQualityState,
   type CanonicalMarketSource,
 } from './canonicalBarTypes.ts';
+import { vnLocalParts } from './vnTradingCalendar.ts';
 
 const SYMBOL_PATTERN = /^[A-Z0-9_.]{1,20}$/;
 const INSTRUMENT_PATTERN = /^[A-Z0-9_.:-]{1,64}$/;
@@ -185,11 +186,33 @@ export function validateCanonicalBar(
       ? input.tradingDate
       : new Date(barMs).toISOString().slice(0, 10);
 
+  // A daily bar is one exchange session: its instant must fall on that trading date
+  // in exchange-local time, or the bar would be filed under the wrong session.
+  if (input.timeframe === '1D' && input.tradingDate && ISO_DATE.test(input.tradingDate)) {
+    const localDate = vnLocalParts(new Date(barMs)).date;
+    if (localDate !== input.tradingDate) {
+      return reject(
+        'INVALID',
+        'INVALID_TIMESTAMP',
+        `barTime ${input.barTime} falls on ${localDate} (Asia/Ho_Chi_Minh), not on tradingDate ${input.tradingDate}.`
+      );
+    }
+  }
+
   // -- OHLC + volume correctness (P0-04 §17) — never repaired ---------------
   const { open, high, low, close, volume, turnoverVnd } = input;
 
   if (close === null) {
     return reject('UNAVAILABLE', 'MISSING_REQUIRED_FIELD', 'close is required.');
+  }
+  if (input.timeframe === '1D') {
+    // A daily OHLCV series is only usable when every field is present; a partial
+    // record is a gap, not a bar.
+    for (const [name, value] of [['open', open], ['high', high], ['low', low], ['volume', volume]] as const) {
+      if (value === null) {
+        return reject('UNAVAILABLE', 'MISSING_REQUIRED_FIELD', `${name} is required for a daily bar.`);
+      }
+    }
   }
   const priceFields: readonly (readonly [string, number | null])[] = [
     ['open', open],
@@ -211,6 +234,12 @@ export function validateCanonicalBar(
   }
   if (low !== null && close < low) {
     return reject('INVALID', 'OHLC_INCONSISTENT', `close (${close}) is below low (${low}).`);
+  }
+  if (open !== null && high !== null && open > high) {
+    return reject('INVALID', 'OHLC_INCONSISTENT', `open (${open}) exceeds high (${high}).`);
+  }
+  if (open !== null && low !== null && open < low) {
+    return reject('INVALID', 'OHLC_INCONSISTENT', `open (${open}) is below low (${low}).`);
   }
   if (volume !== null && (!isFiniteNumber(volume) || volume < 0)) {
     return reject('INVALID', 'NEGATIVE_VOLUME', `volume must be a non-negative finite number, got: ${volume}`);

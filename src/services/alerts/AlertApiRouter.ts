@@ -18,7 +18,7 @@ const router = Router();
 /**
  * GET /api/alerts/list — discovery surface for the Alerts UI.
  */
-router.get('/list', (_req: Request, _res: Response) => {
+router.get('/list', (_req: Request, res: Response) => {
   res.json({ rules: [], count: 0 });
 });
 

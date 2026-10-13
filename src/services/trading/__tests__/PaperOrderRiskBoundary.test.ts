@@ -35,7 +35,28 @@ function makeQuote(overrides: Record<string, unknown> = {}, quoteOverrides: Reco
       kbsClose: 28400,
       deviationPercent: 0.35,
       status: 'OK',
+      agreement: 'AGREE',
+      reasonCode: 'VERIFIED',
+      sessionsApart: 0,
+      allowedRange: null,
       detail: 'VPS and KBS close within 0.35%',
+    },
+    validation: {
+      reasonCode: 'VERIFIED',
+      detail: 'fixture',
+      sessionDate: '2026-04-10',
+      calendarCovered: true,
+      priceLimits: {
+        status: 'WITHIN_LIMITS',
+        basis: 'SESSION_METADATA',
+        exchange: 'HOSE',
+        referencePrice: 28000,
+        floorPrice: 26050,
+        ceilingPrice: 29950,
+        bandFraction: 0.07,
+        bandClassification: 'STANDARD',
+        violations: [],
+      },
     },
     quote: {
       symbol: 'HPG',
@@ -307,6 +328,23 @@ describe('P0-01 — market data fail-closed paths', () => {
       await h.close();
     }
   });
+
+  it.each(['MISMATCH', 'UNVERIFIED', 'INVALID'] as const)(
+    'a %s quote is never traded, even though its raw values look usable',
+    async (dataStatus) => {
+      const h = await createHarness({ quote: makeQuote({ dataStatus, error: `${dataStatus}: fixture` }) });
+      try {
+        const res = await post(h.baseUrl, BUY);
+        expect(res.status).toBe(503);
+        const json = await res.json();
+        expect(json.error.code).toBe('DATA_UNAVAILABLE');
+        expect(json.data.riskTrace.zeroCause).toBe('ZERO_BY_DATA');
+        expect(h.submitSpy).not.toHaveBeenCalled();
+      } finally {
+        await h.close();
+      }
+    }
+  );
 
   it('missing source timestamp: cannot compute freshness => ZERO_BY_DATA', async () => {
     const h = await createHarness({ quote: makeQuote({}, { fetchedAt: 'not-a-timestamp' }) });

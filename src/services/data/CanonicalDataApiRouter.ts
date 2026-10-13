@@ -20,10 +20,7 @@
  * duplicates, and whether a database was actually reached.
  */
 import { Router, type Request, type Response } from 'express';
-import {
-  CanonicalMarketDataIngestionService,
-  type ProviderBarObservation,
-} from './CanonicalMarketDataIngestionService.ts';
+import { CanonicalMarketDataIngestionService } from './CanonicalMarketDataIngestionService.ts';
 import {
   resolveInstrumentAsOf,
   resolveUniverseAsOf,
@@ -31,16 +28,22 @@ import {
   getCanonicalBars,
   registerInstrument,
 } from './DataFoundationComposition.ts';
-import { KbsHistoricalProvider } from '../market/providers/kbs/KbsHistoricalProvider.ts';
+import { fetchKbsDailyBatch, instrumentIdFor, supportedExchangeOf } from './kbsDailyObservations.ts';
 import { InstrumentIdentityEngine } from '../../lib/data/InstrumentIdentityEngine.ts';
 import { VIETNAM_STOCKS_UNIVERSE } from '../market/stockUniverse.ts';
 import type { CanonicalMarketSource } from '../../lib/data/canonicalBarTypes.ts';
 
-/** Cross-source close tolerance, matching the existing quote cross-check policy. */
+/**
+ * Default tolerance for POST /cross-source-check when the caller supplies none. This
+ * is NOT the realtime-quote policy: quotes are validated against exchange price limits
+ * in `quoteValidation.ts`. Two sources' closes for the same trading date describe one
+ * official close, so callers should pass a tight tolerance; this default is kept for
+ * backward compatibility of the route.
+ */
 export const CANONICAL_CROSS_SOURCE_TOLERANCE_PERCENT = 10;
 
-/** Version stamp of the canonical daily-bar data version. */
-export const CANONICAL_DAILY_BAR_VERSION = 'v1.0.0-canonical-1d';
+/** Version stamp of the canonical daily-bar data version (defined with the shared KBS mapping). */
+export { CANONICAL_DAILY_BAR_VERSION } from './kbsDailyObservations.ts';
 
 /**
  * Maps a ticker onto the canonical `instrumentId`. Uses the authoritative
@@ -71,38 +74,6 @@ function daysAhead(n: number, from = new Date()): string {
   return d.toISOString().slice(0, 10);
 }
 
-/**
- * Fetches real KBS daily bars and converts them into canonical provider
- * observations. No synthetic fallback: a provider failure propagates.
- */
-async function fetchKbsObservations(
-  symbol: string,
-  from: string,
-  to: string
-): Promise<ProviderBarObservation[]> {
-  const bars = await KbsHistoricalProvider.getDailyHistory(symbol, from, to, { timeoutMs: 10_000 });
-  const exchange = resolveExchange(symbol);
-  const instrumentId = resolveInstrumentId(symbol, exchange);
-  return bars.map((b) => ({
-    instrumentId,
-    symbol: symbol.toUpperCase(),
-    exchange,
-    timeframe: '1D' as const,
-    // KBS supplies a trading date only. The bar is closed at the exchange close,
-    // so the bar instant is that date at 07:00 UTC = 14:00 ICT. This is a
-    // deterministic documented mapping, recorded in the ingestion transform note.
-    barTime: `${b.date}T07:00:00.000Z`,
-    tradingDate: b.date,
-    open: b.open,
-    high: b.high,
-    low: b.low,
-    close: b.close,
-    volume: b.volume,
-    turnoverVnd: b.value > 0 ? b.value : null,
-    sourceRecordId: `KBS|${symbol.toUpperCase()}|1D|${b.date}`,
-    publicationTime: `${b.date}T08:00:00.000Z`,
-  }));
-}
 
 export function createCanonicalDataApiRouter(): Router {
   const router = Router();
@@ -147,25 +118,47 @@ export function createCanonicalDataApiRouter(): Router {
 
     const from = typeof req.body?.from === 'string' ? req.body.from : daysAgo(365);
     const to = typeof req.body?.to === 'string' ? req.body.to : daysAhead(1);
+    // The write path never guesses an exchange: a wrong guess would file the bars under
+    // a wrong canonical identity.
+    const exchange = supportedExchangeOf(symbol);
+    if (!exchange) {
+      return res.status(404).json({
+        success: false,
+        error: 'UNSUPPORTED_SYMBOL',
+        detail: `${symbol} is not in the supported universe; its exchange (and so its canonical identity) is unknown.`,
+        written: false,
+      });
+    }
 
     try {
-      const observations = await fetchKbsObservations(symbol, from, to);
-      const report = await CanonicalMarketDataIngestionService.ingestBatch(
-        {
-          source,
-          sourceTier: 'TIER_2_EXCHANGE',
-          provider: 'KbsHistoricalProvider',
-          providerVersion: null,
-          dataVersion: CANONICAL_DAILY_BAR_VERSION,
-          sourceUrl: `https://kbbuddywts.kbsec.com.vn/iis-server/investment/stocks/${symbol}/data_day`,
-          observations,
-        },
-        { registerInstruments: true, validFrom: from }
-      );
+      const fetched = await fetchKbsDailyBatch({ symbol, exchange, from, to, now: new Date() });
+      const report = await CanonicalMarketDataIngestionService.ingestBatch(fetched.batch, {
+        registerInstruments: true,
+        validFrom: from,
+      });
+      const instrumentId = instrumentIdFor(symbol, exchange);
+      if (report.persistenceStatus === 'NOT_PERSISTED') {
+        // The provider answered but nothing reached the database: the ingest did not
+        // happen, whatever the validation outcome was.
+        return res.status(503).json({
+          success: false,
+          symbol,
+          instrumentId,
+          dataStatus: 'PERSISTENCE_UNAVAILABLE',
+          databaseState: report.databaseState,
+          written: false,
+          report,
+        });
+      }
       return res.json({
         success: true,
         symbol,
-        instrumentId: resolveInstrumentId(symbol, resolveExchange(symbol)),
+        instrumentId,
+        written: report.persistenceStatus !== 'NOTHING_TO_PERSIST',
+        persistenceStatus: report.persistenceStatus,
+        // Bars for a session that is not over yet are never stored as daily bars.
+        withheldInProgress: fetched.withheldInProgress,
+        lastFinalSession: fetched.lastFinalSession,
         report,
       });
     } catch (error: any) {
@@ -258,7 +251,7 @@ export function createCanonicalDataApiRouter(): Router {
         return res.status(400).json({ success: false, error: `MISSING_FIELD: ${field}` });
       }
     }
-    const record = await CanonicalMarketDataIngestionService.recordCrossSourceCheck({
+    const { persisted, ...record } = await CanonicalMarketDataIngestionService.recordCrossSourceCheck({
       instrumentId: String(body.instrumentId),
       tradingDate: String(body.tradingDate),
       timeframe: (body.timeframe as '1D') ?? '1D',
@@ -271,7 +264,8 @@ export function createCanonicalDataApiRouter(): Router {
           ? body.tolerancePercent
           : CANONICAL_CROSS_SOURCE_TOLERANCE_PERCENT,
     });
-    return res.json({ success: true, record });
+    // The verdict is computed either way; `persisted` says whether it reached the ledger.
+    return res.json({ success: true, record, persisted });
   });
 
   /** Instrument identity resolution, so the canonical ID contract is inspectable. */

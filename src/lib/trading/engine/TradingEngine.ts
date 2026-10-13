@@ -290,6 +290,20 @@ export class TradingEngine {
     } else {
       try {
         const liveQuote = await getRealtimeQuote(symbol);
+        // The raw VPS values travel with every quote for diagnostics; only a quote that
+        // passed price-limit and cross-source validation may drive a trade.
+        if (liveQuote.dataStatus !== 'OK') {
+          const res: TradingCycleResult = {
+            status: 'REJECTED',
+            symbol,
+            action: 'NO_TRADE',
+            rejectionCode: liveQuote.dataStatus === 'UNVERIFIED' ? 'DATA_UNAVAILABLE' : 'INVALID_MARKET_DATA',
+            reason: `Quote not usable (${liveQuote.dataStatus}): ${liveQuote.error ?? liveQuote.validation?.detail ?? 'validation failed'}`,
+            timestamp,
+          };
+          this.recordAudit(res);
+          return res;
+        }
         const q = liveQuote.quote;
         marketData = {
           symbol,

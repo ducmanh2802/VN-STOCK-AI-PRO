@@ -215,9 +215,10 @@ describe('§17/§19 — provider results are cached, failures are not', () => {
     const quote = await getRealtimeQuote('HPG');
 
     expect(quote.source).toBe('VPS');
-    expect(quote.dataStatus).toBe('OK');
+    // The fixture's KBS bars end 2026-07-24; against today's clock that benchmark is
+    // stale, so the quote is not verifiable and must not be OK.
+    expect(quote.dataStatus).toBe('UNVERIFIED');
     expect(quote.quote.lastPrice).toBe(21_700);
-    // The cross-check is advisory metadata derived from a real KBS bar.
     expect(quote.crossCheck.benchmarkSource).toBe('KBS');
     expect(['OK', 'MISMATCH', 'UNVERIFIED']).toContain(quote.crossCheck.status);
 

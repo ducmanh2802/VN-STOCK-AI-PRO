@@ -1,0 +1,108 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/nemotron-3.5-lightning-free",
+  "small_model": "opencode/nemotron-3.5-lightning-free",
+  "share": "disabled",
+  "autoupdate": false,
+  "formatter": false,
+  "lsp": false,
+  "instructions": [
+    ".clinerules/00-core-project-rules.md",
+    ".clinerules/01-market-data-integrity.md",
+    ".clinerules/04-trading-risk-integrity.md"
+  ],
+  "permission": {
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.pem": "deny",
+      "*.key": "deny",
+      "*serviceaccount*": "deny",
+      "firebase-applet-config.json": "deny",
+      "*.env.example": "allow"
+    },
+    "edit": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*package.json": "deny",
+      "*-lock.json": "deny",
+      "*.lock": "deny",
+      "tsconfig*.json": "deny",
+      "vite.config.ts": "deny",
+      "vitest.config.ts": "deny",
+      "drizzle*": "deny",
+      "server.ts": "deny",
+      "Dockerfile": "deny",
+      ".dockerignore": "deny",
+      "render.yaml": "deny",
+      "firebase*": "deny",
+      "src/db/*": "deny",
+      "scripts/*": "deny",
+      "src/lib/trading/*": "deny",
+      "src/services/trading/*": "deny",
+      "src/services/market/providers/*": "deny",
+      "*RiskGuard*": "deny",
+      "*TradingDataValidator*": "deny",
+      "*MarketDataIntegrityGuard*": "deny",
+      "*FinancialConservation*": "deny",
+      "*RiskManager*": "deny",
+      "*PositionSizer*": "deny",
+      "*PaperBroker*": "deny",
+      "*TradingEngine*": "deny",
+      "*PaperOrderRiskBoundary*": "deny",
+      "AGENTS.md": "deny",
+      "CLAUDE.md": "deny",
+      "opencode.json": "deny",
+      "opencode.jsonc": "deny",
+      ".opencode/*": "deny",
+      ".clinerules/*": "deny",
+      ".claude/*": "deny",
+      ".agents/*": "deny",
+      ".git*": "deny",
+      ".vscode/*": "deny"
+    },
+    "bash": {
+      "*": "deny",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git show*": "allow",
+      "git rev-parse*": "allow",
+      "git branch --show-current": "allow",
+      "npx tsc --noEmit*": "allow",
+      "npm run typecheck*": "allow",
+      "*;*": "deny",
+      "*&*": "deny",
+      "*|*": "deny",
+      "*>*": "deny",
+      "*$(*": "deny",
+      "*`*": "deny",
+      "* -u*": "deny",
+      "* --update*": "deny",
+      "*--output*": "deny",
+      "*.env*": "deny"
+    },
+    "task": "deny",
+    "skill": "deny",
+    "webfetch": "deny",
+    "websearch": "deny",
+    "question": "deny",
+    "doom_loop": "deny"
+  },
+  "agent": {
+    "build": {
+      "permission": {
+        "question": "deny"
+      }
+    },
+    "smoke": {
+      "description": "Connectivity check only. Replies with a fixed string; every tool is denied.",
+      "mode": "primary",
+      "permission": {
+        "*": "deny"
+      }
+    }
+  }
+}

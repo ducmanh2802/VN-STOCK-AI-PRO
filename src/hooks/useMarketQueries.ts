@@ -255,7 +255,8 @@ export function useStockChartData(
 export interface RealtimeQuoteResponse {
   symbol: string;
   source: 'VPS';
-  dataStatus: 'OK' | 'DATA_UNAVAILABLE';
+  /** Only OK is a usable price; the other states carry the raw quote as diagnostics. */
+  dataStatus: 'OK' | 'DATA_UNAVAILABLE' | 'MISMATCH' | 'UNVERIFIED' | 'INVALID';
   quote?: VpsNormalizedQuote;
   crossCheck?: QuoteCrossCheck;
   error?: string;

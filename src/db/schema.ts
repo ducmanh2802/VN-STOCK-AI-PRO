@@ -1432,3 +1432,67 @@ export const canonicalSourceAgreement = pgTable(
     index('csa_state_idx').on(table.agreementState),
   ]
 );
+
+// ==========================================
+// 35. MARKET DATA INGESTION RUN LEDGER
+// Mirrors drizzle/0015_market_data_ingestion_runs.sql. CHECK constraints, the FK and
+// the "one RUNNING row per job" partial unique index live in the migration.
+// ==========================================
+
+export const INGESTION_RUN_STATUSES = ['RUNNING', 'COMPLETE', 'PARTIAL', 'FAILED'] as const;
+export type IngestionRunStatus = (typeof INGESTION_RUN_STATUSES)[number];
+export const INGESTION_RUN_MODES = ['SCHEDULED', 'BACKFILL', 'MANUAL'] as const;
+export type IngestionRunMode = (typeof INGESTION_RUN_MODES)[number];
+export const INGESTION_SYMBOL_OUTCOMES = ['COMPLETE', 'MISSING', 'FAILED'] as const;
+export type IngestionSymbolOutcome = (typeof INGESTION_SYMBOL_OUTCOMES)[number];
+
+export const marketDataIngestionRuns = pgTable(
+  'market_data_ingestion_runs',
+  {
+    id: serial('id').primaryKey(),
+    runId: text('run_id').notNull().unique(),
+    job: text('job').notNull(),
+    mode: text('mode').notNull(),
+    /** Session whose completeness the run measures; null for a range backfill. */
+    targetSession: date('target_session'),
+    rangeFrom: date('range_from').notNull(),
+    rangeTo: date('range_to').notNull(),
+    status: text('status').notNull(),
+    expectedSymbols: integer('expected_symbols').notNull(),
+    completeSymbols: integer('complete_symbols').notNull().default(0),
+    missingSymbols: integer('missing_symbols').notNull().default(0),
+    failedSymbols: integer('failed_symbols').notNull().default(0),
+    barsInserted: integer('bars_inserted').notNull().default(0),
+    barsDuplicate: integer('bars_duplicate').notNull().default(0),
+    barsRejected: integer('bars_rejected').notNull().default(0),
+    detail: text('detail'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (table) => [index('mdir_job_started_idx').on(table.job, table.startedAt)]
+);
+
+export const marketDataIngestionSymbolResults = pgTable(
+  'market_data_ingestion_symbol_results',
+  {
+    id: serial('id').primaryKey(),
+    runId: text('run_id')
+      .notNull()
+      .references(() => marketDataIngestionRuns.runId),
+    symbol: text('symbol').notNull(),
+    instrumentId: text('instrument_id').notNull(),
+    outcome: text('outcome').notNull(),
+    attempts: integer('attempts').notNull(),
+    barsReceived: integer('bars_received').notNull().default(0),
+    barsInserted: integer('bars_inserted').notNull().default(0),
+    barsDuplicate: integer('bars_duplicate').notNull().default(0),
+    barsRejected: integer('bars_rejected').notNull().default(0),
+    withheldInProgress: integer('withheld_in_progress').notNull().default(0),
+    /** Trading sessions in the run's range still without a stored bar. */
+    missingSessions: integer('missing_sessions').notNull().default(0),
+    errorCode: text('error_code'),
+    detail: text('detail'),
+    finishedAt: timestamp('finished_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [uniqueIndex('mdisr_run_symbol_idx').on(table.runId, table.symbol)]
+);

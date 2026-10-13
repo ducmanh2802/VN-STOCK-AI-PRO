@@ -13,6 +13,14 @@ import {
   runWithFallback,
   type MarketDataCapability,
 } from './providers/providerMatrix.ts';
+import {
+  validateRealtimeQuote,
+  type QuoteCrossCheck,
+  type QuoteDataStatus,
+  type QuoteValidationResult,
+} from './quoteValidation.ts';
+import { VIETNAM_STOCKS_UNIVERSE } from './stockUniverse.ts';
+import { asVnExchange } from '../../lib/data/vnPriceLimits.ts';
 
 /**
  * Real market data service — the ONLY market-data path for stock analysis.
@@ -69,9 +77,6 @@ const HISTORY_WINDOW_DAYS: Record<TimeframeOption, number> = {
   '1Y': 500,
   '3Y': 1300,
 };
-
-/** Deviation (%) between VPS last price and KBS last close tolerated by the sanity cross-check. */
-const QUOTE_CROSSCHECK_TOLERANCE_PERCENT = 10;
 
 /**
  * KBS only serves ~1 year of lookback (verified live: windows beyond ~365 days
@@ -253,31 +258,30 @@ export async function getHistoricalStockData(
   return result;
 }
 
-export interface QuoteCrossCheck {
-  benchmarkSource: 'KBS';
-  /** Date of the benchmark KBS bar. */
-  kbsDate: string | null;
-  /** KBS close in VND for that date. */
-  kbsClose: number | null;
-  /** (vpsLastPrice - kbsClose) / kbsClose * 100, rounded to 2 decimals. */
-  deviationPercent: number | null;
-  status: 'OK' | 'MISMATCH' | 'UNVERIFIED';
-  detail: string;
-}
+export type { QuoteCrossCheck, QuoteDataStatus } from './quoteValidation.ts';
 
 export interface RealtimeQuote {
   symbol: string;
   source: 'VPS';
-  dataStatus: 'OK';
+  /**
+   * OK only when the quote is within its exchange price limits AND agrees with the
+   * independent KBS close. Any other status means the values are diagnostics, not a
+   * usable price: consumers must not trade or display them as current.
+   */
+  dataStatus: QuoteDataStatus;
+  /** Raw normalized VPS values, kept even when not OK so the conflict is inspectable. */
   quote: VpsNormalizedQuote;
   crossCheck: QuoteCrossCheck;
+  validation: Pick<QuoteValidationResult, 'reasonCode' | 'detail' | 'sessionDate' | 'calendarCovered' | 'priceLimits'>;
+  /** Human-readable reason, present whenever dataStatus is not OK. */
+  error?: string;
   retrievedAt: string;
 }
 
 /**
- * STEP 5/8 — realtime quote with explicit unit normalization verified against
- * KBS before use. The quote itself is always real VPS data; the cross-check is
- * advisory metadata (OK / MISMATCH / UNVERIFIED) and never fabricates anything.
+ * STEP 5/8 — realtime quote with explicit unit normalization, validated against the
+ * session's exchange price limits and cross-checked against the KBS close before it
+ * can be marked OK. The quote values are always real VPS data; nothing is repaired.
  */
 export async function getRealtimeQuote(
   symbol: string,
@@ -299,53 +303,34 @@ export async function getRealtimeQuote(
       throw new MarketDataUnavailableError('VPS', `VPS_QUOTE_FAILED — ${reason}`);
     }
 
-    // --- Cross-check the kVND->VND normalization against the latest KBS close ---
-    let crossCheck: QuoteCrossCheck;
+    // --- Independent benchmark: the latest KBS daily closes ---
+    let benchmark: { bars: { date: string; close: number }[] } | { error: string };
     try {
       const bench = await KbsHistoricalProvider.getDailyHistory(sym, isoDaysAgo(45), toIsoDateToday(), {
         timeoutMs: QUOTE_TIMEOUT_MS,
       });
-      const last = bench.length > 0 ? bench[bench.length - 1] : null;
-      if (last && last.close > 0) {
-        const deviation = +(((quote.lastPrice - last.close) / last.close) * 100).toFixed(2);
-        const ok = Math.abs(deviation) <= QUOTE_CROSSCHECK_TOLERANCE_PERCENT;
-        crossCheck = {
-          benchmarkSource: 'KBS',
-          kbsDate: last.date,
-          kbsClose: last.close,
-          deviationPercent: deviation,
-          status: ok ? 'OK' : 'MISMATCH',
-          detail: ok
-            ? `VPS lastPrice ${quote.lastPrice} within ${QUOTE_CROSSCHECK_TOLERANCE_PERCENT}% of KBS close ${last.close} (${last.date}).`
-            : `VPS lastPrice ${quote.lastPrice} deviates ${deviation}% from KBS close ${last.close} (${last.date}). Inspect before use.`,
-        };
-      } else {
-        crossCheck = {
-          benchmarkSource: 'KBS',
-          kbsDate: null,
-          kbsClose: null,
-          deviationPercent: null,
-          status: 'UNVERIFIED',
-          detail: 'KBS returned no benchmark bar in the last 45 days.',
-        };
-      }
+      benchmark = { bars: bench.map((b) => ({ date: b.date, close: b.close })) };
     } catch (err) {
-      crossCheck = {
-        benchmarkSource: 'KBS',
-        kbsDate: null,
-        kbsClose: null,
-        deviationPercent: null,
-        status: 'UNVERIFIED',
-        detail: `KBS cross-check unavailable: ${err instanceof Error ? err.message : String(err)}`,
-      };
+      benchmark = { error: err instanceof Error ? err.message : String(err) };
     }
+
+    const exchange = asVnExchange(VIETNAM_STOCKS_UNIVERSE.find((m) => m.symbol === sym)?.exchange);
+    const validation = validateRealtimeQuote({ quote, exchange, benchmark, now: new Date() });
 
     return {
       symbol: sym,
       source: 'VPS' as const,
-      dataStatus: 'OK' as const,
+      dataStatus: validation.dataStatus,
       quote,
-      crossCheck,
+      crossCheck: validation.crossCheck,
+      validation: {
+        reasonCode: validation.reasonCode,
+        detail: validation.detail,
+        sessionDate: validation.sessionDate,
+        calendarCovered: validation.calendarCovered,
+        priceLimits: validation.priceLimits,
+      },
+      ...(validation.dataStatus === 'OK' ? {} : { error: `${validation.reasonCode}: ${validation.detail}` }),
       retrievedAt: new Date().toISOString(),
     };
   });

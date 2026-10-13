@@ -151,9 +151,10 @@ CREATE INDEX IF NOT EXISTS marketplace_listings_feed_idx
   ON marketplace_listings (publication_status, asset_class, created_at DESC);
 CREATE INDEX IF NOT EXISTS marketplace_listings_author_idx
   ON marketplace_listings (author_user_id);
-CREATE INDEX IF NOT EXISTS marketplace_listings_org_idx
-  ON marketplace_listings (organization_id)
-  WHERE organization_id IS NOT NULL;
+-- (Removed: an index on marketplace_listings(organization_id). That column has never
+-- existed on this table, so the statement failed on every database and aborted this
+-- file on a fresh install; no database can contain the index. Removing it changes no
+-- existing database.)
 -- Ranking inputs are always read for a bounded candidate set.
 CREATE INDEX IF NOT EXISTS marketplace_listings_rank_idx
   ON marketplace_listings (publication_status, publication_status DESC, sample_size)

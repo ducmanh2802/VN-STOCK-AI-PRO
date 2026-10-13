@@ -197,7 +197,10 @@ describe('getHistoricalStockData (KBS real OHLCV)', () => {
 });
 
 describe('getRealtimeQuote (VPS + KBS cross-check)', () => {
-  it('normalizes the VPS quote to VND and cross-checks against the KBS close', async () => {
+  // The real VPS quote was captured for the 2026-09-04 session; the real KBS bars end on
+  // 2026-07-24. Paired, they describe different periods, so they must never verify each
+  // other — the previous fixed 10% tolerance reported this pair as OK.
+  it('normalizes the VPS quote to VND, but never verifies it against a benchmark from another period', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string) => {
@@ -213,35 +216,67 @@ describe('getRealtimeQuote (VPS + KBS cross-check)', () => {
 
     const result = await getRealtimeQuote('HPG');
 
-    expect(result.dataStatus).toBe('OK');
     expect(result.source).toBe('VPS');
     expect(result.quote.lastPrice).toBe(21700);
     expect(result.quote.matchedVolumeShares).toBe(13920900);
-    // KBS last close in fixture = 20800 -> deviation ≈ +4.33% -> verified
-    expect(result.crossCheck.status).toBe('OK');
     expect(result.crossCheck.kbsClose).toBe(20800);
     expect(result.crossCheck.kbsDate).toBe('2026-07-24');
     expect(result.crossCheck.deviationPercent).toBeCloseTo(4.33, 1);
+    // Against today's clock the July bar is months old.
+    expect(result.dataStatus).toBe('UNVERIFIED');
+    expect(result.crossCheck.reasonCode).toBe('BENCHMARK_STALE');
+    expect(result.error).toMatch(/BENCHMARK_STALE/);
   });
 
-  it('flags MISMATCH instead of adjusting data when VPS and KBS disagree strongly', async () => {
-    const absurdQuote = [{ ...REAL_VPS_QUOTE[0], lastPrice: 99.9 }];
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation((url: string) => {
-        if (vpsQuoteUrl('HPG')(url)) {
-          return Promise.resolve(new Response(JSON.stringify(absurdQuote), { status: 200 }));
-        }
-        if (kbsUrlFor('HPG')(url)) {
-          return Promise.resolve(new Response(JSON.stringify(REAL_KBS_ENVELOPE), { status: 200 }));
-        }
-        return Promise.reject(new TypeError(`unexpected url ${url}`));
-      })
-    );
+  it('with the clock on the next session, the September reference contradicts the July close', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-07-27T03:00:00.000Z') });
+    try {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation((url: string) => {
+          if (vpsQuoteUrl('HPG')(url)) {
+            return Promise.resolve(new Response(JSON.stringify(REAL_VPS_QUOTE), { status: 200 }));
+          }
+          if (kbsUrlFor('HPG')(url)) {
+            return Promise.resolve(new Response(JSON.stringify(REAL_KBS_ENVELOPE), { status: 200 }));
+          }
+          return Promise.reject(new TypeError(`unexpected url ${url}`));
+        })
+      );
+      const result = await getRealtimeQuote('HPG');
+      // Reference 21,600 sits above the previous close 20,800: no corporate action does that.
+      expect(result.dataStatus).toBe('MISMATCH');
+      expect(result.crossCheck.status).toBe('MISMATCH');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-    const result = await getRealtimeQuote('HPG');
-    expect(result.quote.lastPrice).toBe(99900);
-    expect(result.crossCheck.status).toBe('MISMATCH');
+  it('flags a strongly deviating price instead of adjusting it, and never as OK', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-07-27T03:00:00.000Z') });
+    try {
+      const absurdQuote = [{ ...REAL_VPS_QUOTE[0], lastPrice: 99.9 }];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation((url: string) => {
+          if (vpsQuoteUrl('HPG')(url)) {
+            return Promise.resolve(new Response(JSON.stringify(absurdQuote), { status: 200 }));
+          }
+          if (kbsUrlFor('HPG')(url)) {
+            return Promise.resolve(new Response(JSON.stringify(REAL_KBS_ENVELOPE), { status: 200 }));
+          }
+          return Promise.reject(new TypeError(`unexpected url ${url}`));
+        })
+      );
+
+      const result = await getRealtimeQuote('HPG');
+      expect(result.quote.lastPrice).toBe(99900);
+      expect(result.crossCheck.status).toBe('MISMATCH');
+      // 99,900 is also outside the session's own published band.
+      expect(result.dataStatus).toBe('INVALID');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('surfaces DATA_UNAVAILABLE when VPS fails (no mock quote fallback)', async () => {

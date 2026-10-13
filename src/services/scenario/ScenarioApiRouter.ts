@@ -13,6 +13,7 @@
  */
 import { Router, type Request, type Response } from 'express';
 import { ScenarioEngine } from '../../lib/product/scenario/ScenarioEngine.ts';
+import type { PortfolioPositionInput } from '../../portfolio/types.ts';
 import type { ScenarioAssumption, ScenarioAssumptionKind } from '../../lib/product/scenario/ScenarioEngine.ts';
 
 const router = Router();
@@ -47,12 +48,12 @@ router.post('/evaluate', async (req: Request, res: Response) => {
   }
 
   // Normalize baseline positions to upper-symbol format
-  const normalizedPositions = baseline.map((p: any) => ({
+  const normalizedPositions: readonly PortfolioPositionInput[] = baseline.map((p: any) => ({
     symbol: String(p.symbol?.trim()?.toUpperCase() ?? '').replace(/\s+/g, '') || '',
     quantity: typeof p.quantity === 'number' ? p.quantity : 0,
     markPrice: typeof p.markPrice === 'number' && Number.isFinite(p.markPrice) ? p.markPrice : null,
     assetClass: typeof p.assetClass === 'string' ? p.assetClass.trim().toUpperCase() : 'EQUITY',
-  }).filter((p) => p.symbol));
+  })).filter((p): p is PortfolioPositionInput => !!p.symbol) as readonly PortfolioPositionInput[];
 
   if (normalizedPositions.length === 0) {
     return res.status(400).json({ error: 'INVALID_BASELINE', code: 'baseline must contain at least one valid position' });

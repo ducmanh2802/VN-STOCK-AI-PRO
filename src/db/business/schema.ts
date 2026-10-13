@@ -11,9 +11,12 @@
  *
  * CONVENTIONS (matches src/db/schema.ts and drizzle/0005_research.sql)
  *  - snake_case SQL name, singular table name
- *  - `id: serial().primaryKey()`
+ *  - `id: serial().primaryKey()` (`bigserial` where the migration says BIGSERIAL)
  *  - business key gets `.notNull().unique()` plus an explicit uniqueIndex
- *  - `createdAt: timestamp().defaultNow().notNull()`
+ *  - `createdAt: timestamp({ withTimezone: true }).defaultNow().notNull()` — the
+ *    migrations create every business timestamp as TIMESTAMPTZ, and the declaration
+ *    must say so or Drizzle mis-parses the value it reads back
+ *    (verified by src/db/__tests__/migrations.test.ts)
  *  - enums are plain `text`, never pgEnum (repo-wide convention)
  *  - JSON payloads are `text` and are serialised in the repository
  *  - third argument is the modern array form `(table) => [ ... ]`
@@ -30,7 +33,7 @@
  * `paper_trade_ledger` / `portfolio_*` in the trading lane and is never referenced here.
  */
 
-import { pgTable, serial, integer, bigint, text, boolean, timestamp, date, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { pgTable, serial, bigserial, integer, bigint, text, boolean, timestamp, date, uniqueIndex, index } from 'drizzle-orm/pg-core';
 
 // ============================================================================
 // 1. BUSINESS_SUBSCRIPTIONS
@@ -70,8 +73,8 @@ export const businessSubscriptions = pgTable(
     /** Provider-neutral external reference. NULL for internal/system-issued subscriptions. */
     providerRef: text('provider_ref'),
     correlationId: text('correlation_id'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('business_subscriptions_sid_idx').on(table.subscriptionId),
@@ -113,7 +116,7 @@ export const businessUsageEvents = pgTable(
     /** JSON. Must never contain secrets — redact() in auditLog.ts is the reference filter. */
     metadata: text('metadata').notNull().default('{}'),
     correlationId: text('correlation_id'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('business_usage_event_id_idx').on(table.eventId),
@@ -134,7 +137,7 @@ export const businessUsageEvents = pgTable(
 export const businessAuditEvents = pgTable(
   'business_audit_events',
   {
-    id: serial('id').primaryKey(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
     /** Monotonic, gap-free within a writer. Total ordering of the commercial trail. */
     sequence: bigint('sequence', { mode: 'number' }).notNull(),
     action: text('action').notNull(),
@@ -150,7 +153,7 @@ export const businessAuditEvents = pgTable(
     reason: text('reason').notNull(),
     /** JSON, redacted. Never contains a secret, token or payment credential. */
     metadata: text('metadata').notNull().default('{}'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('business_audit_seq_idx').on(table.sequence),
@@ -198,8 +201,8 @@ export const communityPosts = pgTable(
     /** JSON array of ProvenanceRef. Empty is allowed; gaps are rendered as NOT_AVAILABLE. */
     provenance: text('provenance').notNull().default('[]'),
     version: integer('version').default(1).notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('community_posts_pid_idx').on(table.postId),
@@ -227,7 +230,7 @@ export const communityPostVersions = pgTable(
     labels: text('labels').notNull().default('[]'),
     provenance: text('provenance').notNull().default('[]'),
     editedByUserId: text('edited_by_user_id').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('community_post_versions_uniq').on(table.postId, table.version),
@@ -251,8 +254,8 @@ export const communityComments = pgTable(
     workspaceId: text('workspace_id'),
     organizationId: text('organization_id'),
     moderation: text('moderation').notNull().default('VISIBLE'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('community_comments_cid_idx').on(table.commentId),
@@ -274,7 +277,7 @@ export const communityReports = pgTable(
     reporterUserId: text('reporter_user_id').notNull(),
     reason: text('reason').notNull(),
     detail: text('detail').notNull().default(''),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('community_reports_rid_idx').on(table.reportId),
@@ -300,7 +303,7 @@ export const communityModerationRecords = pgTable(
     reason: text('reason').notNull(),
     correlationId: text('correlation_id'),
     occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('community_moderation_mid_idx').on(table.moderationId),
@@ -324,7 +327,7 @@ export const communityReputationEvents = pgTable(
     /** The artifact that caused the event. Reputation without provenance is just a score. */
     subjectRef: text('subject_ref').notNull(),
     occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('community_reputation_eid_idx').on(table.eventId),
@@ -361,8 +364,8 @@ export const marketplaceStrategies = pgTable(
     authorOrganizationId: text('author_organization_id'),
     /** Owning organization, when the strategy is organization-owned (BUSINESS-04). */
     organizationId: text('organization_id'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('marketplace_strategies_sid_idx').on(table.strategyId),
@@ -414,8 +417,8 @@ export const marketplaceListings = pgTable(
     paperTradeCount: integer('paper_trade_count'),
     outOfSample: boolean('out_of_sample').default(false).notNull(),
 
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('marketplace_listings_ref_idx').on(table.listingRef),
@@ -452,8 +455,8 @@ export const organizations = pgTable(
     planId: text('plan_id').notNull(),
     planFingerprint: text('plan_fingerprint').notNull(),
     correlationId: text('correlation_id'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('business_orgs_oid_idx').on(table.organizationId),
@@ -492,8 +495,8 @@ export const orgWorkspaces = pgTable(
     organizationId: text('organization_id').notNull(),
     name: text('name').notNull(),
     status: text('status').notNull().default('ACTIVE'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('business_org_ws_wid_idx').on(table.workspaceId),
@@ -512,8 +515,8 @@ export const orgSeats = pgTable(
     assignedUserId: text('assigned_user_id'),
     assignedAt: timestamp('assigned_at', { withTimezone: true }),
     correlationId: text('correlation_id'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('business_org_seats_sid_idx').on(table.seatId),
@@ -559,8 +562,8 @@ export const commercialPayments = pgTable(
     /** TEST | SANDBOX | PRODUCTION. Never inferred; written explicitly. */
     environment: text('environment').notNull().default('SANDBOX'),
     correlationId: text('correlation_id'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('business_payments_pid_idx').on(table.paymentId),
@@ -574,7 +577,7 @@ export const commercialPayments = pgTable(
 export const commercialLedgerEntries = pgTable(
   'business_commercial_ledger',
   {
-    id: serial('id').primaryKey(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
     entryId: text('entry_id').notNull().unique(),
     /** The natural idempotency key of the whole economic effect (§05.4). */
     causationId: text('causation_id').notNull().unique(),
@@ -593,7 +596,7 @@ export const commercialLedgerEntries = pgTable(
     correlationId: text('correlation_id'),
     occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
     reason: text('reason').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('business_ledger_eid_idx').on(table.entryId),
@@ -607,7 +610,7 @@ export const commercialLedgerEntries = pgTable(
 export const webhookProcessingRecords = pgTable(
   'business_webhook_records',
   {
-    id: serial('id').primaryKey(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
     /** GLOBAL UNIQUE: the webhook replay defence (§05.4, §05.5). */
     eventId: text('event_id').notNull().unique(),
     provider: text('provider').notNull(),
@@ -620,7 +623,7 @@ export const webhookProcessingRecords = pgTable(
     payloadDigest: text('payload_digest'),
     receivedAt: timestamp('received_at', { withTimezone: true }).notNull(),
     processedAt: timestamp('processed_at', { withTimezone: true }),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('business_webhook_eid_idx').on(table.eventId),

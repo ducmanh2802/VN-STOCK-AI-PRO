@@ -76,14 +76,12 @@ function baseInput(overrides: Partial<CanonicalBarInput> = {}): CanonicalBarInpu
 describe('P0-04 — migration safety', () => {
   const drizzleDir = resolve(REPO_ROOT, 'drizzle');
 
-  it('0013 is the first unused migration id; 0000-0012 are untouched', () => {
+  it('0013 holds the canonical tables in a contiguous, duplicate-free migration sequence', () => {
     const files = readdirSync(drizzleDir).filter((f) => f.endsWith('.sql')).sort();
     const ids = files.map((f) => Number(f.slice(0, 4)));
-    expect(ids).toEqual([...ids].sort((a, b) => a - b));
-    expect(ids[0]).toBe(0);
-    expect(ids[ids.length - 1]).toBe(13);
-    // No duplicate ids.
-    expect(new Set(ids).size).toBe(ids.length);
+    // Later migrations may follow; the sequence itself must stay gap- and duplicate-free.
+    expect(ids).toEqual(ids.map((_, i) => i));
+    expect(files[13]).toBe('0013_canonical_market_data.sql');
   });
 
   it('the P0-04 migration creates exactly the four canonical tables', () => {
@@ -503,7 +501,10 @@ describe('P0-04 — the persistence chain has real production callers', () => {
     const router = readFileSync(resolve(REPO_ROOT, 'src/services/data/CanonicalDataApiRouter.ts'), 'utf8');
     expect(router).toContain('CanonicalMarketDataIngestionService.ingestBatch');
     expect(router).toContain('CanonicalMarketDataIngestionService.readHistory');
-    expect(router).toContain('KbsHistoricalProvider.getDailyHistory');
+    // The real provider is reached through the shared KBS mapping (also used by the EOD job).
+    expect(router).toContain('fetchKbsDailyBatch(');
+    const kbsMapping = readFileSync(resolve(REPO_ROOT, 'src/services/data/kbsDailyObservations.ts'), 'utf8');
+    expect(kbsMapping).toContain('KbsHistoricalProvider.getDailyHistory');
     const routerNoComments = router
       .replace(/\/\*[\s\S]*?\*\//g, ' ')
       .replace(/(^|[^:])\/\/.*$/gm, '$1');

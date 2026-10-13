@@ -24,11 +24,22 @@ if (!password) {
   throw new Error('SQL_ADMIN_PASSWORD must be set in environment variables.');
 }
 
+// SCHEMA OWNERSHIP
+// The database is built by applying the committed drizzle/*.sql files in order:
+//   npm run db:migrate
+// Those files carry DDL the Drizzle declarations do not (CHECK constraints, generated
+// columns, partial indexes, and a few SQL-only tables). `drizzle-kit push` diffs the
+// live database against the declarations below and would DROP whatever it cannot see,
+// so never run `push` (least of all `push --force`) against a migrated database.
 export default defineConfig({
-  schema: './src/db/schema.ts',
+  // Every declaration file. The business (billing/marketplace/organization) tables live
+  // in their own file; leaving it out made the tooling treat them as undeclared.
+  schema: ['./src/db/schema.ts', './src/db/business/schema.ts'],
   out: './drizzle',
   dialect: 'postgresql',
   schemaFilter: ['public'],
+  // Ask before every statement that could lose data.
+  strict: true,
   dbCredentials: {
     host: sqlHost,
     port: sqlPort,

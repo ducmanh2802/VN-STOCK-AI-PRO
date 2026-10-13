@@ -568,6 +568,77 @@ describe('TradingEngine — Phase 18.4 Verification', () => {
       expect(result.rejectionCode).toBe('DATA_UNAVAILABLE');
       expect(result.order).toBeUndefined();
     });
+
+    it.each([
+      ['MISMATCH', 'INVALID_MARKET_DATA'],
+      ['INVALID', 'INVALID_MARKET_DATA'],
+      ['UNVERIFIED', 'DATA_UNAVAILABLE'],
+    ] as const)('never trades on a %s quote, whose raw values would otherwise pass', async (dataStatus, code) => {
+      const { getRealtimeQuote } = await import('../../../services/market/realMarketDataService.ts');
+      vi.mocked(getRealtimeQuote).mockResolvedValueOnce({
+        symbol: 'HPG',
+        source: 'VPS',
+        dataStatus,
+        error: `${dataStatus}: fixture`,
+        retrievedAt: new Date().toISOString(),
+        quote: {
+          symbol: 'HPG',
+          source: 'VPS',
+          fetchedAt: new Date().toISOString(),
+          lastPrice: 26000,
+          openPrice: 25800,
+          highPrice: 26200,
+          lowPrice: 25700,
+          averagePrice: 26000,
+          referencePrice: 25800,
+          ceilingPrice: 27600,
+          floorPrice: 24000,
+          change: 200,
+          changePercent: 0.78,
+          matchedVolumeShares: 12_500_000,
+          foreignBuyVolumeShares: null,
+          foreignBuyValueVnd: null,
+          foreignSellVolumeShares: null,
+          foreignSellValueVnd: null,
+          foreignRoomShares: null,
+        },
+        crossCheck: {
+          benchmarkSource: 'KBS',
+          kbsDate: '2026-09-09',
+          kbsClose: 18000,
+          deviationPercent: 44.44,
+          status: dataStatus === 'UNVERIFIED' ? 'UNVERIFIED' : 'MISMATCH',
+          agreement: dataStatus === 'UNVERIFIED' ? 'UNVERIFIED' : 'MISMATCH',
+          reasonCode: dataStatus === 'UNVERIFIED' ? 'BENCHMARK_UNAVAILABLE' : 'CROSS_SOURCE_MISMATCH',
+          sessionsApart: 1,
+          allowedRange: null,
+          detail: 'fixture',
+        },
+        validation: {
+          reasonCode: dataStatus === 'UNVERIFIED' ? 'BENCHMARK_UNAVAILABLE' : 'CROSS_SOURCE_MISMATCH',
+          detail: 'fixture',
+          sessionDate: '2026-09-10',
+          calendarCovered: true,
+          priceLimits: {
+            status: 'WITHIN_LIMITS',
+            basis: 'SESSION_METADATA',
+            exchange: 'HOSE',
+            referencePrice: 25800,
+            floorPrice: 24000,
+            ceilingPrice: 27600,
+            bandFraction: 0.07,
+            bandClassification: 'STANDARD',
+            violations: [],
+          },
+        },
+      });
+      const result = await engine.runTradingCycle({ symbol: 'HPG', recommendation: buyRecommendation });
+      expect(result.status).toBe('REJECTED');
+      expect(result.rejectionCode).toBe(code);
+      expect(result.reason).toContain(dataStatus);
+      expect(result.order).toBeUndefined();
+      expect(await broker.getAllOrders()).toHaveLength(0);
+    });
   });
 describe('12. Phase 19.3A — Risk → Capital → Sizing contract in TradingEngine', () => {
     it('wires riskApprovedCapital → allocationCapital → positionSizing ceiling', async () => {

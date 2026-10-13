@@ -24,7 +24,13 @@
  * - When no database is configured, every write reports `persisted: false`.
  *   The service never claims a write it did not perform.
  */
-import { CanonicalMarketDataRepository, type CanonicalWriteReport } from '../../lib/db/data/CanonicalMarketDataRepository.ts';
+import { CanonicalMarketDataRepository } from '../../lib/db/data/CanonicalMarketDataRepository.ts';
+import {
+  checkDatabaseConnectivity,
+  missingDatabaseConfiguration,
+  type DatabaseConnectivityState,
+  type DatabaseHealth,
+} from '../../db/databaseHealth.ts';
 import {
   buildProvenanceRecord,
   buildQualityRecord,
@@ -75,6 +81,14 @@ export interface ProviderBatch {
   readonly observations: readonly ProviderBarObservation[];
 }
 
+/**
+ * PERSISTED          — every intended write reached the database.
+ * PARTIAL            — some writes reached the database, others did not.
+ * NOT_PERSISTED      — nothing was written (database not configured, unreachable, or every write failed).
+ * NOTHING_TO_PERSIST — the batch was empty.
+ */
+export type IngestPersistenceStatus = 'PERSISTED' | 'PARTIAL' | 'NOT_PERSISTED' | 'NOTHING_TO_PERSIST';
+
 export interface IngestReport {
   readonly source: CanonicalMarketSource;
   readonly sourceUnavailable: boolean;
@@ -84,9 +98,29 @@ export interface IngestReport {
   readonly persistedBars: number;
   readonly duplicateBars: number;
   readonly persistedQualityRows: number;
+  /** True only when every SQL_* setting is present. Configuration alone never proves connectivity. */
   readonly databaseConfigured: boolean;
+  /**
+   * Connectivity proven by a bounded probe before the first write, downgraded to
+   * UNAVAILABLE if a write later fails with a connection-class error. NOT_CHECKED
+   * only for an empty batch, which never touches the database.
+   */
+  readonly databaseState?: DatabaseConnectivityState | 'NOT_CHECKED';
+  readonly persistenceStatus?: IngestPersistenceStatus;
+  /** Accepted (valid) bars that did not reach the database. */
+  readonly unpersistedBars?: number;
+  /** Writes the database answered but rejected (statement-level failures). */
+  readonly failedWrites?: number;
+  /** Existing bars the source re-reported with different values (kept, not overwritten). */
+  readonly revisionConflicts?: readonly IngestRevisionConflict[];
   /** Rejections with their rule codes, for the audit trail. */
   readonly rejections: readonly IngestRejection[];
+}
+
+export interface IngestRevisionConflict {
+  readonly instrumentId: string;
+  readonly tradingDate: string;
+  readonly fields: readonly string[];
 }
 
 export interface IngestRejection {
@@ -108,6 +142,11 @@ interface IngestAccumulator {
   duplicateBars: number;
   persistedQualityRows: number;
   databaseConfigured: boolean;
+  databaseState: DatabaseConnectivityState | 'NOT_CHECKED';
+  persistenceStatus: IngestPersistenceStatus;
+  unpersistedBars: number;
+  failedWrites: number;
+  revisionConflicts: IngestRevisionConflict[];
   rejections: IngestRejection[];
 }
 
@@ -119,13 +158,15 @@ export interface CanonicalIngestionOptions {
   /** Registers instruments so bars always carry a canonical identity. */
   readonly registerInstruments?: boolean;
   readonly validFrom?: string;
+  /** Connectivity probe run once before the first write. Injected in tests. */
+  readonly databaseHealthCheck?: () => Promise<DatabaseHealth>;
 }
 
 const emptyReport = (
   source: CanonicalMarketSource,
   sourceUnavailable: boolean,
   databaseConfigured: boolean
-): IngestReport => ({
+): IngestAccumulator => ({
   source,
   sourceUnavailable,
   received: 0,
@@ -135,6 +176,11 @@ const emptyReport = (
   duplicateBars: 0,
   persistedQualityRows: 0,
   databaseConfigured,
+  databaseState: databaseConfigured ? 'NOT_CHECKED' : 'NOT_CONFIGURED',
+  persistenceStatus: 'NOTHING_TO_PERSIST',
+  unpersistedBars: 0,
+  failedWrites: 0,
+  revisionConflicts: [],
   rejections: [],
 });
 export class CanonicalMarketDataIngestionService {
@@ -150,24 +196,30 @@ export class CanonicalMarketDataIngestionService {
   ): Promise<IngestReport> {
     const nowMs = (options.now ?? new Date()).getTime();
     const ingestionTime = new Date(nowMs).toISOString();
-    const databaseConfigured = options.registerInstruments !== undefined || true;
+    // Configuration is a precondition, never proof: connectivity is probed below.
+    const databaseConfigured = missingDatabaseConfiguration().length === 0;
 
     if (!batch || batch.observations.length === 0) {
       return emptyReport(batch?.source ?? 'KBS', false, databaseConfigured);
     }
 
+    const health = await (options.databaseHealthCheck ?? (() => checkDatabaseConnectivity()))();
     const report: IngestAccumulator = {
-      ...emptyReport(batch.source, false, databaseConfigured),
+      ...emptyReport(batch.source, false, health.state !== 'NOT_CONFIGURED'),
+      databaseState: health.state,
       received: batch.observations.length,
       rejections: [],
     };
+    // Writes are attempted only against a database that answered the probe, and stop
+    // at the first connection-class failure instead of timing out once per bar.
+    let writable = health.state === 'CONNECTED';
+    let successfulWrites = 0;
 
     if (options.registerInstruments) {
       CanonicalMarketDataIngestionService.registerInstruments(batch.observations, options.validFrom);
     }
 
     const qualityRows: CanonicalQualityRecord[] = [];
-    const writeReports: CanonicalWriteReport[] = [];
 
     for (const obs of batch.observations) {
       const input: CanonicalBarInput = {
@@ -251,13 +303,54 @@ export class CanonicalMarketDataIngestionService {
       }
 
       const bar = validation.record;
+      report.accepted += 1;
+      if (!writable) {
+        report.unpersistedBars += 1;
+        continue;
+      }
       const provenance = buildProvenanceRecord(bar, `${bar.barKey}|prov|${CANONICAL_BAR_RULE_VERSION}`);
       const write = await CanonicalMarketDataRepository.appendBar(bar, provenance);
-      writeReports.push(write);
+      if (!write.persisted) {
+        report.unpersistedBars += 1;
+        if (write.skippedReason === 'NO_DATABASE') {
+          writable = false;
+          report.databaseState = 'UNAVAILABLE';
+        } else {
+          report.failedWrites += 1;
+        }
+        // No quality row for a bar that does not exist: it would reference a missing key.
+        continue;
+      }
+      successfulWrites += 1;
       if (write.inserted) report.persistedBars += 1;
-      if (!write.inserted && write.persisted) report.duplicateBars += 1;
-      if (!write.persisted) report.databaseConfigured = false;
-      report.accepted += 1;
+      else report.duplicateBars += 1;
+
+      if (!write.inserted && write.revisedFields && write.revisedFields.length > 0) {
+        // The stored bar is kept (append-only); the disagreement is recorded, never
+        // resolved by overwriting. A corrected series needs a new dataVersion.
+        report.revisionConflicts.push({
+          instrumentId: bar.instrumentId,
+          tradingDate: bar.tradingDate,
+          fields: write.revisedFields,
+        });
+        qualityRows.push(
+          buildQualityRecord({
+            qualityId: `${bar.barKey}|revision|${write.revisedFields
+              .map((f) => `${f}=${bar[f as 'open' | 'high' | 'low' | 'close' | 'volume']}`)
+              .join(',')}`,
+            barKey: bar.barKey,
+            instrumentId: bar.instrumentId,
+            tradingDate: bar.tradingDate,
+            source: bar.source,
+            qualityState: 'INVALID',
+            reason: 'DUPLICATE_BAR',
+            detail: `Source re-reported this bar with different ${write.revisedFields.join(', ')}; the stored values were kept.`,
+            evaluatedAt: ingestionTime,
+            sourceValues: { open: bar.open, high: bar.high, low: bar.low, close: bar.close, volume: bar.volume },
+          })
+        );
+        continue;
+      }
 
       qualityRows.push(
         buildQualityRecord({
@@ -285,11 +378,23 @@ export class CanonicalMarketDataIngestionService {
       );
     }
 
-    if (qualityRows.length > 0) {
+    let qualityWritten = qualityRows.length === 0;
+    if (qualityRows.length > 0 && writable) {
       const qualityWrite = await CanonicalMarketDataRepository.appendQuality(qualityRows);
-      if (!qualityWrite.persisted) report.databaseConfigured = false;
-      else report.persistedQualityRows = qualityWrite.inserted ? qualityRows.length : 0;
+      if (qualityWrite.persisted) {
+        qualityWritten = true;
+        successfulWrites += 1;
+        report.persistedQualityRows = qualityWrite.insertedCount;
+      } else if (qualityWrite.skippedReason === 'NO_DATABASE') {
+        report.databaseState = 'UNAVAILABLE';
+      } else {
+        report.failedWrites += 1;
+      }
     }
+
+    const everythingWritten = report.unpersistedBars === 0 && report.failedWrites === 0 && qualityWritten;
+    report.persistenceStatus =
+      successfulWrites === 0 ? 'NOT_PERSISTED' : everythingWritten ? 'PERSISTED' : 'PARTIAL';
 
     return report;
   }
@@ -308,7 +413,7 @@ export class CanonicalMarketDataIngestionService {
     comparedClose: number;
     tolerancePercent: number;
     now?: Date;
-  }): Promise<CanonicalSourceAgreementRecord> {
+  }): Promise<CanonicalSourceAgreementRecord & { readonly persisted: boolean }> {
     const deviation =
       Math.abs(opts.primaryClose - opts.comparedClose) / opts.comparedClose * 100;
     const comparable =
@@ -340,8 +445,8 @@ export class CanonicalMarketDataIngestionService {
       evaluatedAt: (opts.now ?? new Date()).toISOString(),
     };
 
-    await CanonicalMarketDataRepository.recordAgreement(record);
-    return record;
+    const write = await CanonicalMarketDataRepository.recordAgreement(record);
+    return { ...record, persisted: write.persisted };
   }
 
   /** Point-in-time safe read used by the API/UI layer. */

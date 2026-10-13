@@ -28,6 +28,7 @@ import { AuthorizationService } from '../authorization/authorizationService.ts';
 import { InMemoryMembershipStore } from '../authorization/types.ts';
 import { correlationMiddleware, securityHeaders } from '../../../middleware/platform/security.ts';
 import { getAdminAuthState } from '../../firebase-admin.ts';
+import { checkDatabaseConnectivity } from '../../../db/databaseHealth.ts';
 import { StructuredLogger, MemoryLogSink } from '../observability/logger.ts';
 import { MetricsRegistry, registerPlatformMetrics } from '../observability/metrics.ts';
 import {
@@ -71,10 +72,10 @@ export function defaultProbes(): readonly DependencyProbe[] {
     {
       name: 'database',
       optional: true,
-      check: () =>
-        process.env.SQL_HOST && process.env.SQL_USER && process.env.SQL_PASSWORD && process.env.SQL_DB_NAME
-          ? 'OK'
-          : 'UNAVAILABLE',
+      // OK only after a real round trip: configured-but-unreachable is UNAVAILABLE.
+      // The probe timeout stays under runHealthCheck's 2s budget so the verdict is ours.
+      check: async () =>
+        (await checkDatabaseConnectivity({ timeoutMs: 1_500 })).state === 'CONNECTED' ? 'OK' : 'UNAVAILABLE',
     },
     { name: 'auth', optional: true, check: () => (getAdminAuthState().status === 'READY' ? 'OK' : 'UNAVAILABLE') },
     { name: 'gemini', optional: true, check: () => (process.env.GEMINI_API_KEY ? 'OK' : 'UNAVAILABLE') },

@@ -16,7 +16,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify:backtest:real": "tsx scripts/verify-real-backtest.ts"
+    "verify:backtest:real": "tsx scripts/verify-real-backtest.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "db:migrate:status": "tsx scripts/db-migrate.ts --status",
+    "ingest:backfill": "tsx scripts/backfill-daily-bars.ts",
+    "data:reconcile-daily": "tsx scripts/reconcile-daily-prices.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -41,6 +45,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@tailwindcss/vite": "^4.1.14",
     "@types/compression": "^1.8.1",
     "@types/express": "^4.17.21",

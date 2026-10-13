@@ -20,8 +20,10 @@
  * - When the database is unreachable the repository is a NO-OP that reports
  *   `persisted: false`. It never fabricates a successful write.
  */
-import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { db } from '../../../db/index.ts';
+import { isDatabaseUnavailable } from '../../../db/dbFailure.ts';
+import { missingDatabaseConfiguration } from '../../../db/databaseHealth.ts';
 import {
   canonicalDataProvenance,
   canonicalDataQuality,
@@ -145,14 +147,88 @@ export interface CanonicalWriteReport {
   readonly persisted: boolean;
   /** False when the write was a no-op because the bar already existed. */
   readonly inserted: boolean;
-  /** Set when the write was skipped because no database was reachable. */
-  readonly skippedReason: 'NO_DATABASE' | null;
+  /** Rows newly written by this call (duplicates excluded). */
+  readonly insertedCount: number;
+  /**
+   * NO_DATABASE: PostgreSQL was unreachable (connection-class failure).
+   * WRITE_FAILED: the database answered but the statement failed.
+   */
+  readonly skippedReason: 'NO_DATABASE' | 'WRITE_FAILED' | null;
+  /**
+   * Bars only: when the key already existed, the OHLCV fields whose stored value
+   * differs from this observation. The stored row is never overwritten.
+   */
+  readonly revisedFields?: readonly string[];
+}
+
+/** One stored daily bar of the authoritative series, numbers already parsed. */
+export interface CanonicalDailyBar {
+  readonly id: number;
+  readonly instrumentId: string;
+  readonly symbol: string;
+  readonly exchange: string;
+  readonly tradingDate: string;
+  readonly open: number | null;
+  readonly high: number | null;
+  readonly low: number | null;
+  readonly close: number | null;
+  readonly volume: number | null;
+  readonly turnoverVnd: number | null;
+  readonly referencePrice: number | null;
+  readonly ceilingPrice: number | null;
+  readonly floorPrice: number | null;
+  readonly adjustmentState: string;
+  readonly source: string;
+  readonly provider: string;
+  readonly dataVersion: string;
+  readonly effectiveTime: string;
+  readonly ingestedAt: string;
+}
+
+/** Identifies one authoritative daily series. */
+export interface DailySeriesKey {
+  readonly source: string;
+  readonly dataVersion: string;
+}
+
+const REVISION_FIELDS = ['open', 'high', 'low', 'close', 'volume'] as const;
+
+function revisedFieldsOf(
+  stored: Record<(typeof REVISION_FIELDS)[number], string | null>,
+  bar: CanonicalBarRecord
+): string[] {
+  return REVISION_FIELDS.filter((field) => {
+    const before = toNum(stored[field]);
+    const after = bar[field];
+    if (before === null || after === null) return before !== after;
+    return Math.abs(before - after) > 1e-6 * Math.max(1, Math.abs(after));
+  });
+}
+
+/** Conditions that select the authoritative, valid, point-in-time-visible daily series. */
+function dailySeriesConditions(key: DailySeriesKey, asOf: Date) {
+  return [
+    eq(canonicalMarketBars.timeframe, '1D'),
+    eq(canonicalMarketBars.source, key.source),
+    eq(canonicalMarketBars.dataVersion, key.dataVersion),
+    eq(canonicalMarketBars.qualityState, 'VALID'),
+    eq(canonicalMarketBars.isSynthetic, false),
+    lte(canonicalMarketBars.effectiveTime, asOf),
+  ];
 }
 
 const NO_DB: CanonicalWriteReport = {
   persisted: false,
   inserted: false,
+  insertedCount: 0,
   skippedReason: 'NO_DATABASE',
+};
+
+const WRITE_FAILED: CanonicalWriteReport = {
+  persisted: false,
+  inserted: false,
+  insertedCount: 0,
+  skippedReason: 'WRITE_FAILED',
 };
 
 /**
@@ -177,6 +253,29 @@ async function withDb<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
   }
 }
 
+/**
+ * Write-path variant of `withDb`: an unreachable database and a failed statement
+ * are different facts, so they are reported with different `skippedReason`s.
+ */
+async function withDbWrite(operation: () => Promise<CanonicalWriteReport>): Promise<CanonicalWriteReport> {
+  if (!db) return NO_DB;
+  // Without SQL_* the pool falls back to pg defaults (localhost:5432); writing into
+  // whatever answers there would be a write to an unintended database.
+  if (missingDatabaseConfiguration().length > 0) return NO_DB;
+  try {
+    return await operation();
+  } catch (error: any) {
+    const unavailable = isDatabaseUnavailable(error);
+    if (process.env.NODE_ENV !== 'test') {
+      console.error(
+        `[CanonicalMarketDataRepository] ${unavailable ? 'database unavailable' : 'write failed'}:`,
+        error?.code ?? error?.message ?? error
+      );
+    }
+    return unavailable ? NO_DB : WRITE_FAILED;
+  }
+}
+
 export class CanonicalMarketDataRepository {
   /**
    * Inserts a validated canonical bar together with its provenance row.
@@ -190,45 +289,72 @@ export class CanonicalMarketDataRepository {
       // Fail-closed: the schema keeps the column purely for detection.
       throw new Error('SYNTHETIC_BAR_REFUSED: canonical persistence never writes a synthetic observation.');
     }
-    return withDb(async () => {
-      const insertedBar = await db!
-        .insert(canonicalMarketBars)
-        .values(toBarRow(bar))
-        .onConflictDoNothing({ target: canonicalMarketBars.barKey })
-        .returning({ barKey: canonicalMarketBars.barKey });
-      await db!
-        .insert(canonicalDataProvenance)
-        .values(toProvenanceRow(provenance))
-        .onConflictDoNothing({ target: canonicalDataProvenance.provenanceId });
+    return withDbWrite(async () => {
+      // One transaction: a bar can never be committed without its lineage row.
+      const outcome = await db!.transaction(async (tx) => {
+        const rows = await tx
+          .insert(canonicalMarketBars)
+          .values(toBarRow(bar))
+          .onConflictDoNothing({ target: canonicalMarketBars.barKey })
+          .returning({ barKey: canonicalMarketBars.barKey });
+        await tx
+          .insert(canonicalDataProvenance)
+          .values(toProvenanceRow(provenance))
+          .onConflictDoNothing({ target: canonicalDataProvenance.provenanceId });
+        if (rows.length > 0) return { inserted: true, revisedFields: [] as string[] };
+        // Key already present: the stored bar stays as written (append-only, point-in-
+        // time safe), but a source that now reports different values must be visible.
+        const [stored] = await tx
+          .select({
+            open: canonicalMarketBars.open,
+            high: canonicalMarketBars.high,
+            low: canonicalMarketBars.low,
+            close: canonicalMarketBars.close,
+            volume: canonicalMarketBars.volume,
+          })
+          .from(canonicalMarketBars)
+          .where(eq(canonicalMarketBars.barKey, bar.barKey))
+          .limit(1);
+        return { inserted: false, revisedFields: stored ? revisedFieldsOf(stored, bar) : [] };
+      });
       return {
         persisted: true,
-        inserted: insertedBar.length > 0,
+        inserted: outcome.inserted,
+        insertedCount: outcome.inserted ? 1 : 0,
         skippedReason: null,
-      } as CanonicalWriteReport;
-    }, NO_DB);
+        revisedFields: outcome.revisedFields,
+      };
+    });
   }
 
   /** Append-only quality observations. Never overwrites an existing evaluation. */
   static async appendQuality(records: readonly CanonicalQualityRecord[]): Promise<CanonicalWriteReport> {
-    return withDb(async () => {
-      let inserted = false;
-      for (const q of records) {
-        const res = await db!
-          .insert(canonicalDataQuality)
-          .values(toQualityRow(q))
-          .onConflictDoNothing({ target: canonicalDataQuality.qualityId })
-          .returning({ qualityId: canonicalDataQuality.qualityId });
-        inserted = inserted || res.length > 0;
-      }
-      return { persisted: true, inserted, skippedReason: null } as CanonicalWriteReport;
-    }, NO_DB);
+    if (records.length === 0) {
+      return { persisted: true, inserted: false, insertedCount: 0, skippedReason: null };
+    }
+    return withDbWrite(async () => {
+      // All-or-nothing, so a failure can never leave a silently partial ledger.
+      const insertedCount = await db!.transaction(async (tx) => {
+        let count = 0;
+        for (const q of records) {
+          const res = await tx
+            .insert(canonicalDataQuality)
+            .values(toQualityRow(q))
+            .onConflictDoNothing({ target: canonicalDataQuality.qualityId })
+            .returning({ qualityId: canonicalDataQuality.qualityId });
+          count += res.length;
+        }
+        return count;
+      });
+      return { persisted: true, inserted: insertedCount > 0, insertedCount, skippedReason: null };
+    });
   }
 
   /** Records a cross-source comparison verdict. Disagreement is recorded, never resolved. */
   static async recordAgreement(
     record: CanonicalSourceAgreementRecord
   ): Promise<CanonicalWriteReport> {
-    return withDb(async () => {
+    return withDbWrite(async () => {
       await db!
         .insert(canonicalSourceAgreement)
         .values(toAgreementRow(record))
@@ -250,8 +376,8 @@ export class CanonicalMarketDataRepository {
             evaluatedAt: tsReq(record.evaluatedAt),
           },
         });
-      return { persisted: true, inserted: true, skippedReason: null } as CanonicalWriteReport;
-    }, NO_DB);
+      return { persisted: true, inserted: true, insertedCount: 1, skippedReason: null };
+    });
   }
 
   /**
@@ -322,6 +448,103 @@ export class CanonicalMarketDataRepository {
         isSynthetic: r.isSynthetic,
       })) satisfies CanonicalBarQueryResult[];
     }, [] as CanonicalBarQueryResult[]);
+  }
+
+  /**
+   * The authoritative daily series of one instrument: the most recent `limit` VALID,
+   * non-synthetic bars visible at `asOf`, in ascending date order.
+   *
+   * STRICT: unlike `getHistory`, a database failure THROWS instead of returning [], so
+   * "no history stored" and "database unreachable" can never be confused.
+   */
+  static async getDailySeries(opts: {
+    readonly instrumentId: string;
+    readonly series: DailySeriesKey;
+    readonly asOf: Date;
+    readonly from?: string;
+    readonly to?: string;
+    readonly limit: number;
+  }): Promise<CanonicalDailyBar[]> {
+    const conditions = [
+      eq(canonicalMarketBars.instrumentId, opts.instrumentId),
+      ...dailySeriesConditions(opts.series, opts.asOf),
+    ];
+    if (opts.from) conditions.push(gte(canonicalMarketBars.tradingDate, opts.from));
+    if (opts.to) conditions.push(lte(canonicalMarketBars.tradingDate, opts.to));
+    const rows = await db
+      .select()
+      .from(canonicalMarketBars)
+      .where(and(...conditions))
+      .orderBy(desc(canonicalMarketBars.tradingDate))
+      .limit(opts.limit);
+    return rows.reverse().map((r) => ({
+      id: r.id,
+      instrumentId: r.instrumentId,
+      symbol: r.symbol,
+      exchange: r.exchange,
+      tradingDate: r.tradingDate,
+      open: toNum(r.open),
+      high: toNum(r.high),
+      low: toNum(r.low),
+      close: toNum(r.close),
+      volume: toNum(r.volume),
+      turnoverVnd: toNum(r.turnoverVnd),
+      referencePrice: toNum(r.referencePrice),
+      ceilingPrice: toNum(r.ceilingPrice),
+      floorPrice: toNum(r.floorPrice),
+      adjustmentState: r.adjustmentState,
+      source: r.source,
+      provider: r.provider,
+      dataVersion: r.dataVersion,
+      effectiveTime: r.effectiveTime.toISOString(),
+      ingestedAt: r.ingestedAt.toISOString(),
+    }));
+  }
+
+  /**
+   * Which of `instrumentIds` have a VALID authoritative bar for `tradingDate`.
+   * STRICT: throws on database failure. Used to measure ingestion completeness.
+   */
+  static async instrumentsWithDailyBar(opts: {
+    readonly tradingDate: string;
+    readonly instrumentIds: readonly string[];
+    readonly series: DailySeriesKey;
+    readonly asOf: Date;
+  }): Promise<Set<string>> {
+    if (opts.instrumentIds.length === 0) return new Set();
+    const rows = await db
+      .selectDistinct({ instrumentId: canonicalMarketBars.instrumentId })
+      .from(canonicalMarketBars)
+      .where(
+        and(
+          eq(canonicalMarketBars.tradingDate, opts.tradingDate),
+          inArray(canonicalMarketBars.instrumentId, [...opts.instrumentIds]),
+          ...dailySeriesConditions(opts.series, opts.asOf)
+        )
+      );
+    return new Set(rows.map((r) => r.instrumentId));
+  }
+
+  /**
+   * Per-instrument coverage of the authoritative daily series: bar count and the first
+   * and last trading date stored. STRICT: throws on database failure.
+   */
+  static async getDailyCoverage(opts: {
+    readonly series: DailySeriesKey;
+    readonly asOf: Date;
+  }): Promise<{ instrumentId: string; bars: number; firstDate: string; lastDate: string }[]> {
+    const rows = await db
+      .select({
+        instrumentId: canonicalMarketBars.instrumentId,
+        bars: sql<number>`count(*)::int`,
+        firstDate: sql<string>`min(${canonicalMarketBars.tradingDate})::text`,
+        lastDate: sql<string>`max(${canonicalMarketBars.tradingDate})::text`,
+      })
+      .from(canonicalMarketBars)
+      .where(and(...dailySeriesConditions(opts.series, opts.asOf)))
+      .groupBy(canonicalMarketBars.instrumentId)
+      .orderBy(asc(canonicalMarketBars.instrumentId));
+    return rows.map((r) => ({ ...r, bars: Number(r.bars) }));
   }
 
   /** Reads the provenance ledger for one bar. Provenance must survive restart. */
