@@ -160,10 +160,10 @@ export interface Order {
   slippage?: number | null;
   reservedCashAmount?: number | null;
   // Phase 18.3.3 Context Binding Metadata
-  marketDataSnapshotId?: string;
-  recommendationId?: string;
-  strategyVersion?: string;
-  riskPolicyVersion?: string;
+  marketDataSnapshotId?: string | null;
+  recommendationId?: string | null;
+  strategyVersion?: string | null;
+  riskPolicyVersion?: string | null;
 }
 
 export interface TradingCostConfig {

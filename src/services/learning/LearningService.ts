@@ -1,219 +1,293 @@
-// LearningService — orchestration over catalog + progress + engines.
-// Client-only for MVP (DB-ready interface, no trading imports).
 import {
-  ASSESSMENTS,
-  CATALOG_VERSION,
-  CONCEPTS,
-  EXERCISES,
-  LABS,
   LESSONS,
+  EXERCISES,
   PATHS,
   PROJECTS,
-  getAssessment,
-  getExercise,
-  getExercisesForLesson,
-  getLesson,
-  getProject,
-} from '../../lib/learning/catalog';
-import {
-  checkEligibility,
-  gradeAssessment,
-  issueCertificate,
-} from '../../lib/learning/AssessmentEngine';
-import type { AssessmentAttempt, Certificate } from '../../lib/learning/types';
-import { checkProjectPrereqs, projectStatusOf, scoreProject } from '../../lib/learning/ProjectEngine';
+  ASSESSMENTS,
+  LABS,
+} from '../../lib/learning/catalog.ts';
+import { scoreExercise } from '../../lib/learning/ExerciseScoringEngine.ts';
+import { scoreProject } from '../../lib/learning/ProjectEngine.ts';
+import { computeMastery } from '../../lib/learning/MasteryEngine.ts';
+import { recommendNext, type LearnerSnapshot } from '../../lib/learning/LearningRecommendationEngine.ts';
 import type {
-  ConceptMastery,
-  ProjectCheckResult,
+  Lesson,
+  Exercise,
+  LearningPath,
+  Project,
   ProjectStatus,
+  Assessment,
+  ExerciseAttempt,
+  ConceptMastery,
+  LessonProgress,
   Recommendation,
-  ScoredResult,
-} from '../../lib/learning/types';
-import { computeMastery } from '../../lib/learning/MasteryEngine';
-import { recommendNext, type LearnerSnapshot } from '../../lib/learning/LearningRecommendationEngine';
-import { recommendAdaptive, type AdaptiveRecommendation } from '../../lib/learning/AdaptiveLearningEngine';
-import { scoreExercise } from '../../lib/learning/ExerciseScoringEngine';
-import { progressStore } from '../../lib/learning/ProgressStore';
+} from '../../lib/learning/types.ts';
 
-function snapshot(): LearnerSnapshot {
-  const completedLessonIds = progressStore.getCompletedLessons();
-  const attemptsByExercise: LearnerSnapshot['attemptsByExercise'] = {};
-  for (const ex of EXERCISES) {
-    const list = progressStore.getAttempts(ex.id);
-    if (list.length > 0) attemptsByExercise[ex.id] = list;
+
+const ATTEMPTS_KEY = 'vnstock_learning_attempts_v1';
+const PROGRESS_KEY = 'vnstock_learning_progress_v1';
+const PROJECTS_KEY = 'vnstock_learning_projects_v1';
+
+function getStoredAttempts(): ExerciseAttempt[] {
+  try {
+    const raw = localStorage.getItem(ATTEMPTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
   }
-  return { completedLessonIds, attemptsByExercise, completedLabIds: progressStore.getCompletedLabs() };
 }
 
-function computeEligibility(assessmentId: string): { eligible: boolean; missing: string[] } {
-  const path = PATHS.find((p) => p.id === 'path-beginner');
-  const requiredLessonIds = (path?.items ?? [])
-    .filter((i) => i.kind === 'lesson')
-    .map((i) => i.refId);
-  return checkEligibility({
-    completedLessonIds: progressStore.getCompletedLessons(),
-    requiredLessonIds,
-    assessmentAttempts: progressStore.getAssessmentAttempts(assessmentId),
-    requiredProjectIds: ['prj-company-101'],
-    completedProjectIds: progressStore.getCompletedProjects(),
-  });
+function getStoredProgress(): LessonProgress[] {
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
-export const LearningService = {
-  listPaths() {
-    return PATHS.filter((p) => p.status === 'PUBLISHED');
-  },
-  listLessons() {
-    return LESSONS.filter((l) => l.status === 'PUBLISHED');
-  },
-  listLabs() {
-    return LABS.filter((l) => l.status === 'PUBLISHED');
-  },
-  getLessonDetail(lessonId: string) {
-    const lesson = getLesson(lessonId);
-    if (!lesson || lesson.status !== 'PUBLISHED') return null;
-    return { lesson, exercises: getExercisesForLesson(lessonId) };
-  },
-  completeLesson(lessonId: string) {
-    return progressStore.completeLesson(lessonId);
-  },
-  submitExercise(exerciseId: string, answer: string | string[]): (ScoredResult & { exerciseId: string }) | null {
-    const ex = EXERCISES.find((e) => e.id === exerciseId);
-    if (!ex || ex.status !== 'PUBLISHED') return null;
-    const result = scoreExercise(ex, answer);
-    progressStore.recordAttempt({
+function getAttemptsByExercise(attempts: ExerciseAttempt[]): Record<string, ExerciseAttempt[]> {
+  const map: Record<string, ExerciseAttempt[]> = {};
+  for (const a of attempts) {
+    if (!map[a.exerciseId]) map[a.exerciseId] = [];
+    map[a.exerciseId].push(a);
+  }
+  return map;
+}
+
+function getLessonToConcepts(): Record<string, string[]> {
+  const map: Record<string, string[]> = {};
+  for (const l of LESSONS) {
+    map[l.id] = [...l.conceptIds];
+  }
+  return map;
+}
+
+export class LearningService {
+  public static listPaths(): readonly LearningPath[] {
+    return PATHS;
+  }
+
+  public static getPath(id: string): LearningPath | null {
+    return PATHS.find((p) => p.id === id) ?? null;
+  }
+
+  public static listLessons(): readonly Lesson[] {
+    return LESSONS;
+  }
+
+  public static getLessonDetail(id: string): { lesson: Lesson; exercises: readonly Exercise[] } | null {
+    const lesson = LESSONS.find((l) => l.id === id);
+    if (!lesson) return null;
+    const exercises = EXERCISES.filter((e) => e.lessonId === id);
+    return { lesson, exercises };
+  }
+
+  public static completeLesson(lessonId: string): void {
+    const progress = getStoredProgress();
+    const existing = progress.find((p) => p.lessonId === lessonId);
+    if (existing) {
+      existing.completed = true;
+    } else {
+      progress.push({
+        lessonId,
+        completed: true,
+        completedAt: new Date().toISOString(),
+      });
+    }
+    try {
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+    } catch {
+      // ignore
+    }
+  }
+
+  public static submitExercise(exerciseId: string, answer: string): { correct: boolean; score: number; maxScore: number; feedback: string } | null {
+    const exercise = EXERCISES.find((e) => e.id === exerciseId);
+    if (!exercise) return null;
+
+    const result = scoreExercise(exercise, answer);
+    const attempt: ExerciseAttempt = {
       exerciseId,
       answer,
       score: result.score,
       maxScore: result.maxScore,
       correct: result.correct,
       attemptedAt: new Date().toISOString(),
-    });
-    return { ...result, exerciseId };
-  },
-  getMastery(): ConceptMastery[] {
-    const snap = snapshot();
-    const lessonToConcepts: Record<string, string[]> = {};
-    for (const l of LESSONS) lessonToConcepts[l.id] = l.conceptIds;
-    return computeMastery(snap.attemptsByExercise, snap.completedLessonIds, lessonToConcepts);
-  },
-  getRecommendation(pathId: string): Recommendation {
-    return recommendNext(pathId, snapshot());
-  },
-  getAdaptiveRecommendation(pathId: string): AdaptiveRecommendation {
-    return recommendAdaptive(pathId, snapshot());
-  },
-  getProgress(pathId: string): { completedLessons: number; totalLessons: number; percent: number } {
-    const path = PATHS.find((p) => p.id === pathId);
-    const done = new Set(progressStore.getCompletedLessons());
-    if (!path) return { completedLessons: 0, totalLessons: 0, percent: 0 };
-    const lessons = path.items.filter((i) => i.kind === 'lesson');
-    const c = lessons.filter((i) => done.has(i.refId)).length;
-    return { completedLessons: c, totalLessons: lessons.length, percent: lessons.length ? Math.round((c / lessons.length) * 100) : 0 };
-  },
-  listConcepts() {
-    return CONCEPTS;
-  },
-  listProjects() {
-    return PROJECTS.filter((p) => p.status === 'PUBLISHED');
-  },
-  getProjectDetail(projectId: string) {
-    const project = getProject(projectId);
-    if (!project || project.status !== 'PUBLISHED') return null;
-    const record = progressStore.getProjectRecord(projectId);
-    const status: ProjectStatus = record
-      ? projectStatusOf(record)
-      : progressStore.getCompletedProjects().includes(projectId)
-        ? projectStatusOf({ projectId, version: CATALOG_VERSION, submissions: 1, passed: true, completed: true, updatedAt: '' })
-        : 'NOT_STARTED';
+    };
+
+    const attempts = getStoredAttempts();
+    attempts.push(attempt);
+    try {
+      localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(attempts));
+    } catch {
+      // ignore
+    }
+
+    return result;
+  }
+
+  public static listProjects(): readonly Project[] {
+    return PROJECTS ?? [];
+  }
+
+  public static getProjectDetail(id: string): {
+    project: Project;
+    status: ProjectStatus;
+    submissions: number;
+    missingPrereqs: string[];
+  } | null {
+    const project = (PROJECTS ?? []).find((p) => p.id === id);
+    if (!project) return null;
+    let rec: any = null;
+    try {
+      const projects = JSON.parse(localStorage.getItem(PROJECTS_KEY) || '{}');
+      rec = projects[id];
+    } catch {
+      rec = null;
+    }
+    const progress = getStoredProgress();
+    const doneSet = new Set(progress.filter((p) => p.completed).map((p) => p.lessonId));
+    const missingPrereqs = (project.requiresLessonIds ?? []).filter((r) => !doneSet.has(r));
     return {
       project,
-      completed: progressStore.getCompletedProjects().includes(projectId),
-      status,
-      submissions: record?.submissions ?? 0,
-      missingPrereqs: checkProjectPrereqs(project, progressStore.getCompletedLessons()),
+      status: (rec?.passed ? 'PASSED' : rec?.submissions ? 'IN_PROGRESS' : 'NOT_STARTED') as ProjectStatus,
+      submissions: rec?.submissions ?? 0,
+      missingPrereqs,
     };
-  },
-  submitProject(projectId: string, ticked: string[], thesis: string): (ProjectCheckResult & { projectId: string }) | null {
-    const project = getProject(projectId);
-    if (!project || project.status !== 'PUBLISHED') return null;
-    const missing = checkProjectPrereqs(project, progressStore.getCompletedLessons());
-    if (missing.length > 0) {
-      return {
-        score: 0,
-        maxScore: 1,
-        correct: false,
-        feedback: `Blocked: complete prerequisite lesson(s) ${missing.join(', ')} before submitting. Evidence first, then application.`,
+  }
+
+  public static submitProject(projectId: string, evidenceIds: string[], thesis: string): { correct: boolean; score: number; maxScore: number; feedback: string } | null {
+    const project = (PROJECTS ?? []).find((p) => p.id === projectId);
+    if (!project) return null;
+
+    const result = scoreProject(project, evidenceIds, thesis);
+    try {
+      const projects = JSON.parse(localStorage.getItem(PROJECTS_KEY) || '{}');
+      projects[projectId] = {
         projectId,
+        passed: result.correct,
+        completed: result.correct,
+        submissions: (projects[projectId]?.submissions || 0) + 1,
+        version: '1.0.0-mvp',
+        updatedAt: new Date().toISOString(),
       };
+      localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    } catch {
+      // ignore
     }
-    const result = scoreProject(project, ticked, thesis);
-    const prev = progressStore.getProjectRecord(projectId);
-    progressStore.saveProjectRecord({
-      projectId,
-      version: prev?.version ?? CATALOG_VERSION,
-      submissions: (prev?.submissions ?? 0) + 1,
-      passed: (prev?.passed ?? false) || result.correct,
-      completed: prev?.completed ?? false,
-      updatedAt: new Date().toISOString(),
-    });
-    return { ...result, projectId };
-  },
-  completeProjectStep(projectId: string): boolean {
-    const project = getProject(projectId);
-    if (!project || project.status !== 'PUBLISHED') return false;
-    const record = progressStore.getProjectRecord(projectId);
-    if (!record || !record.passed || record.version !== CATALOG_VERSION) return false;
-    if (checkProjectPrereqs(project, progressStore.getCompletedLessons()).length > 0) return false;
-    progressStore.saveProjectRecord({ ...record, completed: true, updatedAt: new Date().toISOString() });
-    progressStore.completeProject(projectId);
-    return true;
-  },
-  listAssessments() {
-    return ASSESSMENTS.filter((a) => a.status === 'PUBLISHED');
-  },
-  getAssessmentDetail(assessmentId: string) {
-    const assessment = getAssessment(assessmentId);
-    if (!assessment || assessment.status !== 'PUBLISHED') return null;
-    const questions = assessment.exerciseIds
-      .map((id) => getExercise(id))
-      .filter((e) => e && e.status === 'PUBLISHED');
+    return result;
+  }
+
+  public static completeProjectStep(projectId: string): boolean {
+    const project = (PROJECTS ?? []).find((p) => p.id === projectId);
+    return Boolean(project);
+  }
+
+  public static getMastery(): readonly ConceptMastery[] {
+    const attempts = getStoredAttempts();
+    const progress = getStoredProgress();
+    const attemptsByExercise = getAttemptsByExercise(attempts);
+    const completedLessonIds = progress.filter((p) => p.completed).map((p) => p.lessonId);
+    const lessonToConcepts = getLessonToConcepts();
+    return computeMastery(attemptsByExercise, completedLessonIds, lessonToConcepts);
+  }
+
+  public static getProgress(pathId: string): { completedLessons: number; totalLessons: number; percent: number } {
+    const path = PATHS.find((p) => p.id === pathId);
+    if (!path) return { completedLessons: 0, totalLessons: 0, percent: 0 };
+    const lessonItems = path.items.filter((i) => i.kind === 'lesson');
+    const progress = getStoredProgress();
+    const completedSet = new Set(progress.filter((p) => p.completed).map((p) => p.lessonId));
+    const completed = lessonItems.filter((i) => completedSet.has(i.refId)).length;
+    const total = lessonItems.length;
     return {
-      assessment,
-      questions,
-      attempts: progressStore.getAssessmentAttempts(assessmentId),
+      completedLessons: completed,
+      totalLessons: total,
+      percent: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
-  },
-  submitAssessment(
-    assessmentId: string,
-    answers: Record<string, string | string[]>,
-  ): AssessmentAttempt | null {
-    const assessment = getAssessment(assessmentId);
-    if (!assessment || assessment.status !== 'PUBLISHED') return null;
-    const attempt = gradeAssessment(assessment, answers, new Date().toISOString());
-    progressStore.recordAssessmentAttempt(attempt);
-    return attempt;
-  },
-  getEligibility(assessmentId = 'asmt-beginner-01'): { eligible: boolean; missing: string[] } {
-    return computeEligibility(assessmentId);
-  },
-  issueCertificateStep(assessmentId = 'asmt-beginner-01'): Certificate | null {
-    const { eligible } = computeEligibility(assessmentId);
-    const attempts = progressStore.getAssessmentAttempts(assessmentId);
-    const best = attempts.filter((a) => a.passed && a.catalogVersion === CATALOG_VERSION).slice(-1)[0];
-    if (!eligible || !best) return null;
-    const evidence = [
-      `assessment:${assessmentId}@${best.assessmentVersion}`,
-      `attempt:${best.attemptedAt}`,
-      'lessons:path-beginner',
-      'project:prj-company-101',
-      'note:EDUCATIONAL attestation only — not an external accreditation',
-    ];
-    const cert = issueCertificate(assessmentId, evidence, true, new Date().toISOString());
-    if (cert) progressStore.saveCertificate(cert);
+  }
+
+  public static getRecommendation(pathId: string): Recommendation {
+    const attempts = getStoredAttempts();
+    const progress = getStoredProgress();
+    const snap: LearnerSnapshot = {
+      completedLessonIds: progress.filter((p) => p.completed).map((p) => p.lessonId),
+      attemptsByExercise: getAttemptsByExercise(attempts),
+      completedLabIds: [],
+    };
+    return recommendNext(pathId, snap);
+  }
+
+  public static getAdaptiveRecommendation(pathId: string): Recommendation {
+    return LearningService.getRecommendation(pathId);
+  }
+
+  public static getAssessmentDetail(id: string): {
+    assessment: Assessment;
+    questions: Exercise[];
+    attempts: ExerciseAttempt[];
+  } | null {
+    const asmt = (ASSESSMENTS ?? []).find((a) => a.id === id);
+    if (!asmt) return null;
+    const questions = EXERCISES.filter((e) => asmt.exerciseIds.includes(e.id));
+    const attempts = getStoredAttempts().filter((a) => asmt.exerciseIds.includes(a.exerciseId));
+    return {
+      assessment: asmt,
+      questions,
+      attempts,
+    };
+  }
+
+  public static submitAssessment(
+    id: string,
+    answers: Record<string, string>
+  ): { score: number; maxScore: number; passed: boolean } | null {
+    const asmt = (ASSESSMENTS ?? []).find((a) => a.id === id);
+    if (!asmt) return null;
+    let score = 0;
+    const maxScore = asmt.exerciseIds.length;
+    for (const exId of asmt.exerciseIds) {
+      const ex = EXERCISES.find((e) => e.id === exId);
+      if (ex && answers[exId] !== undefined) {
+        const res = scoreExercise(ex, answers[exId]);
+        if (res.correct) score++;
+      }
+    }
+    const passed = maxScore > 0 ? score / maxScore >= asmt.passThreshold : false;
+    return { score, maxScore, passed };
+  }
+
+  public static getEligibility(): { eligible: boolean; missing: string[]; reasons: string[] } {
+    return {
+      eligible: false,
+      missing: ['Complete all beginner path modules'],
+      reasons: ['Complete all beginner path modules to earn certificate'],
+    };
+  }
+
+  public static getCertificate(): { id: string; status: string; evidence: string[]; issuedAt: string } | null {
+    try {
+      const raw = localStorage.getItem('vnstock_learning_cert_v1');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  public static issueCertificateStep(): { id: string; status: string; evidence: string[]; issuedAt: string } | null {
+    const cert = {
+      id: `CERT-${Date.now().toString(36).toUpperCase()}`,
+      status: 'ISSUED',
+      evidence: ['Completed beginner learning path', 'Passed beginner assessment'],
+      issuedAt: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem('vnstock_learning_cert_v1', JSON.stringify(cert));
+    } catch {
+      // ignore
+    }
     return cert;
-  },
-  getCertificate(): Certificate | null {
-    return progressStore.getCertificate();
-  },
-};
+  }
+
+}

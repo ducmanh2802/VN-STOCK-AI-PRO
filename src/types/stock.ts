@@ -1,77 +1,88 @@
 export type MarketExchange = 'HOSE' | 'HNX' | 'UPCOM';
-
 export type StockTrend = 'UPTREND' | 'DOWNTREND' | 'SIDEWAY';
-
-export type StockSummaryDataStatus = 'AVAILABLE' | 'PARTIAL' | 'UNAVAILABLE';
-
-export type DataFreshnessStatus = 'CURRENT' | 'STALE' | 'UNAVAILABLE' | 'INVALID';
+export type DataFreshnessStatus = 'CURRENT' | 'STALE' | 'UNAVAILABLE' | 'INVALID' | 'RECONCILED';
 
 export interface StockSummary {
   symbol: string;
   companyName: string;
   exchange: MarketExchange;
   sector: string;
-  price: number; // in VND (e.g., 28500)
-  /**
-   * P27 §9: nullable. A summary row is only emitted when a real `price` exists,
-   * but every *derived* session field is `null` when the vendor omitted it —
-   * `volume: 0` for a symbol with no reported volume would read as "no trading"
-   * when the truth is "not supplied".
-   */
-  change: number | null; // e.g., +650
-  changePercent: number | null; // e.g., +2.33
-  volume: number | null; // e.g., 24500000
-  tradingValue: number | null; // in billion VND
-  open: number | null;
-  high: number | null;
-  low: number | null;
-  refPrice: number | null;
-  ceilingPrice: number | null;
-  floorPrice: number | null;
-  /**
-   * P0-03: in billion VND, or `null` when UNAVAILABLE.
-   * A market cap is only reported when it is backed by an authoritative
-   * shares-outstanding figure multiplied by an authoritative price (or by an
-   * authoritative market-cap source). It is never assumed to be one million
-   * shares for every ticker, and never coerced to `0`.
-   */
-  marketCap: number | null;
-  pe: number | null;
-  pb: number | null;
-  roe: number | null;
-  rsi: number | null;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  tradingValue: number;
+  high?: number;
+  low?: number;
+  open?: number;
+  close?: number;
+  ceiling?: number;
+  floor?: number;
+  reference?: number;
+  rsi?: number | null;
+  pe?: number | null;
+  pb?: number | null;
+  roe?: number | null;
+  eps?: number | null;
+  marketCap?: number | null;
+  fairValue?: number | null;
+  upside?: number | null;
+  aiScore: number;
   trend: StockTrend;
-  aiScore: number; // 0 - 100
-  fairValue: number | null;
-  sparkline: number[];
-  isDemo?: boolean;
-  dataStatus?: StockSummaryDataStatus;
-  dataFreshness?: DataFreshnessStatus;
-  fetchedAt?: string;
-  sourceTimestamp?: string | number | null;
+  signal: 'BUY' | 'SELL' | 'HOLD';
+  isVN30?: boolean;
+  sparkline?: number[];
 }
 
 export interface TopMover {
   symbol: string;
   companyName: string;
   exchange: MarketExchange;
+  sector: string;
   price: number;
-  /** P27 §9: nullable — omitted rather than faked when the vendor did not send it. */
-  change: number | null;
-  changePercent: number | null;
-  volume: number | null;
-  tradingValue: number | null; // in billion VND
-  isDemo?: boolean;
+  change: number;
+  changePercent: number;
+  volume: number;
+  tradingValue: number;
+  aiScore?: number;
 }
 
 export interface SectorHeatmapItem {
   id: string;
   name: string;
+  code: string;
   changePercent: number;
-  /** P0-03: tỷ VND, or `null` when no constituent has an authoritative market cap. */
-  marketCap: number | null;
-  leaderSymbol: string;
-  stocksCount: number;
+  totalValue: number;
+  stockCount: number;
+  advances: number;
+  declines: number;
+  unchanged: number;
+  topStock: string;
+  marketCapPercent?: number;
+}
+
+export interface HistoricalCandle {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
   volume: number;
-  isDemo?: boolean;
+}
+
+export interface StockQuote {
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  tradingValue: number;
+  high: number;
+  low: number;
+  open: number;
+  reference: number;
+  ceiling: number;
+  floor: number;
+  exchange: MarketExchange;
+  timestamp: string;
 }

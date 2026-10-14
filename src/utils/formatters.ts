@@ -1,79 +1,97 @@
-/**
- * Single authoritative validity semantic for formatted quantitative output:
- * a non-finite input (null/undefined/NaN/±Infinity) is UNAVAILABLE and must
- * never be rendered as a fabricated numeric value ("NaN", "Infinity", "0").
- */
-function isFiniteValue(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-const UNAVAILABLE = '--';
-
 export function formatVND(value: number | null | undefined): string {
-  if (!isFiniteValue(value)) return UNAVAILABLE;
-  return new Intl.NumberFormat('vi-VN').format(Math.round(value));
+  if (value == null || !Number.isFinite(value)) return '—';
+  return new Intl.NumberFormat('vi-VN').format(value) + ' ₫';
 }
 
-export function formatNumber(value: number | null | undefined, decimals?: number): string {
-  if (!isFiniteValue(value)) return UNAVAILABLE;
-  if (decimals !== undefined) {
-    return new Intl.NumberFormat('vi-VN', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    }).format(value);
+export function formatPrice(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return new Intl.NumberFormat('vi-VN').format(value);
+}
+
+export function formatVolume(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  if (value >= 1_000_000) {
+    return (value / 1_000_000).toFixed(2) + ' tr';
+  }
+  if (value >= 1_000) {
+    return (value / 1_000).toFixed(1) + ' k';
   }
   return new Intl.NumberFormat('vi-VN').format(value);
 }
 
-export function formatIndexPoint(value: number | null | undefined): string {
-  if (!isFiniteValue(value)) return UNAVAILABLE;
-  return new Intl.NumberFormat('vi-VN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-export function formatPercent(value: number | null | undefined, includeSign = true): string {
-  if (!isFiniteValue(value)) return UNAVAILABLE;
-  const sign = value > 0 && includeSign ? '+' : '';
-  return `${sign}${value.toFixed(2)}%`;
-}
-
-export function formatPointChange(value: number | null | undefined, includeSign = true): string {
-  if (!isFiniteValue(value)) return UNAVAILABLE;
-  const sign = value > 0 && includeSign ? '+' : '';
-  return `${sign}${value.toFixed(2)}`;
-}
-
-export function formatVolume(val: number | null | undefined): string {
-  if (!isFiniteValue(val)) return UNAVAILABLE;
-  if (val >= 1_000_000_000) {
-    return `${(val / 1_000_000_000).toFixed(2)}B`;
+export function formatBillionVND(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  if (value >= 1_000_000_000) {
+    return (value / 1_000_000_000).toFixed(2) + ' tỷ ₫';
   }
-  if (val >= 1_000_000) {
-    return `${(val / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000_000) {
+    return (value / 1_000_000).toFixed(2) + ' tr ₫';
   }
-  if (val >= 1_000) {
-    return `${(val / 1_000).toFixed(1)}K`;
+  return (value / 1_000_000_000).toFixed(2) + ' tỷ ₫';
+}
+
+export function formatPercent(value: number | null | undefined, digits = 2): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  const prefix = value > 0 ? '+' : '';
+  return prefix + value.toFixed(digits) + '%';
+}
+
+export function formatNumber(value: number | null | undefined, digits = 2): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return value.toFixed(digits);
+}
+
+export function formatLargeNumber(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  if (Math.abs(value) >= 1_000_000_000_000) {
+    return (value / 1_000_000_000_000).toFixed(2) + ' nghìn tỷ';
   }
-  return new Intl.NumberFormat('vi-VN').format(val);
+  if (Math.abs(value) >= 1_000_000_000) {
+    return (value / 1_000_000_000).toFixed(2) + ' tỷ';
+  }
+  if (Math.abs(value) >= 1_000_000) {
+    return (value / 1_000_000).toFixed(2) + ' tr';
+  }
+  return new Intl.NumberFormat('vi-VN').format(value);
 }
 
-export function formatBillionVND(val: number | null | undefined): string {
-  if (!isFiniteValue(val)) return UNAVAILABLE;
-  return `${new Intl.NumberFormat('vi-VN', {
-    maximumFractionDigits: 1,
-  }).format(val)} tỷ`;
+export function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return '—';
+  try {
+    const d = new Date(dateString);
+    if (Number.isNaN(d.getTime())) return dateString;
+    return d.toLocaleDateString('vi-VN');
+  } catch {
+    return dateString;
+  }
 }
 
-export function getPriceChangeColor(change: number): string {
-  if (change > 0) return 'text-emerald-400';
-  if (change < 0) return 'text-rose-400';
-  return 'text-amber-400';
+export function formatTimestamp(isoString: string | null | undefined): string {
+  if (!isoString) return '—';
+  try {
+    const d = new Date(isoString);
+    if (Number.isNaN(d.getTime())) return isoString;
+    return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch {
+    return isoString;
+  }
 }
 
-export function getPriceChangeBg(change: number): string {
-  if (change > 0) return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25';
-  if (change < 0) return 'bg-rose-500/10 text-rose-400 border border-rose-500/25';
-  return 'bg-amber-500/10 text-amber-400 border border-amber-500/25';
+export function formatIndexPoint(value: number | null | undefined, digits = 2): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return value.toFixed(digits);
 }
+
+export function formatPointChange(value: number | null | undefined, digits = 2): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  const prefix = value > 0 ? '+' : '';
+  return prefix + value.toFixed(digits);
+}
+
+export function getPriceChangeColor(change: number | null | undefined): string {
+  if (change == null || !Number.isFinite(change)) return 'text-terminal-text-muted';
+  if (change > 0) return 'text-terminal-up';
+  if (change < 0) return 'text-terminal-down';
+  return 'text-terminal-warning';
+}
+
