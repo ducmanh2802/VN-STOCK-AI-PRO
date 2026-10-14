@@ -2,7 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard,
   TrendingUp,
-  Layers,
+  MapIcon,
   Bookmark,
   Sparkles,
   SlidersHorizontal,
@@ -14,6 +14,9 @@ import {
   Briefcase,
   ShieldAlert,
   BookOpen,
+  RouteIcon,
+  TargetIcon,
+  NotebookPenIcon,
   Database,
   Settings,
   ChevronLeft,
@@ -53,7 +56,7 @@ export const navigationStructure: NavGroup[] = [
     items: [
       { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
       { id: 'market', label: 'Market', icon: TrendingUp },
-      { id: 'sector-intelligence', label: 'Market Map', icon: Layers },
+      { id: 'sector-intelligence', label: 'Market Map', icon: MapIcon },
       { id: 'watchlist', label: 'Watchlist', icon: Bookmark },
     ],
   },
@@ -70,19 +73,19 @@ export const navigationStructure: NavGroup[] = [
     groupName: 'LEARN',
     items: [
       { id: 'learn', label: 'Learn', icon: BookOpen, badge: 'NEW', badgeVariant: 'success' },
-      { id: 'learn-path', label: 'Paths', icon: Layers },
+      { id: 'learn-path', label: 'Paths', icon: RouteIcon },
       { id: 'practice-lab', label: 'Practice Lab', icon: FlaskConical },
     ],
   },
   {
     groupName: 'TRADING',
     items: [
-      { id: 'strategy-lab', label: 'Strategies', icon: FlaskConical },
+      { id: 'strategy-lab', label: 'Strategies', icon: TargetIcon },
       { id: 'backtest', label: 'Backtesting', icon: PlayCircle },
       { id: 'paper-trading', label: 'Paper Trading', icon: Activity, badge: 'DEMO', badgeVariant: 'warning' },
       { id: 'portfolio', label: 'Portfolio', icon: Briefcase },
-      { id: 'risk-center', label: 'Risk', icon: ShieldAlert, badge: 'SECURE', badgeVariant: 'success' },
-      { id: 'journal', label: 'Journal', icon: BookOpen },
+      { id: 'risk-center', label: 'Risk', icon: ShieldAlert },
+      { id: 'journal', label: 'Journal', icon: NotebookPenIcon },
     ],
   },
   {
@@ -109,7 +112,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const getBadgeStyle = (variant?: string) => {
     switch (variant) {
       case 'accent':
-        return 'bg-terminal-accent/10 text-terminal-accent border-terminal-accent/25';
+        return 'bg-terminal-accent/10 text-terminal-accent-text border-terminal-accent/25';
       case 'success':
         return 'bg-terminal-up/10 text-terminal-up border-terminal-up/25';
       case 'warning':
@@ -143,25 +146,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {!isCollapsed ? (
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-6 h-6 rounded-sm bg-terminal-accent/15 border border-terminal-accent/30 flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-3.5 h-3.5 text-terminal-accent" />
+                  <TrendingUp className="w-3.5 h-3.5 text-terminal-accent-text" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[12px] font-semibold text-terminal-text-primary font-mono tracking-tight truncate">
                       VN-STOCK-AI-PRO
                     </span>
-                    <span className="text-[9px] font-mono px-1 rounded-sm bg-terminal-surface-elevated text-terminal-text-muted border border-terminal-border shrink-0">
+                    <span className="text-2xs font-mono px-1 rounded-sm bg-terminal-surface-elevated text-terminal-text-muted border border-terminal-border shrink-0">
                       v2.5
                     </span>
                   </div>
-                  <p className="text-[9px] font-mono text-terminal-text-muted truncate">
+                  <p className="text-2xs font-mono text-terminal-text-muted truncate">
                     VIETNAM QUANT TERMINAL
                   </p>
                 </div>
               </div>
             ) : (
               <div className="mx-auto w-6 h-6 rounded-sm bg-terminal-accent/15 border border-terminal-accent/30 flex items-center justify-center">
-                <TrendingUp className="w-3.5 h-3.5 text-terminal-accent" />
+                <TrendingUp className="w-3.5 h-3.5 text-terminal-accent-text" />
               </div>
             )}
 
@@ -186,7 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {navigationStructure.map((group) => (
               <div key={group.groupName} className="space-y-0.5">
                 {!isCollapsed && (
-                  <div className="px-2 py-1 text-[9px] font-semibold font-mono text-terminal-text-disabled uppercase tracking-[0.16em]">
+                  <div className="px-2 py-1 text-2xs font-semibold font-mono text-terminal-text-muted uppercase tracking-[0.16em]">
                     {group.groupName}
                   </div>
                 )}
@@ -215,7 +218,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <Icon
                         className={`w-3.5 h-3.5 shrink-0 transition-colors ${
                           isActive
-                            ? 'text-terminal-accent'
+                            ? 'text-terminal-accent-text'
                             : 'text-terminal-text-muted group-hover:text-terminal-text-secondary'
                         }`}
                       />
@@ -225,7 +228,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <span className="truncate">{item.label}</span>
                           {badgeText && (
                             <span
-                              className={`px-1 py-0.5 rounded-sm text-[9px] font-mono border shrink-0 ${getBadgeStyle(
+                              className={`px-1 py-0.5 rounded-sm text-2xs font-mono border shrink-0 ${getBadgeStyle(
                                 item.badgeVariant
                               )}`}
                             >
@@ -257,17 +260,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="w-full flex items-center justify-between px-2 py-1.5 rounded-sm border border-terminal-border bg-terminal-surface-elevated hover:border-terminal-border-bright transition-colors group"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Sparkles className="w-3.5 h-3.5 text-terminal-accent shrink-0" />
+                <Sparkles className="w-3.5 h-3.5 text-terminal-accent-text shrink-0" />
                 <span className="text-[11px] text-terminal-text-secondary group-hover:text-terminal-text-primary">
                   Research Assistant
                 </span>
               </div>
-              <span className="text-[9px] font-mono text-terminal-text-muted">Ctrl+K</span>
             </button>
           ) : (
             <button
               onClick={onOpenCopilot}
-              className="w-full flex items-center justify-center p-1.5 rounded-sm text-terminal-accent hover:bg-terminal-surface-elevated transition-colors"
+              className="w-full flex items-center justify-center p-1.5 rounded-sm text-terminal-accent-text hover:bg-terminal-surface-elevated transition-colors"
               title="Open research assistant"
               aria-label="Open research assistant"
             >

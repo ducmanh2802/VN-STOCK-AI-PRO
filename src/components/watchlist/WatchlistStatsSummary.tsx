@@ -48,7 +48,7 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
       {/* Top Meta Bar with Live Feed Status and Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-terminal-surface border border-terminal-border rounded-lg text-xs font-mono">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-emerald-400">
+          <div className="flex items-center gap-1.5 text-terminal-up">
             <Radio className="w-3.5 h-3.5 animate-pulse" />
             <span className="font-bold tracking-wide uppercase text-[11px]">Live Market Feed (VPS / KBS)</span>
           </div>
@@ -86,7 +86,7 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
               className="px-2.5 py-1 rounded bg-terminal-surface-subtle hover:bg-terminal-surface-hover border border-terminal-border text-terminal-text-primary flex items-center gap-1.5 transition-colors disabled:opacity-50"
               title="Làm mới dữ liệu realtime ngay lập tức"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-terminal-accent' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-terminal-accent-text' : ''}`} />
               <span className="text-[11px] font-medium">{isFetching ? 'Đang cập nhật' : 'Làm mới'}</span>
             </button>
           )}
@@ -99,19 +99,19 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
         <div className="p-3 rounded-lg bg-terminal-surface border border-terminal-border space-y-1">
           <div className="flex items-center justify-between text-terminal-text-muted text-[11px] font-mono">
             <span>QUY MÔ THEO DÕI</span>
-            <Layers className="w-3.5 h-3.5 text-indigo-400" />
+            <Layers className="w-3.5 h-3.5 text-terminal-accent-text" />
           </div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-xl font-bold font-mono text-terminal-text-primary">{stats.totalCount}</span>
             <span className="text-xs text-terminal-text-muted font-mono">mã</span>
           </div>
-          <div className="flex items-center gap-1 text-[10px] font-mono pt-1">
-            <span className="text-emerald-400 font-bold">{stats.advances}▲</span>
+          <div className="flex items-center gap-1 text-2xs font-mono pt-1">
+            <span className="text-terminal-up font-bold">{stats.advances}▲</span>
             <span className="text-terminal-text-muted">/</span>
-            <span className="text-amber-400 font-bold">{stats.unchanged}■</span>
+            <span className="text-terminal-ref font-bold">{stats.unchanged}■</span>
             <span className="text-terminal-text-muted">/</span>
-            <span className="text-rose-400 font-bold">{stats.declines}▼</span>
-            {stats.ceilings > 0 && <span className="text-purple-400 font-bold ml-1">({stats.ceilings} trần)</span>}
+            <span className="text-terminal-down font-bold">{stats.declines}▼</span>
+            {stats.ceilings > 0 && <span className="text-terminal-ceiling font-bold ml-1">({stats.ceilings} trần)</span>}
           </div>
         </div>
 
@@ -120,23 +120,23 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
           <div className="flex items-center justify-between text-terminal-text-muted text-[11px] font-mono">
             <span>HIỆU SUẤT TRUNG BÌNH</span>
             {isAvgPositive ? (
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+              <TrendingUp className="w-3.5 h-3.5 text-terminal-up" />
             ) : isAvgNegative ? (
-              <TrendingDown className="w-3.5 h-3.5 text-rose-400" />
+              <TrendingDown className="w-3.5 h-3.5 text-terminal-down" />
             ) : (
-              <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+              <BarChart3 className="w-3.5 h-3.5 text-terminal-ref" />
             )}
           </div>
           <div className="flex items-baseline gap-1.5">
             <span
               className={`text-xl font-bold font-mono ${
-                isAvgPositive ? 'text-emerald-400' : isAvgNegative ? 'text-rose-400' : 'text-amber-400'
+                isAvgPositive ? 'text-terminal-up' : isAvgNegative ? 'text-terminal-down' : 'text-terminal-ref'
               }`}
             >
               {avgChange != null ? formatPercent(avgChange) : '--'}
             </span>
           </div>
-          <div className="text-[10px] text-terminal-text-muted font-mono truncate">
+          <div className="text-2xs text-terminal-text-muted font-mono truncate">
             {stats.topGainer ? `Dẫn đầu: ${stats.topGainer.symbol} (${formatPercent(stats.topGainer.changePercent)})` : 'Đang phân tích'}
           </div>
         </div>
@@ -145,22 +145,22 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
         <div className="p-3 rounded-lg bg-terminal-surface border border-terminal-border space-y-1">
           <div className="flex items-center justify-between text-terminal-text-muted text-[11px] font-mono">
             <span>AI SCORE TRUNG BÌNH</span>
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <Sparkles className="w-3.5 h-3.5 text-terminal-accent-text" />
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-bold font-mono text-indigo-300">
+            <span className="text-xl font-bold font-mono text-terminal-accent-text">
               {avgAi != null ? avgAi.toFixed(1) : '--'}
             </span>
             <span className="text-xs text-terminal-text-muted font-mono">/100</span>
           </div>
-          <div className="text-[10px] font-mono">
+          <div className="text-2xs font-mono">
             {avgAi != null ? (
               avgAi >= 70 ? (
-                <span className="text-emerald-400 font-semibold">Tín hiệu Tích Cực</span>
+                <span className="text-terminal-up font-semibold">Tín hiệu Tích Cực</span>
               ) : avgAi >= 50 ? (
-                <span className="text-amber-400 font-semibold">Tín hiệu Trung Tính</span>
+                <span className="text-terminal-ref font-semibold">Tín hiệu Trung Tính</span>
               ) : (
-                <span className="text-rose-400 font-semibold">Thận trọng rủi ro</span>
+                <span className="text-terminal-down font-semibold">Thận trọng rủi ro</span>
               )
             ) : (
               <span className="text-terminal-text-muted">Đang phân tích</span>
@@ -172,18 +172,18 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
         <div className="p-3 rounded-lg bg-terminal-surface border border-terminal-border space-y-1">
           <div className="flex items-center justify-between text-terminal-text-muted text-[11px] font-mono">
             <span>UPSIDE TIỀM NĂNG TB</span>
-            <Target className="w-3.5 h-3.5 text-emerald-400" />
+            <Target className="w-3.5 h-3.5 text-terminal-up" />
           </div>
           <div className="flex items-baseline gap-1.5">
             <span
               className={`text-xl font-bold font-mono ${
-                avgUpside != null && avgUpside >= 0 ? 'text-emerald-400' : avgUpside != null ? 'text-rose-400' : 'text-terminal-text-muted'
+                avgUpside != null && avgUpside >= 0 ? 'text-terminal-up' : avgUpside != null ? 'text-terminal-down' : 'text-terminal-text-muted'
               }`}
             >
               {avgUpside != null ? `${avgUpside >= 0 ? '+' : ''}${avgUpside.toFixed(1)}%` : '--'}
             </span>
           </div>
-          <div className="text-[10px] text-terminal-text-muted font-mono">
+          <div className="text-2xs text-terminal-text-muted font-mono">
             So với Định giá Fair Value
           </div>
         </div>
@@ -192,14 +192,14 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
         <div className="p-3 rounded-lg bg-terminal-surface border border-terminal-border space-y-1">
           <div className="flex items-center justify-between text-terminal-text-muted text-[11px] font-mono">
             <span>TỔNG GIÁ TRỊ GD</span>
-            <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+            <BarChart3 className="w-3.5 h-3.5 text-terminal-ref" />
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-bold font-mono text-amber-300">
+            <span className="text-xl font-bold font-mono text-terminal-ref">
               {formatBillionVND(stats.totalTradingValue)}
             </span>
           </div>
-          <div className="text-[10px] text-terminal-text-muted font-mono">
+          <div className="text-2xs text-terminal-text-muted font-mono">
             Khối lượng: {formatVolume(stats.totalVolume)} CP
           </div>
         </div>
@@ -208,19 +208,19 @@ export const WatchlistStatsSummary: React.FC<WatchlistStatsSummaryProps> = ({
         <div className="p-3 rounded-lg bg-terminal-surface border border-terminal-border space-y-1">
           <div className="flex items-center justify-between text-terminal-text-muted text-[11px] font-mono">
             <span>MÃ BIẾN ĐỘNG MẠNH</span>
-            <TrendingUp className="w-3.5 h-3.5 text-indigo-400" />
+            <TrendingUp className="w-3.5 h-3.5 text-terminal-accent-text" />
           </div>
           <div className="text-xs font-mono space-y-0.5 pt-0.5">
             {stats.topGainer && (
               <div className="flex items-center justify-between">
-                <span className="text-emerald-400 font-bold">{stats.topGainer.symbol}</span>
-                <span className="text-emerald-400 text-[11px]">{formatPercent(stats.topGainer.changePercent)}</span>
+                <span className="text-terminal-up font-bold">{stats.topGainer.symbol}</span>
+                <span className="text-terminal-up text-[11px]">{formatPercent(stats.topGainer.changePercent)}</span>
               </div>
             )}
             {stats.topLoser && (
               <div className="flex items-center justify-between">
-                <span className="text-rose-400 font-bold">{stats.topLoser.symbol}</span>
-                <span className="text-rose-400 text-[11px]">{formatPercent(stats.topLoser.changePercent)}</span>
+                <span className="text-terminal-down font-bold">{stats.topLoser.symbol}</span>
+                <span className="text-terminal-down text-[11px]">{formatPercent(stats.topLoser.changePercent)}</span>
               </div>
             )}
           </div>

@@ -51,7 +51,7 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
       {/* Header */}
       <div className="flex items-center justify-between pb-2.5 border-b border-terminal-border/70">
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent">
+          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent-text">
             <Activity className="w-4 h-4" />
           </div>
           <h3 className="text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
@@ -68,9 +68,9 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
         {/* 1. RSI (14) */}
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-amber-400">RSI(14)</span>
+            <span className="text-xs font-mono font-bold text-terminal-ref">RSI(14)</span>
             <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${
+              className={`px-1.5 py-0.5 rounded text-2xs font-mono font-semibold ${
                 rsi.status === 'OVERBOUGHT'
                   ? 'bg-terminal-down/15 text-terminal-down border border-terminal-down/30'
                   : rsi.status === 'OVERSOLD'
@@ -97,9 +97,9 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
         {/* 2. MACD (12, 26, 9) */}
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-sky-400">MACD (12, 26, 9)</span>
+            <span className="text-xs font-mono font-bold text-terminal-accent-text">MACD (12, 26, 9)</span>
             <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${
+              className={`px-1.5 py-0.5 rounded text-2xs font-mono font-semibold ${
                 macd.trend === 'BULLISH' || macd.trend === 'BULLISH_CROSS'
                   ? 'bg-terminal-up/15 text-terminal-up border border-terminal-up/30'
                   : 'bg-terminal-down/15 text-terminal-down border border-terminal-down/30'
@@ -129,8 +129,8 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
         {/* 3. Bollinger Bands */}
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-cyan-400">Bollinger Bands (20, 2)</span>
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/25">
+            <span className="text-xs font-mono font-bold text-terminal-floor">Bollinger Bands (20, 2)</span>
+            <span className="px-1.5 py-0.5 rounded text-2xs font-mono bg-terminal-floor/10 text-terminal-floor border border-terminal-floor/25">
               {bollinger.status || '--'}
             </span>
           </div>
@@ -141,7 +141,7 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
             </div>
             <div>
               <span className="text-terminal-text-muted block">Giữa:</span>
-              <span className="text-cyan-400 font-semibold">{hasBbMiddle ? formatVND(bollinger.middle) : '--'}</span>
+              <span className="text-terminal-floor font-semibold">{hasBbMiddle ? formatVND(bollinger.middle) : '--'}</span>
             </div>
             <div>
               <span className="text-terminal-text-muted block">Trên:</span>
@@ -156,9 +156,9 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
         {/* 4. MA20 (Ngắn hạn) */}
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-amber-400">MA20 (Ngắn hạn)</span>
+            <span className="text-xs font-mono font-bold text-terminal-ref">MA20 (Ngắn hạn)</span>
             <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${
+              className={`px-1.5 py-0.5 rounded text-2xs font-mono font-semibold ${
                 sma20.priceRelation === 'ABOVE'
                   ? 'bg-terminal-up/15 text-terminal-up border border-terminal-up/30'
                   : 'bg-terminal-down/15 text-terminal-down border border-terminal-down/30'
@@ -189,25 +189,25 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
         {/* 5. MA50 & MA200 (Trung & Dài hạn) */}
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-purple-400">MA50 & MA200</span>
+            <span className="text-xs font-mono font-bold text-terminal-ceiling">MA50 & MA200</span>
             {sma200.goldenCross && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40">
+              <span className="px-1.5 py-0.5 rounded text-2xs font-mono font-bold bg-terminal-ref/20 text-terminal-ref border border-terminal-ref/40">
                 GOLDEN CROSS
               </span>
             )}
           </div>
           <div className="grid grid-cols-2 gap-2 text-xs font-mono">
             <div>
-              <span className="text-terminal-text-muted block text-[10px]">MA50 (Trung hạn):</span>
-              <span className="font-bold text-blue-400">{hasSma50Val ? formatVND(sma50.value) : '--'}</span>
-              <span className="text-[10px] text-terminal-text-muted block">
+              <span className="text-terminal-text-muted block text-2xs">MA50 (Trung hạn):</span>
+              <span className="font-bold text-terminal-accent-text">{hasSma50Val ? formatVND(sma50.value) : '--'}</span>
+              <span className="text-2xs text-terminal-text-muted block">
                 {hasSma50Diff ? `(${sma50.diffPercent}%)` : '(--)'}
               </span>
             </div>
             <div>
-              <span className="text-terminal-text-muted block text-[10px]">MA200 (Dài hạn):</span>
-              <span className="font-bold text-purple-400">{hasSma200Val ? formatVND(sma200.value) : '--'}</span>
-              <span className="text-[10px] text-terminal-text-muted block">
+              <span className="text-terminal-text-muted block text-2xs">MA200 (Dài hạn):</span>
+              <span className="font-bold text-terminal-ceiling">{hasSma200Val ? formatVND(sma200.value) : '--'}</span>
+              <span className="text-2xs text-terminal-text-muted block">
                 {hasSma200Diff ? `(${sma200.diffPercent}%)` : '(--)'}
               </span>
             </div>
@@ -222,9 +222,9 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
         {/* 6. Volume vs MA20 */}
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold text-emerald-400">Khối Lượng vs MA20</span>
+            <span className="text-xs font-mono font-bold text-terminal-up">Khối Lượng vs MA20</span>
             <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${
+              className={`px-1.5 py-0.5 rounded text-2xs font-mono font-semibold ${
                 volume.trend === 'SURGE'
                   ? 'bg-terminal-up/15 text-terminal-up border border-terminal-up/30'
                   : volume.trend === 'DRY'

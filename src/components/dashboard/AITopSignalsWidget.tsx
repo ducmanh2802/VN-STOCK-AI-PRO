@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AITopSignal } from '../../types/market';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { SourceBadge } from '../common/SourceBadge';
+import { SourceBadge, provenanceFromIsDemo } from '../common/SourceBadge';
 import { CardSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -108,7 +108,7 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
     switch (type) {
       case 'STRONG_BUY':
         return (
-          <Badge variant="up" size="xs" withDot className="font-bold bg-emerald-600/25 border-emerald-500/60">
+          <Badge variant="up" size="xs" withDot className="font-bold bg-terminal-up/25 border-terminal-up/60">
             {label || 'MUA MẠNH'}
           </Badge>
         );
@@ -148,7 +148,7 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
     >
       <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-terminal-border">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent">
+          <div className="p-1.5 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent-text">
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
@@ -156,7 +156,7 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
               <CardTitle className="text-xs sm:text-sm font-bold tracking-tight uppercase font-mono">
                 Tín Hiệu Định Lượng AI (AI Top Signals)
               </CardTitle>
-              <SourceBadge size="sm" />
+              <SourceBadge size="sm" variant={provenanceFromIsDemo((signals ?? []).map((x) => x.isDemo))} />
             </div>
             <p className="text-[11px] text-terminal-text-muted">
               Định giá cơ bản, điểm mua kỹ thuật và xác suất thành công từ mô hình AI
@@ -165,7 +165,7 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center p-0.5 rounded bg-terminal-bg border border-terminal-border text-[10px] font-mono">
+        <div className="flex items-center p-0.5 rounded bg-terminal-bg border border-terminal-border text-2xs font-mono">
           {(['ALL', 'BUY', 'ACCUMULATE', 'WATCH'] as SignalFilter[]).map((filter) => (
             <button
               key={filter}
@@ -173,7 +173,7 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
               onClick={() => setActiveFilter(filter)}
               className={`px-2 py-0.5 rounded font-medium transition-all ${
                 activeFilter === filter
-                  ? 'bg-terminal-surface text-terminal-accent shadow-xs border border-terminal-border font-semibold'
+                  ? 'bg-terminal-surface text-terminal-accent-text shadow-xs border border-terminal-border font-semibold'
                   : 'text-terminal-text-muted hover:text-terminal-text-secondary'
               }`}
             >
@@ -206,10 +206,10 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-sm sm:text-base text-terminal-text-primary group-hover:text-terminal-accent transition-colors">
+                      <span className="font-mono font-bold text-sm sm:text-base text-terminal-text-primary group-hover:text-terminal-accent-text transition-colors">
                         {sig.symbol}
                       </span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-terminal-bg border border-terminal-border font-mono text-terminal-text-muted">
+                      <span className="text-2xs px-1.5 py-0.2 rounded bg-terminal-bg border border-terminal-border font-mono text-terminal-text-muted">
                         {sig.exchange}
                       </span>
                       <span className="text-[11px] text-terminal-text-muted hidden sm:inline">
@@ -223,9 +223,9 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
 
                   <div className="flex flex-col items-end gap-1">
                     {getSignalBadge(sig.signalType, sig.signalLabel)}
-                    <div className="flex items-center gap-1 text-[10px] font-mono text-terminal-text-muted">
+                    <div className="flex items-center gap-1 text-2xs font-mono text-terminal-text-muted">
                       <span>Độ tin cậy:</span>
-                      <span className="text-terminal-accent font-bold">{sig.confidence}%</span>
+                      <span className="text-terminal-accent-text font-bold">{sig.confidence}%</span>
                     </div>
                   </div>
                 </div>
@@ -233,21 +233,21 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
                 {/* Price Matrix: Current, Target, Upside, StopLoss */}
                 <div className="grid grid-cols-3 gap-1.5 p-2 rounded bg-terminal-bg border border-terminal-border/80 text-xs font-mono">
                   <div>
-                    <span className="text-[10px] text-terminal-text-muted block">Giá hiện tại</span>
+                    <span className="text-2xs text-terminal-text-muted block">Giá hiện tại</span>
                     <span className="font-bold text-terminal-text-primary">
                       {formatVND(sig.currentPrice)}
                     </span>
                   </div>
 
                   <div>
-                    <span className="text-[10px] text-terminal-text-muted block">Mục tiêu (TP)</span>
+                    <span className="text-2xs text-terminal-text-muted block">Mục tiêu (TP)</span>
                     <span className="font-bold text-terminal-up">
                       {formatVND(sig.targetPrice)}
                     </span>
                   </div>
 
                   <div className="text-right">
-                    <span className="text-[10px] text-terminal-text-muted block">Kỳ vọng</span>
+                    <span className="text-2xs text-terminal-text-muted block">Kỳ vọng</span>
                     {/* `upsidePercent` is `number | null`: without a target price there is no
                         upside to report, and `null.toFixed()` would take down the dashboard. */}
                     <span className="font-bold text-terminal-up">
@@ -264,7 +264,7 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
                     {sig.technicalSummary}
                   </p>
                   {sig.catalysts && sig.catalysts.length > 0 && (
-                    <div className="flex items-center gap-1.5 text-[10px] text-terminal-accent font-mono">
+                    <div className="flex items-center gap-1.5 text-2xs text-terminal-accent-text font-mono">
                       <CheckCircle2 className="w-3 h-3 shrink-0" />
                       <span className="truncate">{sig.catalysts[0]}</span>
                     </div>
@@ -272,7 +272,7 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
                 </div>
 
                 {/* Footer: Timeframe, R:R and Action buttons */}
-                <div className="pt-2 border-t border-terminal-border/60 flex items-center justify-between text-[10px] font-mono text-terminal-text-muted">
+                <div className="pt-2 border-t border-terminal-border/60 flex items-center justify-between text-2xs font-mono text-terminal-text-muted">
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
@@ -290,11 +290,11 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
                           onToggleWatchlist(sig.symbol);
                         }}
                         className={`p-1 rounded hover:bg-terminal-surface border border-terminal-border transition-colors ${
-                          isSaved ? 'text-amber-400 border-amber-500/40' : 'text-terminal-text-muted hover:text-terminal-text-primary'
+                          isSaved ? 'text-terminal-ref border-terminal-ref/40' : 'text-terminal-text-muted hover:text-terminal-text-primary'
                         }`}
                         title={isSaved ? 'Đã lưu trong watchlist' : 'Thêm vào watchlist'}
                       >
-                        <Bookmark className={`w-3 h-3 ${isSaved ? 'fill-amber-400' : ''}`} />
+                        <Bookmark className={`w-3 h-3 ${isSaved ? 'fill-terminal-ref' : ''}`} />
                       </button>
                     )}
                     <button
@@ -303,7 +303,7 @@ export const AITopSignalsWidget: React.FC<AITopSignalsWidgetProps> = ({
                         e.stopPropagation();
                         if (onSelectStock) onSelectStock(sig.symbol);
                       }}
-                      className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-terminal-surface hover:bg-terminal-surface-hover border border-terminal-border text-terminal-accent font-medium transition-colors"
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-terminal-surface hover:bg-terminal-surface-hover border border-terminal-border text-terminal-accent-text font-medium transition-colors"
                     >
                       Chi tiết <ExternalLink className="w-2.5 h-2.5" />
                     </button>

@@ -58,18 +58,18 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
     return (
       <div
         id="stock-price-summary"
-        className="p-4 rounded-sm bg-terminal-surface border border-amber-400/30 space-y-2"
+        className="p-4 rounded-sm bg-terminal-surface border border-terminal-ref/30 space-y-2"
       >
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
             Giá Realtime
           </span>
-          <span className="text-[10px] font-mono text-red-400">✕ VPS không khả dụng</span>
+          <span className="text-2xs font-mono text-terminal-down">✕ VPS không khả dụng</span>
         </div>
         <div className="text-xs text-terminal-text-muted font-mono">
           Không hiển thị giá giả. Lý do: {realtimeUnavailableReason || 'Dữ liệu thị giá chưa sẵn sàng'}
         </div>
-        <div className="text-[10px] text-terminal-text-muted font-mono">
+        <div className="text-2xs text-terminal-text-muted font-mono">
           Lịch sử giá & phân tích kỹ thuật vẫn dùng dữ liệu thật từ KBS.
         </div>
       </div>
@@ -83,7 +83,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
   const isFloor = isPositiveFiniteNumber(floorPrice) && price <= floorPrice;
 
   const priceColorClass = isCeiling
-    ? 'text-terminal-ceil'
+    ? 'text-terminal-ceiling'
     : isFloor
     ? 'text-terminal-floor'
     : isUp
@@ -93,7 +93,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
     : 'text-terminal-ref';
 
   const badgeBgClass = isCeiling
-    ? 'bg-terminal-ceil/15 border-terminal-ceil/30 text-terminal-ceil'
+    ? 'bg-terminal-ceiling/15 border-terminal-ceiling/30 text-terminal-ceiling'
     : isFloor
     ? 'bg-terminal-floor/15 border-terminal-floor/30 text-terminal-floor'
     : isUp
@@ -125,7 +125,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
           </span>
           {dataSourceLabel && (
             <span
-              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-400/10 border border-emerald-400/30 text-emerald-400"
+              className="text-2xs font-mono px-1.5 py-0.5 rounded bg-terminal-up/10 border border-terminal-up/30 text-terminal-up"
               title={`Giá thật từ ${dataSourceLabel}`}
             >
               {dataSourceLabel} ✓
@@ -153,18 +153,18 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
 
         {/* 3 Core Thresholds: Ceiling, Reference, Floor (only when the real source provides them) */}
         <div className="flex items-center gap-3 font-mono text-xs">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-terminal-ceil/10 border border-terminal-ceil/25 text-terminal-ceil">
-            <span className="text-[10px] text-terminal-text-muted">TRẦN:</span>
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-terminal-ceiling/10 border border-terminal-ceiling/25 text-terminal-ceiling">
+            <span className="text-2xs text-terminal-text-muted">TRẦN:</span>
             <span className="font-bold">{isPositiveFiniteNumber(ceilingPrice) ? formatVND(ceilingPrice) : '—'}</span>
           </div>
 
           <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-terminal-ref/10 border border-terminal-ref/25 text-terminal-ref">
-            <span className="text-[10px] text-terminal-text-muted">TC:</span>
+            <span className="text-2xs text-terminal-text-muted">TC:</span>
             <span className="font-bold">{isPositiveFiniteNumber(refPrice) ? formatVND(refPrice) : '—'}</span>
           </div>
 
           <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-terminal-floor/10 border border-terminal-floor/25 text-terminal-floor">
-            <span className="text-[10px] text-terminal-text-muted">SÀN:</span>
+            <span className="text-2xs text-terminal-text-muted">SÀN:</span>
             <span className="font-bold">{isPositiveFiniteNumber(floorPrice) ? formatVND(floorPrice) : '—'}</span>
           </div>
         </div>
@@ -207,7 +207,7 @@ export const StockPriceSummary: React.FC<StockPriceSummaryProps> = ({
         {/* Value */}
         <div className="p-2.5 rounded-lg bg-terminal-bg border border-terminal-border/80">
           <div className="text-terminal-text-muted mb-0.5">Giá trị khớp lệnh</div>
-          <div className="font-mono font-semibold text-terminal-accent">
+          <div className="font-mono font-semibold text-terminal-accent-text">
             {isFiniteNumber(tradingValue) && tradingValue >= 0 ? `${tradingValue.toFixed(1)} tỷ VND` : '—'}
           </div>
         </div>

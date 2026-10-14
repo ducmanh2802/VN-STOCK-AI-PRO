@@ -1,7 +1,7 @@
 import React from 'react';
 import { IndexData } from '../../types/market';
 import { Badge } from '../ui/Badge';
-import { SourceBadge } from '../common/SourceBadge';
+import { SourceBadge, provenanceFromIsDemo } from '../common/SourceBadge';
 import { CardSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -77,7 +77,7 @@ export const MarketIndexRibbon: React.FC<MarketIndexRibbonProps> = ({
           <span className="font-mono font-bold text-terminal-text-primary uppercase tracking-wider text-[11px]">
             Chỉ số thị trường (Market Indices)
           </span>
-          <SourceBadge size="sm" />
+          <SourceBadge size="sm" variant={provenanceFromIsDemo((indices ?? []).map((x) => x.isDemo))} />
         </div>
         <div className="flex items-center gap-2 text-[11px] font-mono text-terminal-text-muted">
           <span className="hidden sm:inline">Thời gian thực · Sàn HOSE, HNX, UPCOM</span>
@@ -123,10 +123,10 @@ export const MarketIndexRibbon: React.FC<MarketIndexRibbonProps> = ({
               {/* Top Row: Symbol, Status & Change Badge */}
               <div className="flex items-center justify-between gap-1 mb-1.5">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-mono font-bold text-xs text-terminal-text-primary group-hover:text-terminal-accent transition-colors">
+                    <span className="font-mono font-bold text-xs text-terminal-text-primary group-hover:text-terminal-accent-text transition-colors">
                     {idx.displayName}
                   </span>
-                  <span className="text-[9px] px-1 py-0.2 rounded bg-terminal-surface-subtle text-terminal-text-muted border border-terminal-border-subtle font-mono">
+                  <span className="text-2xs px-1 py-0.2 rounded bg-terminal-surface-subtle text-terminal-text-muted border border-terminal-border-subtle font-mono">
                     {idx.status === 'TRADING' ? 'Khớp lệnh' : 'Đóng cửa'}
                   </span>
                 </div>
@@ -148,7 +148,7 @@ export const MarketIndexRibbon: React.FC<MarketIndexRibbonProps> = ({
               </div>
 
               {/* Bottom Row: Volume, Value and Mini Breadth */}
-              <div className="pt-1.5 border-t border-terminal-border/60 flex items-center justify-between text-[10px] font-mono text-terminal-text-muted">
+              <div className="pt-1.5 border-t border-terminal-border/60 flex items-center justify-between text-2xs font-mono text-terminal-text-muted">
                 <div className="truncate">
                   Vol: <span className="text-terminal-text-secondary font-medium">{formatVolume(idx.totalVolume)}</span>
                 </div>
@@ -158,7 +158,7 @@ export const MarketIndexRibbon: React.FC<MarketIndexRibbonProps> = ({
               </div>
 
               {/* Mini Advance / Decline Bar */}
-              <div className="mt-1 flex items-center justify-between text-[9px] font-mono">
+              <div className="mt-1 flex items-center justify-between text-2xs font-mono">
                 <div className="flex items-center gap-1.5">
                   <span className="text-terminal-up">▲ {idx.advances}</span>
                   <span className="text-terminal-ref">■ {idx.unchanged}</span>

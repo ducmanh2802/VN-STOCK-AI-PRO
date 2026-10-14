@@ -61,14 +61,14 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
         <div
           className={`inline-flex items-center gap-1 font-mono uppercase text-[11px] font-semibold ${
             align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
-          } ${isSorted ? 'text-terminal-accent' : 'text-terminal-text-muted'}`}
+          } ${isSorted ? 'text-terminal-accent-text' : 'text-terminal-text-muted'}`}
         >
           <span>{label}</span>
           {isSorted ? (
             sortDirection === 'asc' ? (
-              <ArrowUp className="w-3 h-3 text-terminal-accent shrink-0" />
+              <ArrowUp className="w-3 h-3 text-terminal-accent-text shrink-0" />
             ) : sortDirection === 'desc' ? (
-              <ArrowDown className="w-3 h-3 text-terminal-accent shrink-0" />
+              <ArrowDown className="w-3 h-3 text-terminal-accent-text shrink-0" />
             ) : (
               <ArrowUpDown className="w-3 h-3 opacity-40 shrink-0" />
             )
@@ -87,14 +87,14 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
       return 'text-terminal-text-primary font-bold';
     }
     if (stock.price >= stock.ceilingPrice && stock.ceilingPrice > 0) {
-      return 'text-purple-400 font-bold'; // Ceiling
+      return 'text-terminal-ceiling font-bold'; // Ceiling
     }
     if (stock.price <= stock.floorPrice && stock.floorPrice > 0) {
-      return 'text-cyan-400 font-bold'; // Floor
+      return 'text-terminal-floor font-bold'; // Floor
     }
-    if (stock.change > 0) return 'text-emerald-400 font-bold';
-    if (stock.change < 0) return 'text-rose-400 font-bold';
-    return 'text-amber-400 font-bold';
+    if (stock.change > 0) return 'text-terminal-up font-bold';
+    if (stock.change < 0) return 'text-terminal-down font-bold';
+    return 'text-terminal-ref font-bold';
   };
 
   const getSignalBadge = (stock: StockSummary) => {
@@ -185,7 +185,7 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                 {/* 1. Symbol & Metadata (Sticky Left Column) */}
                 <td className="py-2.5 px-3 sticky left-0 bg-terminal-bg group-hover:bg-terminal-surface-hover/80 transition-colors z-10">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-terminal-text-primary group-hover:text-terminal-accent transition-colors font-mono">
+                    <span className="font-bold text-sm text-terminal-text-primary group-hover:text-terminal-accent-text transition-colors font-mono">
                       {stock.symbol}
                     </span>
                     <Badge variant="subtle" size="xs">
@@ -208,7 +208,7 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                     <Badge variant={isUp ? 'up' : isDown ? 'down' : 'ref'} size="xs">
                       {formatPercent(stock.changePercent)}
                     </Badge>
-                    <span className={`text-[10px] font-mono ${getPriceChangeColor(stock.change)}`}>
+                    <span className={`text-2xs font-mono ${getPriceChangeColor(stock.change)}`}>
                       {stock.change > 0 ? '+' : ''}
                       {formatVND(stock.change)}
                     </span>
@@ -220,7 +220,7 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                   <div className="font-semibold text-terminal-text-primary">
                     {formatVolume(stock.volume)}
                   </div>
-                  <div className="text-[10px] text-terminal-text-muted">
+                  <div className="text-2xs text-terminal-text-muted">
                     {formatBillionVND(stock.tradingValue)}
                   </div>
                 </td>
@@ -228,7 +228,7 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                 {/* 5. Day Range Bar */}
                 <td className="py-2.5 px-3 text-center">
                   <div className="w-20 mx-auto space-y-1">
-                    <div className="flex justify-between text-[9px] text-terminal-text-muted font-mono">
+                    <div className="flex justify-between text-2xs text-terminal-text-muted font-mono">
                       <span>{formatVND(stock.low / 1000)}</span>
                       <span>{formatVND(stock.high / 1000)}</span>
                     </div>
@@ -258,9 +258,9 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                     <span
                       className={
                         stock.rsi >= 70
-                          ? 'text-rose-400 font-bold'
+                          ? 'text-terminal-down font-bold'
                           : stock.rsi <= 35
-                          ? 'text-cyan-400 font-bold'
+                          ? 'text-terminal-floor font-bold'
                           : 'text-terminal-text-secondary'
                       }
                     >
@@ -277,16 +277,16 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                 </td>
 
                 {/* 9. ROE */}
-                <td className="py-2.5 px-3 text-center font-semibold text-emerald-400">
+                <td className="py-2.5 px-3 text-center font-semibold text-terminal-up">
                   {stock.roe && isFiniteNumber(stock.roe) ? `${stock.roe.toFixed(1)}%` : '-'}
                 </td>
 
                 {/* 10. Fair Value */}
                 <td className="py-2.5 px-3 text-right">
-                  <div className="text-terminal-accent font-bold">
+                  <div className="text-terminal-accent-text font-bold">
                     {formatVND(stock.fairValue)}
                   </div>
-                  <div className="text-[10px] text-terminal-text-muted">
+                  <div className="text-2xs text-terminal-text-muted">
                     DCF / Multiples
                   </div>
                 </td>
@@ -294,7 +294,7 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                 {/* 11. Upside % */}
                 <td className="py-2.5 px-3 text-right font-bold">
                   {upside !== null ? (
-                    <span className={`text-xs ${upside >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <span className={`text-xs ${upside >= 0 ? 'text-terminal-up' : 'text-terminal-down'}`}>
                       {upside >= 0 ? '+' : ''}
                       {upside.toFixed(1)}%
                     </span>
@@ -306,7 +306,7 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                 {/* 12. AI Score */}
                 <td className="py-2.5 px-3 text-center">
                   <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-terminal-surface border border-terminal-border">
-                    <Sparkles className="w-3 h-3 text-indigo-400" />
+                    <Sparkles className="w-3 h-3 text-terminal-accent-text" />
                     <span className="font-bold text-terminal-text-primary text-xs">
                       {isFiniteNumber(stock.aiScore) ? stock.aiScore : '--'}
                     </span>
@@ -346,7 +346,7 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                       </svg>
                     </div>
                   ) : (
-                    <span className="text-terminal-text-muted text-[10px]">-</span>
+                    <span className="text-terminal-text-muted text-2xs">-</span>
                   )}
                 </td>
 
@@ -359,7 +359,7 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                     {/* Quick View Button */}
                     <button
                       onClick={() => onSelectStock(stock.symbol)}
-                      className="p-1 rounded text-terminal-text-muted hover:text-terminal-accent hover:bg-terminal-surface transition-colors"
+                      className="p-1 rounded text-terminal-text-muted hover:text-terminal-accent-text hover:bg-terminal-surface transition-colors"
                       title="Xem nhanh (Quick View Modal)"
                     >
                       <Eye className="w-3.5 h-3.5" />
@@ -368,7 +368,7 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                     {/* Full Detail Navigate */}
                     <button
                       onClick={() => onNavigateToStock(stock.symbol)}
-                      className="p-1 rounded text-terminal-text-muted hover:text-terminal-accent hover:bg-terminal-surface transition-colors"
+                      className="p-1 rounded text-terminal-text-muted hover:text-terminal-accent-text hover:bg-terminal-surface transition-colors"
                       title="Mở phân tích chi tiết & Đồ thị kỹ thuật"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -378,7 +378,7 @@ export const WatchlistTable: React.FC<WatchlistTableProps> = ({
                     {onOpenTradeModal && (
                       <button
                         onClick={() => onOpenTradeModal(stock.symbol)}
-                        className="p-1 rounded text-terminal-text-muted hover:text-emerald-400 hover:bg-terminal-surface transition-colors"
+                        className="p-1 rounded text-terminal-text-muted hover:text-terminal-up hover:bg-terminal-surface transition-colors"
                         title="Đặt lệnh giao dịch mô phỏng (Paper Trading)"
                       >
                         <ShoppingCart className="w-3.5 h-3.5" />

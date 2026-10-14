@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { MarketBreadth } from '../../types/market';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { SourceBadge } from '../common/SourceBadge';
+import { SourceBadge, provenanceFromIsDemo } from '../common/SourceBadge';
 import { CardSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -108,7 +108,7 @@ export const MarketBreadthWidget: React.FC<MarketBreadthWidgetProps> = ({
           <CardTitle className="text-xs sm:text-sm font-bold tracking-tight uppercase font-mono">
             Độ Rộng Thị Trường (Market Breadth)
           </CardTitle>
-          <SourceBadge size="sm" />
+          <SourceBadge size="sm" variant={provenanceFromIsDemo([breadth.isDemo])} />
         </div>
 
         {/* Exchange Tabs */}
@@ -120,7 +120,7 @@ export const MarketBreadthWidget: React.FC<MarketBreadthWidgetProps> = ({
               onClick={() => setActiveExchange(tab)}
               className={`px-2 py-0.5 rounded uppercase font-semibold transition-all ${
                 activeExchange === tab
-                  ? 'bg-terminal-surface text-terminal-accent shadow-xs border border-terminal-border'
+                  ? 'bg-terminal-surface text-terminal-accent-text shadow-xs border border-terminal-border'
                   : 'text-terminal-text-muted hover:text-terminal-text-secondary'
               }`}
             >
@@ -133,7 +133,7 @@ export const MarketBreadthWidget: React.FC<MarketBreadthWidgetProps> = ({
       {/* P27 §12 — partial breadth must never read as whole-market breadth. */}
       {breadth.coverage && (
         <div
-          className="px-4 -mt-1 text-[10px] font-mono text-terminal-text-muted"
+          className="px-4 -mt-1 text-2xs font-mono text-terminal-text-muted"
           title={breadth.coverage.note}
         >
           Phạm vi: {breadth.coverage.coveredStocks} mã · có dữ liệu giá:{' '}
@@ -145,64 +145,64 @@ export const MarketBreadthWidget: React.FC<MarketBreadthWidgetProps> = ({
         {/* Breadth Numbers Grid */}
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-center font-mono">
           {/* Tăng */}
-          <div className="p-2 rounded bg-terminal-surface-subtle border border-emerald-900/40">
-            <span className="text-[10px] text-terminal-text-muted uppercase block flex items-center justify-center gap-1">
+          <div className="p-2 rounded bg-terminal-surface-subtle border border-terminal-up/40">
+            <span className="text-2xs text-terminal-text-muted uppercase block flex items-center justify-center gap-1">
               <TrendingUp className="w-3 h-3 text-terminal-up" /> Tăng giá
             </span>
             <span className="text-base sm:text-lg font-bold text-terminal-up block">
               {stats.advances}
             </span>
-            <span className="text-[10px] text-terminal-text-muted">{advancesPercent}%</span>
+            <span className="text-2xs text-terminal-text-muted">{advancesPercent}%</span>
           </div>
 
           {/* Trần */}
-          <div className="p-2 rounded bg-terminal-surface-subtle border border-purple-900/40">
-            <span className="text-[10px] text-terminal-text-muted uppercase block">
+          <div className="p-2 rounded bg-terminal-surface-subtle border border-terminal-ceiling/40">
+            <span className="text-2xs text-terminal-text-muted uppercase block">
               Tím (Trần)
             </span>
             <span className="text-base sm:text-lg font-bold text-terminal-ceiling block">
               {stats.ceilings}
             </span>
-            <span className="text-[10px] text-terminal-ceiling/80">Kịch trần</span>
+            <span className="text-2xs text-terminal-ceiling/80">Kịch trần</span>
           </div>
 
           {/* Tham chiếu */}
-          <div className="p-2 rounded bg-terminal-surface-subtle border border-amber-900/40">
-            <span className="text-[10px] text-terminal-text-muted uppercase block flex items-center justify-center gap-1">
+          <div className="p-2 rounded bg-terminal-surface-subtle border border-terminal-ref/40">
+            <span className="text-2xs text-terminal-text-muted uppercase block flex items-center justify-center gap-1">
               <Minus className="w-3 h-3 text-terminal-ref" /> Không đổi
             </span>
             <span className="text-base sm:text-lg font-bold text-terminal-ref block">
               {stats.unchanged}
             </span>
-            <span className="text-[10px] text-terminal-text-muted">{unchangedPercent}%</span>
+            <span className="text-2xs text-terminal-text-muted">{unchangedPercent}%</span>
           </div>
 
           {/* Giảm */}
-          <div className="p-2 rounded bg-terminal-surface-subtle border border-rose-900/40">
-            <span className="text-[10px] text-terminal-text-muted uppercase block flex items-center justify-center gap-1">
+          <div className="p-2 rounded bg-terminal-surface-subtle border border-terminal-down/40">
+            <span className="text-2xs text-terminal-text-muted uppercase block flex items-center justify-center gap-1">
               <TrendingDown className="w-3 h-3 text-terminal-down" /> Giảm giá
             </span>
             <span className="text-base sm:text-lg font-bold text-terminal-down block">
               {stats.declines}
             </span>
-            <span className="text-[10px] text-terminal-text-muted">{declinesPercent}%</span>
+            <span className="text-2xs text-terminal-text-muted">{declinesPercent}%</span>
           </div>
 
           {/* Sàn */}
-          <div className="p-2 rounded bg-terminal-surface-subtle border border-cyan-900/40 col-span-2 sm:col-span-1">
-            <span className="text-[10px] text-terminal-text-muted uppercase block">
+          <div className="p-2 rounded bg-terminal-surface-subtle border border-terminal-floor/40 col-span-2 sm:col-span-1">
+            <span className="text-2xs text-terminal-text-muted uppercase block">
               Xanh lơ (Sàn)
             </span>
             <span className="text-base sm:text-lg font-bold text-terminal-floor block">
               {stats.floors}
             </span>
-            <span className="text-[10px] text-terminal-floor/80">Kịch sàn</span>
+            <span className="text-2xs text-terminal-floor/80">Kịch sàn</span>
           </div>
         </div>
 
         {/* Visual Multi-Segment Breadth Bar (Count) */}
         <div className="space-y-1">
-          <div className="flex justify-between text-[10px] font-mono text-terminal-text-muted">
+          <div className="flex justify-between text-2xs font-mono text-terminal-text-muted">
             <span>Tỷ lệ Mã tăng ({stats.advances})</span>
             <span className="font-semibold text-terminal-text-primary">
               ADR: {(stats.advances / Math.max(stats.declines, 1)).toFixed(2)}x ({breadth.breadthStatus})
@@ -235,7 +235,7 @@ export const MarketBreadthWidget: React.FC<MarketBreadthWidgetProps> = ({
               <span className="text-[11px] font-semibold text-terminal-text-secondary uppercase">
                 Phân bố giá trị giao dịch (Cash-flow Breadth)
               </span>
-              <span className="text-[10px] text-terminal-text-muted">
+              <span className="text-2xs text-terminal-text-muted">
                 Tổng: {formatBillionVND(breadth.volumeBreadth.totalValue)}
               </span>
             </div>
@@ -244,22 +244,22 @@ export const MarketBreadthWidget: React.FC<MarketBreadthWidgetProps> = ({
             <div className="h-2 w-full rounded-full bg-terminal-bg border border-terminal-border overflow-hidden flex">
               <div
                 style={{ width: `${breadth.volumeBreadth.advancingPercent}%` }}
-                className="bg-emerald-500/90"
+                className="bg-terminal-up/90"
                 title={`Dòng tiền mua: ${breadth.volumeBreadth.advancingPercent}%`}
               />
               <div
                 style={{ width: `${breadth.volumeBreadth.unchangedPercent}%` }}
-                className="bg-amber-500/90"
+                className="bg-terminal-ref/90"
                 title={`Dòng tiền tham chiếu: ${breadth.volumeBreadth.unchangedPercent}%`}
               />
               <div
                 style={{ width: `${breadth.volumeBreadth.decliningPercent}%` }}
-                className="bg-rose-500/90"
+                className="bg-terminal-down/90"
                 title={`Dòng tiền bán: ${breadth.volumeBreadth.decliningPercent}%`}
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-[10px] font-mono text-center">
+            <div className="grid grid-cols-3 gap-2 text-2xs font-mono text-center">
               <div className="text-left">
                 <span className="text-terminal-up font-bold">
                   {formatBillionVND(breadth.volumeBreadth.advancingValue)}

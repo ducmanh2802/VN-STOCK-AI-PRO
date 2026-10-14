@@ -7,7 +7,7 @@ export function Footer() {
       <div className="max-w-7xl mx-auto space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-terminal-border">
           <div className="flex items-center gap-2 font-mono text-terminal-text-primary font-bold">
-            <Terminal className="w-4 h-4 text-terminal-accent" />
+            <Terminal className="w-4 h-4 text-terminal-accent-text" />
             <span>VN STOCK AI PLATFORM</span>
             <span className="text-terminal-text-muted font-normal">v1.0.0 (Phase 1 Foundation)</span>
           </div>

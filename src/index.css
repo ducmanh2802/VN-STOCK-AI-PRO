@@ -15,11 +15,11 @@
   /* Typography */
   --color-text-primary: #F8FAFC;
   --color-text-secondary: #94A3B8;
-  --color-text-muted: #64748B;
+  --color-text-muted: #8391A7;
   --color-text-disabled: #475569;
 
   /* Primary Interface Accent */
-  --color-accent-primary: #6366F1;
+  --color-accent-primary: #5B5EF0;
   --color-accent-primary-hover: #4F46E5;
   --color-accent-primary-light: #818CF8;
 
@@ -47,8 +47,8 @@
   /* --- Terminal type scale (dense, professional) ---
      Page title 18-20px · Section 13-14px · Body 12-13px · Secondary 11px
      Financial number 12-15px · Key metric 18-24px (max) */
-  --text-2xs: 10px;
-  --text-2xs--line-height: 14px;
+  --text-2xs: 11px;
+  --text-2xs--line-height: 15px;
   --text-xs: 11px;
   --text-xs--line-height: 15px;
   --text-sm: 12px;
@@ -95,9 +95,10 @@
   --color-terminal-border-bright: #334155;
   --color-terminal-text-primary: #F8FAFC;
   --color-terminal-text-secondary: #94A3B8;
-  --color-terminal-text-muted: #64748B;
-  --color-terminal-accent: #6366F1;
+  --color-terminal-text-muted: #8391A7;
+  --color-terminal-accent: #5B5EF0;
   --color-terminal-accent-hover: #4F46E5;
+  --color-terminal-accent-text: #818CF8;
   --color-terminal-up: #22C55E;
   --color-terminal-down: #EF4444;
   --color-terminal-ref: #EAB308;

@@ -14,7 +14,7 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal }) 
     signal.signalType === 'BUY'
       ? 'bg-terminal-up/15 text-terminal-up border-terminal-up/30'
       : signal.signalType === 'ACCUMULATE'
-      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+      ? 'bg-terminal-up/15 text-terminal-up border-terminal-up/30'
       : signal.signalType === 'SELL'
       ? 'bg-terminal-down/15 text-terminal-down border-terminal-down/30'
       : 'bg-terminal-ref/15 text-terminal-ref border-terminal-ref/30';
@@ -36,7 +36,7 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal }) 
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-terminal-border/80">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent">
+          <div className="p-1.5 rounded-lg bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent-text">
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
@@ -45,7 +45,7 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal }) 
                 AI Khuyến Nghị Định Lượng
               </h3>
               {signal.updatedAt && (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-terminal-surface-subtle text-terminal-text-muted border border-terminal-border">
+                <span className="px-1.5 py-0.5 rounded text-2xs font-mono bg-terminal-surface-subtle text-terminal-text-muted border border-terminal-border">
                   {signal.updatedAt}
                 </span>
               )}
@@ -70,7 +70,7 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal }) 
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border">
           <div className="text-[11px] text-terminal-text-muted mb-1">AI Score Tổng hợp</div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold font-mono text-terminal-accent">
+            <span className="text-2xl font-bold font-mono text-terminal-accent-text">
               {hasScore ? signal.aiScore : '--'}
             </span>
             {hasScore && <span className="text-xs text-terminal-text-muted">/100</span>}
@@ -117,7 +117,7 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal }) 
             {hasStopLoss ? formatVND(signal.stopLossPrice) : '--'}
           </div>
           <div className="text-xs font-mono font-medium text-terminal-text-secondary mt-0.5">
-            Tỷ lệ R:R: <strong className="text-terminal-accent">{signal.riskRewardRatio || '--'}</strong>
+            Tỷ lệ R:R: <strong className="text-terminal-accent-text">{signal.riskRewardRatio || '--'}</strong>
           </div>
         </div>
       </div>
@@ -146,7 +146,7 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal }) 
 
         {/* Risk Warnings */}
         <div className="p-3 rounded-lg bg-terminal-bg/80 border border-terminal-border/80 space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-terminal-ref uppercase tracking-wider">
             <ShieldAlert className="w-3.5 h-3.5" />
             Cảnh báo rủi ro (Risk Factors)
           </div>
@@ -154,7 +154,7 @@ export const StockAISignalCard: React.FC<StockAISignalCardProps> = ({ signal }) 
             {Array.isArray(signal.riskWarnings) && signal.riskWarnings.length > 0 ? (
               signal.riskWarnings.map((risk, idx) => (
                 <li key={idx} className="flex items-start gap-1.5">
-                  <span className="text-amber-400 shrink-0 mt-0.5">•</span>
+                  <span className="text-terminal-ref shrink-0 mt-0.5">•</span>
                   <span>{risk}</span>
                 </li>
               ))

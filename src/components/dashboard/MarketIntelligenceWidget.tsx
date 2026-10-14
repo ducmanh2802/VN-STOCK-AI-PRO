@@ -161,7 +161,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
       {/* 1. Header: Section identity, Provenance, & Status */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-terminal-border/60 pb-2.5">
         <div className="flex items-center gap-2.5">
-          <div className="p-1.5 bg-terminal-accent/10 rounded border border-terminal-accent/30 text-terminal-accent">
+          <div className="p-1.5 bg-terminal-accent/10 rounded border border-terminal-accent/30 text-terminal-accent-text">
             <Activity className="w-4 h-4" />
           </div>
           <div>
@@ -262,7 +262,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
             {/* 4 Core Pillars */}
             <div className="grid grid-cols-4 gap-1.5 pt-1.5 border-t border-terminal-border/50 text-[11px] font-mono">
               <div className="bg-terminal-surface-subtle p-1.5 rounded border border-terminal-border/40">
-                <span className="text-terminal-text-muted block text-[10px]">XU HƯỚNG</span>
+                <span className="text-terminal-text-muted block text-2xs">XU HƯỚNG</span>
                 <strong className="text-terminal-text-primary">
                   {regime?.scores.trendScore !== null && regime?.scores.trendScore !== undefined
                     ? `${regime.scores.trendScore}/100`
@@ -270,7 +270,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                 </strong>
               </div>
               <div className="bg-terminal-surface-subtle p-1.5 rounded border border-terminal-border/40">
-                <span className="text-terminal-text-muted block text-[10px]">ĐỘ RỘNG</span>
+                <span className="text-terminal-text-muted block text-2xs">ĐỘ RỘNG</span>
                 <strong className="text-terminal-text-primary">
                   {regime?.scores.breadthScore !== null && regime?.scores.breadthScore !== undefined
                     ? `${regime.scores.breadthScore}/100`
@@ -278,7 +278,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                 </strong>
               </div>
               <div className="bg-terminal-surface-subtle p-1.5 rounded border border-terminal-border/40">
-                <span className="text-terminal-text-muted block text-[10px]">THANH KHOẢN</span>
+                <span className="text-terminal-text-muted block text-2xs">THANH KHOẢN</span>
                 <strong className="text-terminal-text-primary">
                   {regime?.scores.liquidityScore !== null && regime?.scores.liquidityScore !== undefined
                     ? `${regime.scores.liquidityScore}/100`
@@ -286,7 +286,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                 </strong>
               </div>
               <div className="bg-terminal-surface-subtle p-1.5 rounded border border-terminal-border/40">
-                <span className="text-terminal-text-muted block text-[10px]">BIẾN ĐỘNG</span>
+                <span className="text-terminal-text-muted block text-2xs">BIẾN ĐỘNG</span>
                 <strong className="text-terminal-text-primary">
                   {regime?.scores.volatilityScore !== null && regime?.scores.volatilityScore !== undefined
                     ? `${regime.scores.volatilityScore}/100`
@@ -311,7 +311,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                   <span>{regime.dataLineage.constituentsEvaluated} mã</span>
                 </div>
                 {regime.warnings && regime.warnings.length > 0 && (
-                  <div className="text-[10px] text-terminal-ref pt-1 border-t border-terminal-border/30">
+                  <div className="text-2xs text-terminal-ref pt-1 border-t border-terminal-border/30">
                     Lưu ý: {regime.warnings.join(' · ')}
                   </div>
                 )}
@@ -379,7 +379,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
             {/* Primary metric: Distance to nearest support */}
             <div className="bg-terminal-surface-subtle p-2.5 rounded border border-terminal-border/50 flex items-center justify-between font-mono">
               <div>
-                <span className="text-[10px] text-terminal-text-muted uppercase block">Khoảng cách tới hỗ trợ</span>
+                <span className="text-2xs text-terminal-text-muted uppercase block">Khoảng cách tới hỗ trợ</span>
                 <span className="text-sm font-bold text-terminal-text-primary">
                   {breakdownRisk?.nearestSupportPrice
                     ? `${breakdownRisk.nearestSupportPrice.toLocaleString('vi-VN')} điểm`
@@ -387,7 +387,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-[10px] text-terminal-text-muted block">Cách giá hiện tại</span>
+                <span className="text-2xs text-terminal-text-muted block">Cách giá hiện tại</span>
                 <span
                   className={`text-sm font-bold ${
                     breakdownRisk?.distanceToSupportPct !== null && breakdownRisk?.distanceToSupportPct !== undefined
@@ -438,7 +438,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
             <button
               type="button"
               onClick={() => setShowBreakdownDetails(!showBreakdownDetails)}
-              className="w-full pt-2 border-t border-terminal-border/40 text-xs font-mono text-terminal-accent hover:text-terminal-text-primary flex items-center justify-center gap-1 transition-colors"
+              className="w-full pt-2 border-t border-terminal-border/40 text-xs font-mono text-terminal-accent-text hover:text-terminal-text-primary flex items-center justify-center gap-1 transition-colors"
               aria-expanded={showBreakdownDetails}
               aria-label="Toggle breakdown risk why and confirmation details"
             >
@@ -504,7 +504,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
             {/* Primary metric: Status checks */}
             <div className="grid grid-cols-2 gap-2 text-xs font-mono">
               <div className="bg-terminal-surface-subtle p-2 rounded border border-terminal-border/50">
-                <span className="text-[10px] text-terminal-text-muted block uppercase">Giữ vững hỗ trợ</span>
+                <span className="text-2xs text-terminal-text-muted block uppercase">Giữ vững hỗ trợ</span>
                 <span className="font-bold flex items-center gap-1 mt-0.5">
                   {recoveryStrength?.supportHoldStatus === true ? (
                     <span className="text-terminal-up flex items-center gap-1">
@@ -521,7 +521,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
               </div>
 
               <div className="bg-terminal-surface-subtle p-2 rounded border border-terminal-border/50">
-                <span className="text-[10px] text-terminal-text-muted block uppercase">Vượt cản gần</span>
+                <span className="text-2xs text-terminal-text-muted block uppercase">Vượt cản gần</span>
                 <span className="font-bold flex items-center gap-1 mt-0.5">
                   {recoveryStrength?.resistanceReclaimStatus === true ? (
                     <span className="text-terminal-up flex items-center gap-1">
@@ -568,7 +568,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
             <button
               type="button"
               onClick={() => setShowRecoveryDetails(!showRecoveryDetails)}
-              className="w-full pt-2 border-t border-terminal-border/40 text-xs font-mono text-terminal-accent hover:text-terminal-text-primary flex items-center justify-center gap-1 transition-colors"
+              className="w-full pt-2 border-t border-terminal-border/40 text-xs font-mono text-terminal-accent-text hover:text-terminal-text-primary flex items-center justify-center gap-1 transition-colors"
               aria-expanded={showRecoveryDetails}
               aria-label="Toggle recovery strength why and confirmation details"
             >
@@ -622,7 +622,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
         >
           <CardHeader className="p-3.5 pb-2 border-b border-terminal-border/40 flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-terminal-accent" />
+              <Layers className="w-4 h-4 text-terminal-accent-text" />
               <CardTitle className="text-xs font-mono font-bold uppercase text-terminal-text-primary">
                 HỖ TRỢ & KHÁNG CỰ (SUPPORT / RESISTANCE)
               </CardTitle>
@@ -639,13 +639,13 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                 <span className="font-bold text-terminal-down uppercase flex items-center gap-1">
                   <ArrowUpRight className="w-3.5 h-3.5" /> KHÁNG CỰ (RESISTANCE)
                 </span>
-                <span className="text-[10px] text-terminal-text-muted">Độ mạnh</span>
+                <span className="text-2xs text-terminal-text-muted">Độ mạnh</span>
               </div>
 
               <div className="bg-terminal-down/10 border border-terminal-down/30 rounded p-2 text-xs font-mono space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-terminal-text-muted text-[10px] block">Cản gần nhất (R1):</span>
+                    <span className="text-terminal-text-muted text-2xs block">Cản gần nhất (R1):</span>
                     <strong className="text-terminal-text-primary">
                       {supportResistance?.nearestResistance
                         ? `${supportResistance.nearestResistance.price.toLocaleString('vi-VN')} điểm`
@@ -658,7 +658,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                         ? `+${supportResistance.distanceToResistancePct}%`
                         : '--'}
                     </span>
-                    <span className="text-[10px] text-terminal-text-muted block">
+                    <span className="text-2xs text-terminal-text-muted block">
                       Độ mạnh: {supportResistance?.nearestResistance?.strength != null ? `${supportResistance.nearestResistance.strength}★` : '—'}
                     </span>
                   </div>
@@ -681,13 +681,13 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                 <span className="font-bold text-terminal-up uppercase flex items-center gap-1">
                   <ArrowDownRight className="w-3.5 h-3.5" /> HỖ TRỢ (SUPPORT)
                 </span>
-                <span className="text-[10px] text-terminal-text-muted">Độ mạnh</span>
+                <span className="text-2xs text-terminal-text-muted">Độ mạnh</span>
               </div>
 
               <div className="bg-terminal-up/10 border border-terminal-up/30 rounded p-2 text-xs font-mono space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-terminal-text-muted text-[10px] block">Hỗ trợ gần nhất (S1):</span>
+                    <span className="text-terminal-text-muted text-2xs block">Hỗ trợ gần nhất (S1):</span>
                     <strong className="text-terminal-text-primary">
                       {supportResistance?.nearestSupport
                         ? `${supportResistance.nearestSupport.price.toLocaleString('vi-VN')} điểm`
@@ -700,7 +700,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
                         ? `-${supportResistance.distanceToSupportPct}%`
                         : '--'}
                     </span>
-                    <span className="text-[10px] text-terminal-text-muted block">
+                    <span className="text-2xs text-terminal-text-muted block">
                       Độ mạnh: {supportResistance?.nearestSupport?.strength != null ? `${supportResistance.nearestSupport.strength}★` : '—'}
                     </span>
                   </div>
@@ -718,7 +718,7 @@ export const MarketIntelligenceWidget: React.FC<MarketIntelligenceWidgetProps> =
             </div>
 
             {/* Position Meter */}
-            <div className="pt-1 text-center text-[10px] text-terminal-text-muted font-mono">
+            <div className="pt-1 text-center text-2xs text-terminal-text-muted font-mono">
               Khoảng giao dịch: S1 ({supportResistance?.nearestSupport?.price ?? '--'}) ↔ R1 ({supportResistance?.nearestResistance?.price ?? '--'})
             </div>
           </CardContent>

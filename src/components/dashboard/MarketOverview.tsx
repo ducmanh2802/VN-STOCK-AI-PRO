@@ -46,7 +46,7 @@ export function MarketOverview({ indices }: MarketOverviewProps) {
                 {/* Header: Name & Status */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-sm text-terminal-text-primary group-hover:text-terminal-accent transition-colors">
+                    <span className="font-mono font-bold text-sm text-terminal-text-primary group-hover:text-terminal-accent-text transition-colors">
                       {idx.displayName}
                     </span>
                     <Badge variant="subtle" size="xs">
@@ -78,13 +78,13 @@ export function MarketOverview({ indices }: MarketOverviewProps) {
                 </div>
 
                 {/* Market Breadth */}
-                <div className="flex items-center justify-between text-[10px] font-mono text-terminal-text-muted pt-0.5">
+                <div className="flex items-center justify-between text-2xs font-mono text-terminal-text-muted pt-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-terminal-up">▲ {idx.advances}</span>
                     <span className="text-terminal-ref">■ {idx.unchanged}</span>
                     <span className="text-terminal-down">▼ {idx.declines}</span>
                   </div>
-                  <span className="text-[9px] text-terminal-ref/80">VPS · REAL</span>
+                  <span className="text-2xs text-terminal-ref/80">VPS · REAL</span>
                 </div>
               </CardContent>
             </Card>

@@ -39,7 +39,7 @@ export const StockSupportResistance: React.FC<StockSupportResistanceProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between pb-2.5 border-b border-terminal-border/70">
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent">
+          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent-text">
             <Target className="w-4 h-4" />
           </div>
           <h3 className="text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
@@ -110,7 +110,7 @@ export const StockSupportResistance: React.FC<StockSupportResistanceProps> = ({
         <div className="flex items-center justify-between p-2 rounded-lg bg-terminal-accent/15 border border-terminal-accent text-terminal-text-primary my-1 shadow-xs">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-terminal-accent animate-ping" />
-            <span className="font-bold uppercase tracking-wider text-terminal-accent text-[11px]">
+            <span className="font-bold uppercase tracking-wider text-terminal-accent-text text-[11px]">
               THỊ GIÁ HIỆN TẠI
             </span>
           </div>
@@ -143,16 +143,16 @@ export const StockSupportResistance: React.FC<StockSupportResistanceProps> = ({
       {/* Dynamic Moving Average Support/Resistance */}
       <div className="grid grid-cols-3 gap-2 text-xs font-mono">
         <div className="p-2 rounded bg-terminal-bg border border-terminal-border/80 text-center">
-          <div className="text-[10px] text-terminal-text-muted">Cản động MA20</div>
-          <div className="font-bold text-amber-400 mt-0.5">{hasMA20 ? formatVND(levels.ma20Level) : '--'}</div>
+          <div className="text-2xs text-terminal-text-muted">Cản động MA20</div>
+          <div className="font-bold text-terminal-ref mt-0.5">{hasMA20 ? formatVND(levels.ma20Level) : '--'}</div>
         </div>
         <div className="p-2 rounded bg-terminal-bg border border-terminal-border/80 text-center">
-          <div className="text-[10px] text-terminal-text-muted">Hỗ trợ MA50</div>
-          <div className="font-bold text-blue-400 mt-0.5">{hasMA50 ? formatVND(levels.ma50Level) : '--'}</div>
+          <div className="text-2xs text-terminal-text-muted">Hỗ trợ MA50</div>
+          <div className="font-bold text-terminal-accent-text mt-0.5">{hasMA50 ? formatVND(levels.ma50Level) : '--'}</div>
         </div>
         <div className="p-2 rounded bg-terminal-bg border border-terminal-border/80 text-center">
-          <div className="text-[10px] text-terminal-text-muted">Hỗ trợ MA200</div>
-          <div className="font-bold text-purple-400 mt-0.5">{hasMA200 ? formatVND(levels.ma200Level) : '--'}</div>
+          <div className="text-2xs text-terminal-text-muted">Hỗ trợ MA200</div>
+          <div className="font-bold text-terminal-ceiling mt-0.5">{hasMA200 ? formatVND(levels.ma200Level) : '--'}</div>
         </div>
       </div>
     </div>

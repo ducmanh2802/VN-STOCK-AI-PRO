@@ -2,7 +2,7 @@ import React from 'react';
 import { TopMover } from '../../types/stock';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { SourceBadge } from '../common/SourceBadge';
+import { SourceBadge, provenanceFromIsDemo } from '../common/SourceBadge';
 import { TableSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -92,16 +92,16 @@ export const TopGainersWidget: React.FC<TopGainersWidgetProps> = ({
           <CardTitle className="text-xs font-bold tracking-tight uppercase font-mono text-terminal-up">
             Top Cổ Phiếu Tăng (Gainers)
           </CardTitle>
-          <SourceBadge size="sm" />
+          <SourceBadge size="sm" variant={provenanceFromIsDemo((gainers ?? []).map((x) => x.isDemo))} />
         </div>
-        <span className="text-[10px] font-mono text-terminal-text-muted">Top {limit}</span>
+        <span className="text-2xs font-mono text-terminal-text-muted">Top {limit}</span>
       </CardHeader>
 
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
             <thead>
-              <tr className="border-b border-terminal-border text-[10px] text-terminal-text-muted uppercase">
+              <tr className="border-b border-terminal-border text-2xs text-terminal-text-muted uppercase">
                 <th className="py-2 px-2.5">Mã</th>
                 <th className="py-2 px-2 text-right">Giá</th>
                 <th className="py-2 px-2 text-right">% Tăng</th>
@@ -123,10 +123,10 @@ export const TopGainersWidget: React.FC<TopGainersWidgetProps> = ({
                   >
                     <td className="py-2 px-2.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-terminal-text-primary group-hover:text-terminal-accent transition-colors">
+                        <span className="font-bold text-terminal-text-primary group-hover:text-terminal-accent-text transition-colors">
                           {stock.symbol}
                         </span>
-                        <span className="text-[9px] text-terminal-text-muted hidden md:inline">
+                        <span className="text-2xs text-terminal-text-muted hidden md:inline">
                           {stock.exchange}
                         </span>
                       </div>
@@ -152,10 +152,10 @@ export const TopGainersWidget: React.FC<TopGainersWidgetProps> = ({
                       >
                         <button
                           type="button"
-                          className="p-1 text-terminal-text-muted hover:text-amber-400 transition-colors"
+                          className="p-1 text-terminal-text-muted hover:text-terminal-ref transition-colors"
                           title={isSaved ? 'Xóa khỏi watchlist' : 'Thêm vào watchlist'}
                         >
-                          <Star className={`w-3 h-3 ${isSaved ? 'fill-amber-400 text-amber-400' : ''}`} />
+                          <Star className={`w-3 h-3 ${isSaved ? 'fill-terminal-ref text-terminal-ref' : ''}`} />
                         </button>
                       </td>
                     )}

@@ -51,14 +51,14 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-terminal-border/70">
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent">
+          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent-text">
             <ShieldAlert className="w-4 h-4" />
           </div>
           <h3 className="text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
             Kế Hoạch Quản Trị Rủi Ro & Lợi Nhuận (Risk/Reward)
           </h3>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-terminal-accent/10 border border-terminal-accent/30 text-terminal-accent font-mono text-xs font-bold">
+        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-terminal-accent/10 border border-terminal-accent/30 text-terminal-accent-text font-mono text-xs font-bold">
           <span>R:R = {riskReward.riskRewardRatio || '--'}</span>
         </div>
       </div>
@@ -71,7 +71,7 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
           <div className="font-mono font-bold text-terminal-text-primary text-base">
             {hasValidEntry ? formatVND(riskReward.entryPrice) : '--'}
           </div>
-          <div className="text-[10px] text-terminal-text-muted mt-0.5">Thị giá hiện tại</div>
+          <div className="text-2xs text-terminal-text-muted mt-0.5">Thị giá hiện tại</div>
         </div>
 
         {/* Stop Loss */}
@@ -82,7 +82,7 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
           <div className="font-mono font-bold text-terminal-down text-base">
             {hasValidStopLoss ? formatVND(riskReward.stopLossPrice) : '--'}
           </div>
-          <div className="text-[10px] text-terminal-down mt-0.5 font-mono">
+          <div className="text-2xs text-terminal-down mt-0.5 font-mono">
             {hasValidMaxRiskPct ? `${riskReward.maxRiskPercent}% rủi ro` : '--'}
           </div>
         </div>
@@ -95,7 +95,7 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
           <div className="font-mono font-bold text-terminal-up text-base">
             {hasValidTarget1 ? formatVND(riskReward.targetPrice1) : '--'}
           </div>
-          <div className="text-[10px] text-terminal-up mt-0.5 font-mono">
+          <div className="text-2xs text-terminal-up mt-0.5 font-mono">
             {hasValidGainPct ? `+${riskReward.potentialGainPercent}% tiềm năng` : '--'}
           </div>
         </div>
@@ -108,7 +108,7 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
           <div className="font-mono font-bold text-terminal-up text-base">
             {hasValidTarget2 ? formatVND(riskReward.targetPrice2) : '--'}
           </div>
-          <div className="text-[10px] text-terminal-up mt-0.5 font-mono">
+          <div className="text-2xs text-terminal-up mt-0.5 font-mono">
             {isFiniteNumber(target2GainPct) ? `+${target2GainPct.toFixed(1)}% kỳ vọng` : '--'}
           </div>
         </div>
@@ -154,10 +154,10 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
       <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs font-bold text-terminal-text-primary uppercase tracking-wide">
-            <Calculator className="w-3.5 h-3.5 text-terminal-accent" />
+            <Calculator className="w-3.5 h-3.5 text-terminal-accent-text" />
             Tính Toán Quy Mô Vị Thế Tối Ưu (Position Sizing)
           </div>
-          <span className="text-[10px] font-mono text-terminal-text-muted">
+          <span className="text-2xs font-mono text-terminal-text-muted">
             Quy tắc 2% vốn tối đa
           </span>
         </div>
@@ -204,8 +204,8 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2.5 rounded bg-terminal-surface/60 border border-terminal-border/60 text-xs font-mono">
             <div>
               <span className="text-terminal-text-muted text-[11px] block">Số cổ phiếu khuyến nghị:</span>
-              <strong className="text-base text-terminal-accent">{lotShares.toLocaleString()} CP</strong>
-              <span className="text-[10px] text-terminal-text-muted block">(Lô chẵn 100)</span>
+              <strong className="text-base text-terminal-accent-text">{lotShares.toLocaleString()} CP</strong>
+              <span className="text-2xs text-terminal-text-muted block">(Lô chẵn 100)</span>
             </div>
 
             <div>
@@ -213,7 +213,7 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
               <strong className="text-sm text-terminal-text-primary">
                 {formatVND(totalInvestment)}
               </strong>
-              <span className="text-[10px] text-terminal-text-muted block">
+              <span className="text-2xs text-terminal-text-muted block">
                 {totalCapital > 0 ? `(${((totalInvestment / totalCapital) * 100).toFixed(1)}% tài khoản)` : ''}
               </span>
             </div>
@@ -223,7 +223,7 @@ export const StockRiskReward: React.FC<StockRiskRewardProps> = ({ riskReward, cu
               <strong className="text-sm text-terminal-down">
                 -{formatVND(lotShares * (riskPerShare ?? 0))}
               </strong>
-              <span className="text-[10px] text-terminal-down block">
+              <span className="text-2xs text-terminal-down block">
                 (Đúng {riskPercent}% tổng vốn)
               </span>
             </div>

@@ -30,7 +30,7 @@ const Pill: React.FC<{ label: string; status: DataSourceStatus }> = ({ label, st
       {label}
       <span className="text-terminal-text-muted/70">:{status.source}</span>
     </span>
-    <span className={status.ok ? 'text-emerald-400' : 'text-red-400'} aria-hidden="true">
+    <span className={status.ok ? 'text-terminal-up' : 'text-terminal-down'} aria-hidden="true">
       {status.ok ? '✓' : '✕'}
     </span>
   </span>
@@ -59,7 +59,7 @@ export const DataSourceBadge: React.FC<DataSourceBadgeProps> = ({
   return (
     <div
       id="data-source-badge"
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 rounded-lg bg-terminal-surface/60 border border-terminal-border/60 text-[10px] font-mono text-terminal-text-secondary"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 rounded-lg bg-terminal-surface/60 border border-terminal-border/60 text-2xs font-mono text-terminal-text-secondary"
     >
       <span className="uppercase tracking-wider text-terminal-text-muted/80">Nguồn dữ liệu thật</span>
       {statuses.map(({ label, status }) => (

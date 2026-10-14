@@ -15,19 +15,19 @@ export function MarketHeatmap({ sectors, onSelectStock }: MarketHeatmapProps) {
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
 
   const getHeatmapColor = (change: number) => {
-    if (change >= 2.5) return 'bg-emerald-600/85 text-white border-emerald-500/70 hover:bg-emerald-600';
-    if (change >= 1.5) return 'bg-emerald-700/75 text-white border-emerald-600/60 hover:bg-emerald-700';
+    if (change >= 2.5) return 'bg-terminal-up/85 text-white border-terminal-up/70 hover:bg-emerald-600';
+    if (change >= 1.5) return 'bg-terminal-up/75 text-white border-terminal-up/60 hover:bg-emerald-700';
     if (change > 0) return 'bg-emerald-950/70 text-emerald-200 border-emerald-800/60 hover:bg-emerald-900/60';
     if (change === 0) return 'bg-terminal-surface-subtle text-terminal-ref border-terminal-border hover:bg-terminal-surface-hover';
     if (change > -1.5) return 'bg-rose-950/70 text-rose-200 border-rose-900/60 hover:bg-rose-950/90';
-    return 'bg-rose-700/85 text-white border-rose-600/70 hover:bg-rose-700';
+    return 'bg-terminal-down/85 text-white border-terminal-down/70 hover:bg-rose-700';
   };
 
   return (
     <Card id="section-market-heatmap" variant="default" density="compact" className="space-y-3">
       <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-terminal-border">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded bg-terminal-surface-subtle border border-terminal-border text-terminal-accent">
+          <div className="p-1.5 rounded bg-terminal-surface-subtle border border-terminal-border text-terminal-accent-text">
             <Layers className="w-4 h-4" />
           </div>
           <CardTitle className="text-sm font-bold tracking-tight uppercase">
@@ -37,7 +37,7 @@ export function MarketHeatmap({ sectors, onSelectStock }: MarketHeatmapProps) {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-1.5 text-[10px] font-mono text-terminal-text-muted">
+        <div className="flex items-center gap-1.5 text-2xs font-mono text-terminal-text-muted">
           <span className="text-terminal-down">Giảm &lt;-1.5%</span>
           <div className="w-3 h-3 rounded bg-rose-700" />
           <div className="w-3 h-3 rounded bg-rose-950" />
@@ -70,9 +70,9 @@ export function MarketHeatmap({ sectors, onSelectStock }: MarketHeatmapProps) {
                   </span>
                   <span className="flex items-center text-xs font-mono font-bold">
                     {isUp ? (
-                      <ArrowUpRight className="w-3.5 h-3.5 inline text-emerald-300" />
+                      <ArrowUpRight className="w-3.5 h-3.5 inline text-terminal-up" />
                     ) : (
-                      <ArrowDownRight className="w-3.5 h-3.5 inline text-rose-300" />
+                      <ArrowDownRight className="w-3.5 h-3.5 inline text-terminal-down" />
                     )}
                     {formatPercent(sector.changePercent)}
                   </span>
@@ -86,7 +86,7 @@ export function MarketHeatmap({ sectors, onSelectStock }: MarketHeatmapProps) {
                       e.stopPropagation();
                       onSelectStock(sector.leaderSymbol);
                     }}
-                    className="px-1.5 py-0.5 rounded bg-black/40 hover:bg-black/70 text-[10px] font-bold tracking-wider text-white border border-white/20 transition-colors"
+                    className="px-1.5 py-0.5 rounded bg-black/40 hover:bg-black/70 text-2xs font-bold tracking-wider text-white border border-white/20 transition-colors"
                     title={`Xem cổ phiếu dẫn dắt ${sector.leaderSymbol}`}
                   >
                     {sector.leaderSymbol}
@@ -100,11 +100,11 @@ export function MarketHeatmap({ sectors, onSelectStock }: MarketHeatmapProps) {
         {selectedSector && (
           <div className="p-3 rounded-lg bg-terminal-surface-subtle border border-terminal-border text-xs flex items-center justify-between">
             <div className="flex items-center gap-2 text-terminal-text-secondary">
-              <Info className="w-4 h-4 text-terminal-accent shrink-0" />
+              <Info className="w-4 h-4 text-terminal-accent-text shrink-0" />
               <span>
                 Ngành <strong>{sectors.find((s) => s.id === selectedSector)?.name}</strong>: Vốn hóa{' '}
                 {formatBillionVND(sectors.find((s) => s.id === selectedSector)?.marketCap)}, dẫn dắt bởi mã{' '}
-                <strong className="text-terminal-accent font-mono">
+                <strong className="text-terminal-accent-text font-mono">
                   {sectors.find((s) => s.id === selectedSector)?.leaderSymbol}
                 </strong>.
               </span>

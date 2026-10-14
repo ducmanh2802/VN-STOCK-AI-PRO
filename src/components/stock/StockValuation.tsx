@@ -61,7 +61,7 @@ export const StockValuation: React.FC<StockValuationProps> = ({ valuation }) => 
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-terminal-border/70">
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent">
+          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent-text">
             <Scale className="w-4 h-4" />
           </div>
           <h3 className="text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
@@ -86,7 +86,7 @@ export const StockValuation: React.FC<StockValuationProps> = ({ valuation }) => 
 
           <div className="text-center sm:text-right">
             <div className="text-xs text-terminal-text-muted mb-0.5">Giá trị hợp lý AI (Fair Value)</div>
-            <div className="text-2xl font-bold font-mono text-terminal-accent">
+            <div className="text-2xl font-bold font-mono text-terminal-accent-text">
               {hasValidFairValue ? formatVND(valuation.fairValue) : '--'}
             </div>
           </div>
@@ -132,9 +132,9 @@ export const StockValuation: React.FC<StockValuationProps> = ({ valuation }) => 
                 title={`Thị giá: ${formatVND(valuation.currentPrice)}`}
               />
             </div>
-            <div className="flex items-center justify-between text-[10px] font-mono text-terminal-text-muted">
+            <div className="flex items-center justify-between text-2xs font-mono text-terminal-text-muted">
               <span>Vùng chiết khấu cao</span>
-              <span className="text-terminal-accent font-semibold">
+              <span className="text-terminal-accent-text font-semibold">
                 Fair Value: {formatVND(valuation.fairValue)}
               </span>
               <span>Vùng định giá quá mức</span>
@@ -159,7 +159,7 @@ export const StockValuation: React.FC<StockValuationProps> = ({ valuation }) => 
           <div className="font-mono font-bold text-terminal-text-primary text-sm">
             {hasValidDcf ? formatVND(valuation.dcfValue) : '--'}
           </div>
-          <div className="text-[10px] text-terminal-text-muted mt-1">
+          <div className="text-2xs text-terminal-text-muted mt-1">
             {hasValidDcf ? 'WACC: 11.5% · g: 3.5%' : 'Thiếu dữ liệu FCF'}
           </div>
         </div>
@@ -170,7 +170,7 @@ export const StockValuation: React.FC<StockValuationProps> = ({ valuation }) => 
           <div className="font-mono font-bold text-terminal-text-primary text-sm">
             {hasValidPeMultiple ? formatVND(valuation.peMultipleValue) : '--'}
           </div>
-          <div className="text-[10px] text-terminal-text-muted mt-1">
+          <div className="text-2xs text-terminal-text-muted mt-1">
             {hasValidPeMultiple ? 'P/E mục tiêu: 14.5x' : 'Thiếu EPS dương'}
           </div>
         </div>
@@ -181,7 +181,7 @@ export const StockValuation: React.FC<StockValuationProps> = ({ valuation }) => 
           <div className="font-mono font-bold text-terminal-text-primary text-sm">
             {hasValidGraham ? formatVND(valuation.grahamValue) : '--'}
           </div>
-          <div className="text-[10px] text-terminal-text-muted mt-1">
+          <div className="text-2xs text-terminal-text-muted mt-1">
             {hasValidGraham ? '√(22.5 × EPS × BVPS)' : 'Thiếu EPS hoặc BVPS'}
           </div>
         </div>
@@ -192,7 +192,7 @@ export const StockValuation: React.FC<StockValuationProps> = ({ valuation }) => 
           <div className="font-mono font-bold text-terminal-up text-sm">
             {hasValidConsensus ? formatVND(valuation.consensusTarget) : '--'}
           </div>
-          <div className="text-[10px] text-terminal-text-muted mt-1">
+          <div className="text-2xs text-terminal-text-muted mt-1">
             {hasValidConsensus ? 'Đồng thuận 6 CTCK lớn' : 'Chưa có dự phóng CTCK'}
           </div>
         </div>

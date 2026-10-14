@@ -2,7 +2,7 @@ import React, { useState, FormEvent } from 'react';
 import { StockSummary } from '../../types/stock';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { SourceBadge } from '../common/SourceBadge';
+import { SourceBadge, provenanceFromIsDemo } from '../common/SourceBadge';
 import { TableSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -89,7 +89,7 @@ export const WatchlistPreviewWidget: React.FC<WatchlistPreviewWidgetProps> = ({
       {/* Header */}
       <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-terminal-border">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded bg-terminal-surface-subtle border border-terminal-border text-amber-400">
+          <div className="p-1.5 rounded bg-terminal-surface-subtle border border-terminal-border text-terminal-ref">
             <Bookmark className="w-4 h-4" />
           </div>
           <div>
@@ -97,7 +97,7 @@ export const WatchlistPreviewWidget: React.FC<WatchlistPreviewWidgetProps> = ({
               <CardTitle className="text-xs sm:text-sm font-bold tracking-tight uppercase font-mono">
                 Danh Mục Theo Dõi (Watchlist Preview)
               </CardTitle>
-              <SourceBadge size="sm" />
+              <SourceBadge size="sm" variant={provenanceFromIsDemo((watchlist ?? []).map((x) => x.isDemo))} />
             </div>
             <p className="text-[11px] text-terminal-text-muted">
               Giám sát cổ phiếu ưu tiên, điểm số AI Score và cảnh báo RSI
@@ -141,7 +141,7 @@ export const WatchlistPreviewWidget: React.FC<WatchlistPreviewWidgetProps> = ({
 
       {/* Suggestion Chips */}
       <div className="flex items-center gap-1.5 text-xs text-terminal-text-muted overflow-x-auto pb-0.5 px-1 scrollbar-none">
-        <span className="text-[10px] font-mono text-terminal-text-muted uppercase whitespace-nowrap">
+        <span className="text-2xs font-mono text-terminal-text-muted uppercase whitespace-nowrap">
           Gợi ý nhanh:
         </span>
         {POPULAR_PICKS.map((pick) => {
@@ -181,7 +181,7 @@ export const WatchlistPreviewWidget: React.FC<WatchlistPreviewWidgetProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-mono">
               <thead>
-                <tr className="border-b border-terminal-border text-[10px] text-terminal-text-muted uppercase">
+                <tr className="border-b border-terminal-border text-2xs text-terminal-text-muted uppercase">
                   <th className="py-2 px-3">Mã</th>
                   <th className="py-2 px-2 text-right">Giá</th>
                   <th className="py-2 px-2 text-right">% Thay đổi</th>
@@ -209,10 +209,10 @@ export const WatchlistPreviewWidget: React.FC<WatchlistPreviewWidgetProps> = ({
                         className="py-2.5 px-3 cursor-pointer"
                       >
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-terminal-text-primary group-hover:text-terminal-accent transition-colors">
+                          <span className="font-bold text-terminal-text-primary group-hover:text-terminal-accent-text transition-colors">
                             {stock.symbol}
                           </span>
-                          <span className="text-[10px] text-terminal-text-muted hidden sm:inline">
+                          <span className="text-2xs text-terminal-text-muted hidden sm:inline">
                             {stock.exchange}
                           </span>
                           <span className="text-[11px] text-terminal-text-muted truncate max-w-[120px] hidden md:inline">
@@ -252,7 +252,7 @@ export const WatchlistPreviewWidget: React.FC<WatchlistPreviewWidgetProps> = ({
                       </td>
 
                       <td className="py-2.5 px-2 text-center">
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-terminal-accent/10 border border-terminal-accent/30 text-terminal-accent font-bold text-[11px]">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-terminal-accent/10 border border-terminal-accent/30 text-terminal-accent-text font-bold text-[11px]">
                           <Sparkles className="w-2.5 h-2.5" />
                           {stock.aiScore}
                         </span>
@@ -263,7 +263,7 @@ export const WatchlistPreviewWidget: React.FC<WatchlistPreviewWidgetProps> = ({
                           <button
                             type="button"
                             onClick={() => onSelectStock && onSelectStock(stock.symbol)}
-                            className="p-1 text-terminal-text-muted hover:text-terminal-accent transition-colors"
+                            className="p-1 text-terminal-text-muted hover:text-terminal-accent-text transition-colors"
                             title="Xem chi tiết"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />

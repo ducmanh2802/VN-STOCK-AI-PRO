@@ -2,7 +2,7 @@ import React from 'react';
 import { MarketSentiment } from '../../types/market';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { SourceBadge } from '../common/SourceBadge';
+import { SourceBadge, provenanceFromIsDemo } from '../common/SourceBadge';
 import { CardSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -80,11 +80,11 @@ export const MarketSentimentWidget: React.FC<MarketSentimentWidgetProps> = ({
 
   // Determine sentiment badge styling and zone position
   const getScoreColor = (score: number) => {
-    if (score >= 75) return { text: 'text-emerald-400', bg: 'bg-emerald-500', label: 'HƯNG PHẤN / THAM LAM' };
-    if (score >= 55) return { text: 'text-emerald-300', bg: 'bg-emerald-600', label: 'LẠC QUAN' };
+    if (score >= 75) return { text: 'text-terminal-up', bg: 'bg-emerald-500', label: 'HƯNG PHẤN / THAM LAM' };
+    if (score >= 55) return { text: 'text-terminal-up', bg: 'bg-emerald-600', label: 'LẠC QUAN' };
     if (score >= 45) return { text: 'text-terminal-ref', bg: 'bg-terminal-ref', label: 'TRUNG TÍNH' };
-    if (score >= 25) return { text: 'text-rose-400', bg: 'bg-rose-500', label: 'BI QUAN' };
-    return { text: 'text-rose-500', bg: 'bg-rose-600', label: 'CỰC KỲ BI QUAN' };
+    if (score >= 25) return { text: 'text-terminal-down', bg: 'bg-rose-500', label: 'BI QUAN' };
+    return { text: 'text-terminal-down', bg: 'bg-rose-600', label: 'CỰC KỲ BI QUAN' };
   };
 
   const sentimentStyle = getScoreColor(sentiment.score);
@@ -98,15 +98,15 @@ export const MarketSentimentWidget: React.FC<MarketSentimentWidgetProps> = ({
     >
       <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-terminal-border">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded bg-terminal-surface-subtle border border-terminal-border text-terminal-accent">
+          <div className="p-1.5 rounded bg-terminal-surface-subtle border border-terminal-border text-terminal-accent-text">
             <Gauge className="w-4 h-4" />
           </div>
           <CardTitle className="text-xs sm:text-sm font-bold tracking-tight uppercase font-mono">
             Tâm Lý Thị Trường (Market Sentiment)
           </CardTitle>
-          <SourceBadge size="sm" />
+          <SourceBadge size="sm" variant={provenanceFromIsDemo([sentiment.isDemo])} />
         </div>
-        <div className="flex items-center gap-2 text-[10px] font-mono text-terminal-text-muted">
+        <div className="flex items-center gap-2 text-2xs font-mono text-terminal-text-muted">
           <span>Cập nhật: {sentiment.updatedAt}</span>
         </div>
       </CardHeader>
@@ -125,11 +125,11 @@ export const MarketSentimentWidget: React.FC<MarketSentimentWidgetProps> = ({
               </Badge>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-terminal-text-muted uppercase font-mono block">
+              <span className="text-2xs text-terminal-text-muted uppercase font-mono block">
                 Động lực (Momentum)
               </span>
               <span className="text-xs font-mono font-bold text-terminal-text-primary flex items-center gap-1 justify-end">
-                <Zap className="w-3 h-3 text-terminal-accent" />
+                <Zap className="w-3 h-3 text-terminal-accent-text" />
                 {sentiment.momentum}
               </span>
             </div>
@@ -138,11 +138,11 @@ export const MarketSentimentWidget: React.FC<MarketSentimentWidgetProps> = ({
           {/* Sentiment Meter Bar with 5 Segments */}
           <div className="space-y-1">
             <div className="relative h-2.5 w-full rounded-full bg-terminal-bg border border-terminal-border overflow-hidden flex">
-              <div className="w-1/5 bg-rose-800/80 border-r border-terminal-bg" title="Cực kỳ bi quan (0-25)" />
-              <div className="w-1/5 bg-rose-600/70 border-r border-terminal-bg" title="Bi quan (25-45)" />
-              <div className="w-1/5 bg-amber-500/70 border-r border-terminal-bg" title="Trung tính (45-55)" />
-              <div className="w-1/5 bg-emerald-600/70 border-r border-terminal-bg" title="Lạc quan (55-75)" />
-              <div className="w-1/5 bg-emerald-400/80" title="Hưng phấn (75-100)" />
+              <div className="w-1/5 bg-terminal-down/80 border-r border-terminal-bg" title="Cực kỳ bi quan (0-25)" />
+              <div className="w-1/5 bg-terminal-down/70 border-r border-terminal-bg" title="Bi quan (25-45)" />
+              <div className="w-1/5 bg-terminal-ref/70 border-r border-terminal-bg" title="Trung tính (45-55)" />
+              <div className="w-1/5 bg-terminal-up/70 border-r border-terminal-bg" title="Lạc quan (55-75)" />
+              <div className="w-1/5 bg-terminal-up/80" title="Hưng phấn (75-100)" />
             </div>
             {/* Marker needle */}
             <div className="relative w-full h-2">
@@ -153,7 +153,7 @@ export const MarketSentimentWidget: React.FC<MarketSentimentWidgetProps> = ({
                 <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[5px] border-b-terminal-text-primary" />
               </div>
             </div>
-            <div className="flex justify-between text-[9px] font-mono text-terminal-text-muted">
+            <div className="flex justify-between text-2xs font-mono text-terminal-text-muted">
               <span>Sợ hãi cực độ (0)</span>
               <span>Trung tính (50)</span>
               <span>Tham lam cực độ (100)</span>
@@ -189,7 +189,7 @@ export const MarketSentimentWidget: React.FC<MarketSentimentWidgetProps> = ({
                 key={label}
                 className="p-2.5 rounded bg-terminal-surface-subtle border border-terminal-border flex flex-col justify-between"
               >
-                <div className="flex items-center justify-between text-[10px] text-terminal-text-muted mb-1">
+                <div className="flex items-center justify-between text-2xs text-terminal-text-muted mb-1">
                   <span>{label}</span>
                   {isUp ? (
                     <ArrowUpRight className="w-3.5 h-3.5 text-terminal-up" />
@@ -200,7 +200,7 @@ export const MarketSentimentWidget: React.FC<MarketSentimentWidgetProps> = ({
                 <div className={`text-sm font-bold ${tone}`}>
                   {known ? `${isUp ? '+' : ''}${flow.netValue!.toFixed(1)} tỷ VND` : '--'}
                 </div>
-                <span className="text-[10px] text-terminal-text-muted truncate mt-0.5">
+                <span className="text-2xs text-terminal-text-muted truncate mt-0.5">
                   {flow.availability === 'DEMO' || flow.availability === 'UNAVAILABLE' || !known
                     ? 'Không có dữ liệu'
                     : flow.type === 'NET_BUY'
@@ -215,13 +215,13 @@ export const MarketSentimentWidget: React.FC<MarketSentimentWidgetProps> = ({
         {/* Key Drivers / Factors */}
         {sentiment.keyFactors && sentiment.keyFactors.length > 0 && (
           <div className="p-2.5 rounded bg-terminal-surface-subtle border border-terminal-border space-y-1.5">
-            <span className="text-[10px] font-mono font-semibold text-terminal-text-muted uppercase tracking-wider block">
+            <span className="text-2xs font-mono font-semibold text-terminal-text-muted uppercase tracking-wider block">
               Yếu tố chi phối chính
             </span>
             <ul className="space-y-1 text-xs text-terminal-text-secondary">
               {sentiment.keyFactors.map((factor, idx) => (
                 <li key={idx} className="flex items-start gap-1.5">
-                  <span className="text-terminal-accent mt-0.5">▪</span>
+                  <span className="text-terminal-accent-text mt-0.5">▪</span>
                   <span>{factor}</span>
                 </li>
               ))}

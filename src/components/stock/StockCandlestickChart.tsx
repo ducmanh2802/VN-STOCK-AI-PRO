@@ -437,7 +437,7 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
             onClick={() => toggleIndicator('MA20')}
             className={`px-2 py-0.5 rounded border transition-colors ${
               activeIndicators.MA20
-                ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold'
+                ? 'bg-terminal-ref/20 text-terminal-ref border-terminal-ref/40 font-bold'
                 : 'bg-terminal-bg text-terminal-text-muted border-terminal-border hover:text-terminal-text-primary'
             }`}
           >
@@ -448,7 +448,7 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
             onClick={() => toggleIndicator('MA50')}
             className={`px-2 py-0.5 rounded border transition-colors ${
               activeIndicators.MA50
-                ? 'bg-blue-500/20 text-blue-400 border-blue-500/40 font-bold'
+                ? 'bg-terminal-accent/20 text-terminal-accent-text border-terminal-accent/40 font-bold'
                 : 'bg-terminal-bg text-terminal-text-muted border-terminal-border hover:text-terminal-text-primary'
             }`}
           >
@@ -459,7 +459,7 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
             onClick={() => toggleIndicator('MA200')}
             className={`px-2 py-0.5 rounded border transition-colors ${
               activeIndicators.MA200
-                ? 'bg-purple-500/20 text-purple-400 border-purple-500/40 font-bold'
+                ? 'bg-terminal-ceiling/20 text-terminal-ceiling border-terminal-ceiling/40 font-bold'
                 : 'bg-terminal-bg text-terminal-text-muted border-terminal-border hover:text-terminal-text-primary'
             }`}
           >
@@ -470,7 +470,7 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
             onClick={() => toggleIndicator('Bollinger')}
             className={`px-2 py-0.5 rounded border transition-colors ${
               activeIndicators.Bollinger
-                ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 font-bold'
+                ? 'bg-terminal-floor/20 text-terminal-floor border-terminal-floor/40 font-bold'
                 : 'bg-terminal-bg text-terminal-text-muted border-terminal-border hover:text-terminal-text-primary'
             }`}
           >
@@ -481,7 +481,7 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
             onClick={() => toggleIndicator('Volume')}
             className={`px-2 py-0.5 rounded border transition-colors ${
               activeIndicators.Volume
-                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-bold'
+                ? 'bg-terminal-up/20 text-terminal-up border-terminal-up/40 font-bold'
                 : 'bg-terminal-bg text-terminal-text-muted border-terminal-border hover:text-terminal-text-primary'
             }`}
           >
@@ -492,7 +492,7 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
             onClick={() => toggleIndicator('RSI')}
             className={`px-2 py-0.5 rounded border transition-colors ${
               activeIndicators.RSI
-                ? 'bg-amber-400/25 text-amber-300 border-amber-400/50 font-bold'
+                ? 'bg-terminal-ref/25 text-terminal-ref border-terminal-ref/50 font-bold'
                 : 'bg-terminal-bg text-terminal-text-muted border-terminal-border hover:text-terminal-text-primary'
             }`}
           >
@@ -503,7 +503,7 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
             onClick={() => toggleIndicator('MACD')}
             className={`px-2 py-0.5 rounded border transition-colors ${
               activeIndicators.MACD
-                ? 'bg-rose-500/20 text-rose-400 border-rose-500/40 font-bold'
+                ? 'bg-terminal-down/20 text-terminal-down border-terminal-down/40 font-bold'
                 : 'bg-terminal-bg text-terminal-text-muted border-terminal-border hover:text-terminal-text-primary'
             }`}
           >
@@ -541,7 +541,7 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
           {displayBar.volume > 0 && (
             <div>
               <span className="text-terminal-text-muted">Vol: </span>
-              <strong className="text-terminal-accent">{formatVolume(displayBar.volume)}</strong>
+              <strong className="text-terminal-accent-text">{formatVolume(displayBar.volume)}</strong>
             </div>
           )}
         </div>
@@ -561,7 +561,7 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
       {activeIndicators.RSI && (
         <div className="space-y-1">
           <div className="flex items-center justify-between text-[11px] font-mono text-terminal-text-muted px-1">
-            <span className="text-amber-400 font-semibold">RSI(14) Oscillation (30 - 70)</span>
+            <span className="text-terminal-ref font-semibold">RSI(14) Oscillation (30 - 70)</span>
             {chartData?.snapshot && (
               <span>
                 Hiện tại: <strong className="text-terminal-text-primary">{chartData.snapshot.rsi.value}</strong> ({chartData.snapshot.rsi.label})
@@ -578,11 +578,11 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
       {activeIndicators.MACD && (
         <div className="space-y-1">
           <div className="flex items-center justify-between text-[11px] font-mono text-terminal-text-muted px-1">
-            <span className="text-sky-400 font-semibold">MACD (12, 26, 9) · Signal & Histogram</span>
+            <span className="text-terminal-accent-text font-semibold">MACD (12, 26, 9) · Signal & Histogram</span>
             {chartData?.snapshot && (
               <span>
-                MACD: <strong className="text-sky-400">{chartData.snapshot.macd.macd}</strong> · Signal:{' '}
-                <strong className="text-rose-400">{chartData.snapshot.macd.signal}</strong> ({chartData.snapshot.macd.label})
+                MACD: <strong className="text-terminal-accent-text">{chartData.snapshot.macd.macd}</strong> · Signal:{' '}
+                <strong className="text-terminal-down">{chartData.snapshot.macd.signal}</strong> ({chartData.snapshot.macd.label})
               </span>
             )}
           </div>

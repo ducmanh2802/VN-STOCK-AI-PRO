@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { SectorHeatmapItem } from '../../types/stock';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { SourceBadge } from '../common/SourceBadge';
+import { SourceBadge, provenanceFromIsDemo } from '../common/SourceBadge';
 import { CardSkeleton } from '../ui/LoadingState';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorBoundary';
@@ -91,12 +91,12 @@ export const SectorHeatmapWidget: React.FC<SectorHeatmapWidgetProps> = ({
   });
 
   const getHeatmapColor = (change: number) => {
-    if (change >= 2.5) return 'bg-emerald-600/85 text-white border-emerald-500/70 hover:bg-emerald-600';
-    if (change >= 1.2) return 'bg-emerald-700/70 text-emerald-100 border-emerald-600/60 hover:bg-emerald-700/80';
+    if (change >= 2.5) return 'bg-terminal-up/85 text-white border-terminal-up/70 hover:bg-emerald-600';
+    if (change >= 1.2) return 'bg-terminal-up/70 text-emerald-100 border-terminal-up/60 hover:bg-emerald-700/80';
     if (change > 0) return 'bg-emerald-950/70 text-emerald-200 border-emerald-800/60 hover:bg-emerald-900/60';
     if (change === 0) return 'bg-terminal-surface-subtle text-terminal-ref border-terminal-border hover:bg-terminal-surface-hover';
     if (change > -1.2) return 'bg-rose-950/70 text-rose-200 border-rose-900/60 hover:bg-rose-950/90';
-    return 'bg-rose-700/85 text-white border-rose-600/70 hover:bg-rose-700';
+    return 'bg-terminal-down/85 text-white border-terminal-down/70 hover:bg-rose-700';
   };
 
   return (
@@ -108,23 +108,23 @@ export const SectorHeatmapWidget: React.FC<SectorHeatmapWidgetProps> = ({
     >
       <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-terminal-border">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded bg-terminal-surface-subtle border border-terminal-border text-terminal-accent">
+          <div className="p-1.5 rounded bg-terminal-surface-subtle border border-terminal-border text-terminal-accent-text">
             <Layers className="w-4 h-4" />
           </div>
           <CardTitle className="text-xs sm:text-sm font-bold tracking-tight uppercase font-mono">
             Bản Đồ Nhiệt Ngành (Sector Heatmap)
           </CardTitle>
-          <SourceBadge size="sm" />
+          <SourceBadge size="sm" variant={provenanceFromIsDemo((sectors ?? []).map((x) => x.isDemo))} />
         </div>
 
         {/* Sort and Legend Controls */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center p-0.5 rounded bg-terminal-bg border border-terminal-border text-[10px] font-mono">
+          <div className="flex items-center p-0.5 rounded bg-terminal-bg border border-terminal-border text-2xs font-mono">
             <button
               onClick={() => setSortBy('change')}
               className={`px-1.5 py-0.5 rounded ${
                 sortBy === 'change'
-                  ? 'bg-terminal-surface text-terminal-accent font-semibold border border-terminal-border'
+                  ? 'bg-terminal-surface text-terminal-accent-text font-semibold border border-terminal-border'
                   : 'text-terminal-text-muted hover:text-terminal-text-secondary'
               }`}
             >
@@ -134,7 +134,7 @@ export const SectorHeatmapWidget: React.FC<SectorHeatmapWidgetProps> = ({
               onClick={() => setSortBy('marketCap')}
               className={`px-1.5 py-0.5 rounded ${
                 sortBy === 'marketCap'
-                  ? 'bg-terminal-surface text-terminal-accent font-semibold border border-terminal-border'
+                  ? 'bg-terminal-surface text-terminal-accent-text font-semibold border border-terminal-border'
                   : 'text-terminal-text-muted hover:text-terminal-text-secondary'
               }`}
             >
@@ -144,7 +144,7 @@ export const SectorHeatmapWidget: React.FC<SectorHeatmapWidgetProps> = ({
               onClick={() => setSortBy('volume')}
               className={`px-1.5 py-0.5 rounded ${
                 sortBy === 'volume'
-                  ? 'bg-terminal-surface text-terminal-accent font-semibold border border-terminal-border'
+                  ? 'bg-terminal-surface text-terminal-accent-text font-semibold border border-terminal-border'
                   : 'text-terminal-text-muted hover:text-terminal-text-secondary'
               }`}
             >
@@ -190,7 +190,7 @@ export const SectorHeatmapWidget: React.FC<SectorHeatmapWidgetProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] font-mono opacity-90">
+                <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-2xs font-mono opacity-90">
                   <span
                     onClick={(e) => {
                       if (onSelectStock) {
@@ -211,7 +211,7 @@ export const SectorHeatmapWidget: React.FC<SectorHeatmapWidgetProps> = ({
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center justify-between text-[10px] font-mono text-terminal-text-muted px-1 pt-1 border-t border-terminal-border/60">
+        <div className="flex flex-wrap items-center justify-between text-2xs font-mono text-terminal-text-muted px-1 pt-1 border-t border-terminal-border/60">
           <div className="flex items-center gap-1.5">
             <span className="text-terminal-down font-medium">Giảm &lt;-1.5%</span>
             <div className="w-2.5 h-2.5 rounded bg-rose-700" />
@@ -221,7 +221,7 @@ export const SectorHeatmapWidget: React.FC<SectorHeatmapWidgetProps> = ({
             <div className="w-2.5 h-2.5 rounded bg-emerald-600" />
             <span className="text-terminal-up font-medium">Tăng &gt;+2.5%</span>
           </div>
-          <span className="text-[9px] text-terminal-text-muted">Nhấp vào ô ngành để lọc</span>
+          <span className="text-2xs text-terminal-text-muted">Nhấp vào ô ngành để lọc</span>
         </div>
       </CardContent>
     </Card>

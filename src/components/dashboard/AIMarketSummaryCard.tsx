@@ -2,7 +2,7 @@ import { AIMarketSummary } from '../../types/market';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Signal } from '../ui/Signal';
-import { SourceBadge } from '../common/SourceBadge';
+import { SourceBadge, provenanceFromIsDemo } from '../common/SourceBadge';
 import { Sparkles, TrendingUp, AlertTriangle, ShieldAlert, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
 
 export interface AIMarketSummaryCardProps {
@@ -19,15 +19,15 @@ export function AIMarketSummaryCard({ summary, onSelectStock }: AIMarketSummaryC
       {/* Header with AI Brand & Demo Badge */}
       <CardHeader className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-terminal-border">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/30">
-            <Sparkles className="w-5 h-5 text-terminal-accent" />
+          <div className="p-2 rounded bg-terminal-accent/15 text-terminal-accent-text border border-terminal-accent/30">
+            <Sparkles className="w-5 h-5 text-terminal-accent-text" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <CardTitle className="text-sm font-bold tracking-tight uppercase">
                 AI Market Analyst
               </CardTitle>
-              <SourceBadge size="sm" />
+              <SourceBadge size="sm" variant={provenanceFromIsDemo([summary.isDemo])} />
             </div>
             <p className="text-xs text-terminal-text-muted">
               Tổng hợp và đánh giá thị trường chứng khoán Việt Nam theo thời gian thực
@@ -139,7 +139,7 @@ export function AIMarketSummaryCard({ summary, onSelectStock }: AIMarketSummaryC
         {/* Overall Comment */}
         <div className="p-3.5 rounded bg-terminal-surface-subtle border border-terminal-border text-xs space-y-1.5">
           <div className="flex items-center gap-2 text-terminal-text-primary font-mono font-bold uppercase tracking-wider text-[11px]">
-            <ShieldAlert className="w-3.5 h-3.5 text-terminal-accent" />
+            <ShieldAlert className="w-3.5 h-3.5 text-terminal-accent-text" />
             <span>Nhận Xét Tổng Quan & Chiến Lược</span>
           </div>
           <p className="text-terminal-text-secondary leading-relaxed">

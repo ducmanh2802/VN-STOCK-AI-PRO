@@ -18,6 +18,8 @@ interface HeaderProps {
   isSidebarOpen: boolean;
   onOpenCommandPalette: () => void;
   onOpenCopilot: () => void;
+  /** UI-04: hide the 26px index ticker strip (Overview already shows MarketIndexRibbon). Default false. */
+  hideIndexRibbon?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -29,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   isSidebarOpen,
   onOpenCommandPalette,
   onOpenCopilot,
+  hideIndexRibbon = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<StockSummary[]>([]);
@@ -128,7 +131,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenCommandPalette}
-                className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-terminal-surface-elevated border border-terminal-border text-[10px] font-mono text-terminal-text-muted hover:text-terminal-text-secondary"
+                className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-terminal-surface-elevated border border-terminal-border text-2xs font-mono text-terminal-text-muted hover:text-terminal-text-secondary"
                 title="Open Command Palette"
               >
                 <Command className="w-3 h-3" />K
@@ -156,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <div className="panel-header">
                 <span className="panel-title">Symbol lookup</span>
-                <span className="text-[10px] font-mono text-terminal-text-muted">
+                <span className="text-2xs font-mono text-terminal-text-muted">
                   {isSearching ? 'SEARCHING…' : `${searchResults.length} RESULT(S)`}
                 </span>
               </div>
@@ -173,7 +176,7 @@ export const Header: React.FC<HeaderProps> = ({
                         <span className="font-mono font-semibold text-[12px] text-terminal-text-primary tnum">
                           {stk.symbol}
                         </span>
-                        <span className="px-1 py-0.5 rounded-sm text-[10px] font-mono bg-terminal-surface-elevated text-terminal-text-muted border border-terminal-border">
+                        <span className="px-1 py-0.5 rounded-sm text-2xs font-mono bg-terminal-surface-elevated text-terminal-text-muted border border-terminal-border">
                           {stk.exchange}
                         </span>
                         <span className="text-[11px] text-terminal-text-muted truncate">
@@ -227,7 +230,7 @@ export const Header: React.FC<HeaderProps> = ({
                 isTrading ? 'bg-terminal-up' : 'bg-terminal-text-muted'
               }`}
             />
-            <span className="font-mono text-[10px] uppercase tracking-wider text-terminal-text-secondary whitespace-nowrap">
+            <span className="font-mono text-2xs uppercase tracking-wider text-terminal-text-secondary whitespace-nowrap">
               {marketStatus.stateLabel}
             </span>
           </div>
@@ -243,12 +246,14 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Market Ribbon — one dense 26px strip, real values only */}
+      {/* Market Ribbon — one dense 26px strip, real values only.
+          UI-04: hidden on Overview (MarketIndexRibbon already shows the same indices). */}
+      {!hideIndexRibbon && (
       <div
         id="bar-indices-tickers"
         className="px-2 lg:px-3 h-[26px] bg-terminal-surface-subtle border-t border-terminal-border flex items-center gap-3 overflow-x-auto text-[11px]"
       >
-        <div className="flex items-center gap-1 text-terminal-text-muted font-mono text-[10px] uppercase tracking-wider whitespace-nowrap shrink-0">
+        <div className="flex items-center gap-1 text-terminal-text-muted font-mono text-2xs uppercase tracking-wider whitespace-nowrap shrink-0">
           <Activity className="w-3 h-3" />
           <span>VN</span>
         </div>
@@ -272,10 +277,10 @@ export const Header: React.FC<HeaderProps> = ({
                     {idx.displayName}
                   </span>
                   <span className={`tnum ${tone}`}>{formatIndexPoint(idx.value)}</span>
-                  <span className={`text-[10px] tnum ${tone}`}>
+                  <span className={`text-2xs tnum ${tone}`}>
                     {formatPointChange(idx.change)}
                   </span>
-                  <span className={`text-[10px] tnum ${tone}`}>
+                  <span className={`text-2xs tnum ${tone}`}>
                     ({formatPercent(idx.changePercent)})
                   </span>
                 </div>
@@ -285,18 +290,19 @@ export const Header: React.FC<HeaderProps> = ({
         ) : (
           // No index payload yet. Use an unresolved placeholder rather than
           // asserting an outage, so loading is not reported as unavailable.
-          <span className="text-[10px] font-mono uppercase tracking-wider text-terminal-text-disabled whitespace-nowrap">
+          <span className="text-2xs font-mono uppercase tracking-wider text-terminal-text-muted whitespace-nowrap">
             Indices — --
           </span>
         )}
 
         {/* Freshness timestamp. Rendered only when the source supplied a real value;
             the ISO string is formatted for display, never substituted. */}
-        <div className="ml-auto hidden md:flex items-center gap-1.5 text-[10px] font-mono text-terminal-text-muted whitespace-nowrap shrink-0">
+        <div className="ml-auto hidden md:flex items-center gap-1.5 text-2xs font-mono text-terminal-text-muted whitespace-nowrap shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-terminal-text-muted" />
           <span>{formatRibbonTimestamp(marketStatus.timestamp)}</span>
         </div>
       </div>
+      )}
     </header>
   );
 };

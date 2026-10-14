@@ -40,7 +40,7 @@ export const StockRealFundamentals: React.FC<StockRealFundamentalsProps> = ({
     return (
       <div className="p-4 rounded-sm bg-terminal-surface border border-terminal-border space-y-2">
         <div className="flex items-center gap-2 text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
-          <BookOpen className="w-4 h-4 text-terminal-accent" /> BCTC Thật (VPS)
+          <BookOpen className="w-4 h-4 text-terminal-accent-text" /> BCTC Thật (VPS)
         </div>
         <div className="text-xs text-terminal-text-muted font-mono">
           Dữ liệu BCTC không khả dụng{unavailableReason ? ` — ${unavailableReason}` : ''}.
@@ -58,12 +58,12 @@ export const StockRealFundamentals: React.FC<StockRealFundamentalsProps> = ({
     <div className="p-4 rounded-sm bg-terminal-surface border border-terminal-border space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
-          <BookOpen className="w-4 h-4 text-terminal-accent" /> BCTC Thật (VPS)
+          <BookOpen className="w-4 h-4 text-terminal-accent-text" /> BCTC Thật (VPS)
         </div>
-        <span className="text-[10px] font-mono text-emerald-400">✓ dữ liệu thật</span>
+        <span className="text-2xs font-mono text-terminal-up">✓ dữ liệu thật</span>
       </div>
 
-      <div className="p-2 rounded-lg bg-amber-400/10 border border-amber-400/30 text-[11px] text-amber-400 flex items-start gap-1.5">
+      <div className="p-2 rounded-lg bg-terminal-ref/10 border border-terminal-ref/30 text-[11px] text-terminal-ref flex items-start gap-1.5">
         <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
         <span>
           Nguồn VPS trả số liệu theo 4 slot (V1..V4) nhưng metadata kỳ KHÔNG nhất quán với số liệu và KHÔNG xác nhận
@@ -109,7 +109,7 @@ export const StockRealFundamentals: React.FC<StockRealFundamentalsProps> = ({
         ]}
       />
 
-      <p className="text-[10px] text-terminal-text-muted font-mono leading-relaxed">
+      <p className="text-2xs text-terminal-text-muted font-mono leading-relaxed">
         Giá trị gốc từ VPS getliststockbaseinfo (đơn vị triệu VND, đối chiếu với BCTC công bố). Không tự tính
         fair value / DCF / Graham do thiếu đầu vào thật đáng tin cậy ở giai đoạn này.
       </p>
@@ -132,7 +132,7 @@ const RealTable: React.FC<{ titlePrefix: string; headers: string[]; rows: TableR
   <div className="overflow-x-auto">
     <table className="w-full text-xs font-mono">
       <thead>
-        <tr className="text-terminal-text-muted text-[10px] uppercase">
+        <tr className="text-terminal-text-muted text-2xs uppercase">
           <th className="text-left py-1 pr-2">{titlePrefix}</th>
           <th className="text-right py-1 px-2">{headers[0]}</th>
           <th className="text-right py-1 px-2">{headers[1]}</th>

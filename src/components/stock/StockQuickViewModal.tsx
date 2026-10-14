@@ -173,7 +173,7 @@ export function StockQuickViewModal({
                 </div>
                 <div className="p-2 rounded bg-terminal-bg border border-terminal-border">
                   <div className="text-terminal-text-muted mb-0.5">Biên độ ngày</div>
-                  <div className="font-mono font-semibold text-terminal-text-secondary text-[10px]">
+                  <div className="font-mono font-semibold text-terminal-text-secondary text-2xs">
                     {formatVND(stock.low)} - {formatVND(stock.high)}
                   </div>
                 </div>
@@ -186,7 +186,7 @@ export function StockQuickViewModal({
               <span className="text-xs font-semibold text-terminal-text-secondary uppercase tracking-wider">
                 Định giá ước tính
               </span>
-              <span className="inline-flex items-center gap-1 text-xs text-terminal-accent">
+              <span className="inline-flex items-center gap-1 text-xs text-terminal-accent-text">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 Fair Value Model
               </span>

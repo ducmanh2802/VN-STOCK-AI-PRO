@@ -10,7 +10,7 @@ export const badgeVariants = cva(
         default:
           'bg-terminal-surface-hover text-terminal-text-primary border border-terminal-border',
         brand:
-          'bg-terminal-accent/15 text-blue-400 border border-terminal-accent/30',
+          'bg-terminal-accent/15 text-terminal-accent-text border border-terminal-accent/30',
         up:
           'bg-terminal-up/12 text-terminal-up border border-terminal-up/30',
         down:
@@ -28,11 +28,11 @@ export const badgeVariants = cva(
         subtle:
           'bg-terminal-surface-subtle text-terminal-text-muted border border-terminal-border-subtle',
         accent:
-          'bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/30',
+          'bg-terminal-accent/15 text-terminal-accent-text border border-terminal-accent/30',
       },
       size: {
-        xs: 'px-1.5 py-0.5 text-[9px] leading-none',
-        sm: 'px-2 py-0.5 text-[10px] leading-tight',
+        xs: 'px-1.5 py-0.5 text-2xs leading-none',
+        sm: 'px-2 py-0.5 text-2xs leading-tight',
         md: 'px-2.5 py-1 text-xs',
         lg: 'px-3 py-1.5 text-xs',
       },
@@ -75,7 +75,7 @@ export const Badge: React.FC<BadgeProps> = ({
             variant === 'ref' && 'bg-terminal-ref',
             variant === 'ceiling' && 'bg-terminal-ceiling',
             variant === 'floor' && 'bg-terminal-floor',
-            variant === 'brand' && 'bg-blue-400 animate-pulse',
+            variant === 'brand' && 'bg-terminal-accent-text animate-pulse',
             variant === 'accent' && 'bg-terminal-accent animate-pulse',
             (!variant || variant === 'default' || variant === 'outline' || variant === 'secondary' || variant === 'subtle') &&
               'bg-terminal-text-muted'

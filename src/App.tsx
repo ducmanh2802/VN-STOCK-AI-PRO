@@ -159,6 +159,7 @@ export default function App() {
         isSidebarOpen={isSidebarMobileOpen}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenCopilot={() => setIsCopilotOpen(true)}
+        hideIndexRibbon={currentView === 'dashboard'}
       />
 
       {/* 2. Main Content Layout with Sidebar */}

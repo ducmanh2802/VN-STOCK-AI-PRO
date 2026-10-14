@@ -4,7 +4,7 @@ import { TopGainersWidget } from './TopGainersWidget';
 import { TopLosersWidget } from './TopLosersWidget';
 import { MostActiveWidget } from './MostActiveWidget';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
-import { SourceBadge } from '../common/SourceBadge';
+import { SourceBadge, provenanceFromIsDemo } from '../common/SourceBadge';
 import { Flame, ArrowUpRight, ArrowDownRight, BarChart2, LayoutGrid, Columns } from 'lucide-react';
 
 export interface TopMoversSectionProps {
@@ -89,7 +89,7 @@ export const TopMoversSection: React.FC<TopMoversSectionProps> = ({
               <CardTitle className="text-xs sm:text-sm font-bold tracking-tight uppercase font-mono">
                 Biến Động Nổi Bật (Top Movers)
               </CardTitle>
-              <SourceBadge size="sm" />
+              <SourceBadge size="sm" variant={provenanceFromIsDemo([...(gainers ?? []).map((x) => x.isDemo), ...(losers ?? []).map((x) => x.isDemo), ...(active ?? []).map((x) => x.isDemo)])} />
             </div>
 
             {/* Tab Controls */}
@@ -123,7 +123,7 @@ export const TopMoversSection: React.FC<TopMoversSectionProps> = ({
                 onClick={() => setActiveTab('active')}
                 className={`flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-medium rounded transition-all ${
                   activeTab === 'active'
-                    ? 'bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/30 shadow-xs font-semibold'
+                    ? 'bg-terminal-accent/15 text-terminal-accent-text border border-terminal-accent/30 shadow-xs font-semibold'
                     : 'text-terminal-text-muted hover:text-terminal-text-secondary'
                 }`}
               >

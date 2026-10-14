@@ -19,7 +19,7 @@ export const StockAIExplanation: React.FC<StockAIExplanationProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between pb-2.5 border-b border-terminal-border/70">
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent">
+          <div className="p-1 rounded bg-terminal-accent/15 border border-terminal-accent/30 text-terminal-accent-text">
             <Sparkles className="w-4 h-4" />
           </div>
           <h3 className="text-sm font-bold uppercase font-mono tracking-wider text-terminal-text-primary">
@@ -33,7 +33,7 @@ export const StockAIExplanation: React.FC<StockAIExplanationProps> = ({
 
       {/* 1. Executive Thesis */}
       <div className="p-3.5 rounded-lg bg-terminal-bg border border-terminal-accent/25 space-y-1.5">
-        <div className="text-xs font-bold font-mono text-terminal-accent uppercase tracking-wider flex items-center gap-1.5">
+        <div className="text-xs font-bold font-mono text-terminal-accent-text uppercase tracking-wider flex items-center gap-1.5">
           <ShieldCheck className="w-3.5 h-3.5" />
           Luận điểm cốt lõi (Executive Summary)
         </div>
@@ -46,7 +46,7 @@ export const StockAIExplanation: React.FC<StockAIExplanationProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Technical Pillar */}
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-bold font-mono text-sky-400 uppercase">
+          <div className="flex items-center gap-1.5 text-xs font-bold font-mono text-terminal-accent-text uppercase">
             <LineChart className="w-3.5 h-3.5" />
             1. Góc nhìn Kỹ thuật
           </div>
@@ -57,7 +57,7 @@ export const StockAIExplanation: React.FC<StockAIExplanationProps> = ({
 
         {/* Fundamental Pillar */}
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-bold font-mono text-emerald-400 uppercase">
+          <div className="flex items-center gap-1.5 text-xs font-bold font-mono text-terminal-up uppercase">
             <BarChart4 className="w-3.5 h-3.5" />
             2. Góc nhìn Cơ bản & LN
           </div>
@@ -68,7 +68,7 @@ export const StockAIExplanation: React.FC<StockAIExplanationProps> = ({
 
         {/* Macro Pillar */}
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-bold font-mono text-amber-400 uppercase">
+          <div className="flex items-center gap-1.5 text-xs font-bold font-mono text-terminal-ref uppercase">
             <Globe2 className="w-3.5 h-3.5" />
             3. Vĩ mô & Ngành
           </div>

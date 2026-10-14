@@ -66,7 +66,7 @@ export function TopMovers({ gainers, losers, active, onSelectStock }: TopMoversP
             onClick={() => setActiveTab('active')}
             className={`flex items-center gap-1 px-2.5 py-1 text-xs font-mono font-medium rounded transition-all ${
               activeTab === 'active'
-                ? 'bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/30 shadow-xs font-semibold'
+                ? 'bg-terminal-accent/15 text-terminal-accent-text border border-terminal-accent/30 shadow-xs font-semibold'
                 : 'text-terminal-text-muted hover:text-terminal-text-secondary'
             }`}
           >
@@ -106,14 +106,14 @@ export function TopMovers({ gainers, losers, active, onSelectStock }: TopMoversP
                   >
                     <td className="py-2.5 px-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-terminal-text-primary group-hover:text-terminal-accent transition-colors">
+                        <span className="font-bold text-terminal-text-primary group-hover:text-terminal-accent-text transition-colors">
                           {stock.symbol}
                         </span>
                         <Badge variant="subtle" size="xs">
                           {stock.exchange}
                         </Badge>
                       </div>
-                      <div className="text-[10px] text-terminal-text-muted truncate max-w-[140px] font-sans">
+                      <div className="text-2xs text-terminal-text-muted truncate max-w-[140px] font-sans">
                         {stock.companyName}
                       </div>
                     </td>
