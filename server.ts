@@ -91,8 +91,10 @@ async function startServer() {
   const app = express();
   // §28/§54: do not advertise the framework — one less fingerprint for a scanner.
   app.disable('x-powered-by');
-  // AI Studio forwards a dynamic port, so the port must never be hardcoded.
-  const PORT = Number(process.env.PORT) || 3000;
+  // AI Studio dev runs on port 3000; container proxy binds 8080.
+  const portArgIdx = process.argv.indexOf('--port');
+  const portFromArg = portArgIdx >= 0 ? Number(process.argv[portArgIdx + 1]) : null;
+  const PORT = portFromArg || (process.env.NODE_ENV === 'production' && process.env.PORT ? Number(process.env.PORT) : 3000);
   const HOST = process.env.HOST || '0.0.0.0';
   const httpServer = http.createServer(app);
 
