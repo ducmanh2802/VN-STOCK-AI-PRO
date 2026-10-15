@@ -1,43 +1,34 @@
-/**
- * PHASE 19.5.6 — Portfolio / Positions page-local presentation helpers.
- *
- * Fail-closed contract (docs/metric-contracts.md §1):
- * - `null` / `undefined` / `NaN` / `±Infinity` mean DATA UNAVAILABLE and render
- *   as an explicit dash ('—') — NEVER as a fabricated `0`.
- * - `0` is a valid financial value and must always render as `0`.
- * - This module performs PRESENTATION-ONLY formatting (unit scaling to millions,
- *   sign prefixes, locale grouping). No financial recomputation of canonical
- *   trading-state values (BrokerAccount / BrokerPosition) happens here or in
- *   the Portfolio UI.
- */
-import { formatNumber, formatPercent } from '../../utils/formatters';
-
 export const UNAVAILABLE = '—';
 
-export function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
+export function isFiniteNumber(val: unknown): val is number {
+  return typeof val === 'number' && Number.isFinite(val);
 }
 
-/** Presentation-only: renders a canonical VND amount in millions ("1.23 tr"). Fail-closed. */
-export function formatMillionsVND(value: unknown): string {
-  if (!isFiniteNumber(value)) return UNAVAILABLE;
-  return `${(value / 1_000_000).toFixed(2)} tr`;
+export function formatAmount(val: number | null | undefined): string {
+  if (!isFiniteNumber(val)) return UNAVAILABLE;
+  return new Intl.NumberFormat('vi-VN').format(val) + ' ₫';
 }
 
-/** Presentation-only: signed millions variant ("+1.23 tr" / "-1.23 tr" / "0.00 tr"). Fail-closed. */
-export function formatSignedMillionsVND(value: unknown): string {
-  if (!isFiniteNumber(value)) return UNAVAILABLE;
-  return `${value > 0 ? '+' : ''}${formatMillionsVND(value)}`;
+export function formatMillionsVND(val: number | null | undefined): string {
+  if (!isFiniteNumber(val)) return UNAVAILABLE;
+  const inMillions = val / 1_000_000;
+  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(inMillions) + ' tr ₫';
 }
 
-/** Presentation-only: signed percent ("+9.65%" / "0.00%"). Fail-closed. */
-export function formatSignedPercent(value: unknown): string {
-  if (!isFiniteNumber(value)) return UNAVAILABLE;
-  return formatPercent(value);
+export function formatSignedMillionsVND(val: number | null | undefined): string {
+  if (!isFiniteNumber(val)) return UNAVAILABLE;
+  const inMillions = val / 1_000_000;
+  const sign = inMillions > 0 ? '+' : '';
+  return sign + new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(inMillions) + ' tr ₫';
 }
 
-/** Presentation-only: canonical share/price amount ("31.250"). Fail-closed. */
-export function formatAmount(value: unknown): string {
-  if (!isFiniteNumber(value)) return UNAVAILABLE;
-  return formatNumber(value);
+export function formatPercent(val: number | null | undefined, digits = 2): string {
+  if (!isFiniteNumber(val)) return UNAVAILABLE;
+  return val.toFixed(digits) + '%';
+}
+
+export function formatSignedPercent(val: number | null | undefined, digits = 2): string {
+  if (!isFiniteNumber(val)) return UNAVAILABLE;
+  const sign = val > 0 ? '+' : '';
+  return sign + val.toFixed(digits) + '%';
 }

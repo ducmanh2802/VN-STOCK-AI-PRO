@@ -1,94 +1,98 @@
-/**
- * PLATFORM-02 — SERVER-SIDE ENFORCEMENT MIDDLEWARE
- *
- * §18: "Do not rely only on frontend route hiding. Authorization must be enforced
- * server-side." Every protected route goes through `requirePermission` /
- * `requireResource`, which resolve the principal from the request (never from a
- * client-supplied user id) and consult the AuthorizationService.
- */
-import type { NextFunction, Request, Response } from 'express';
-import type { AuthorizationService } from '../../lib/platform/authorization/authorizationService.ts';
-import { deny, type AccessDecision, type Permission, type ResourceRef } from '../../lib/platform/authorization/types.ts';
-import type { ResourceOperation } from '../../lib/platform/authorization/authorizationService.ts';
-import type { RateLimiter } from '../../lib/platform/security/rateLimiter.ts';
+import type { Request, Response, NextFunction } from 'express';
+import type { AuthorizationService, ResourceOperation } from '../../lib/platform/authorization/authorizationService.ts';
+import type { Permission, ResourceRef } from '../../lib/platform/authorization/types.ts';
 
-declare module 'express-serve-static-core' {
-  interface Request {
-    /** Set by the platform auth middleware; never trusted from client input. */
-    platformPrincipal?: { userId: string; sessionId: string } | null;
-  }
+export interface AuthenticatedPrincipal {
+  readonly userId: string;
+  readonly sessionId?: string;
+  readonly organizationId?: string;
 }
 
-/** HTTP mapping: FORBIDDEN/NOT_AUTHENTICATED never leak which one applied internally. */
-function send(res: Response, decision: AccessDecision): void {
-  if (decision.code === 'NOT_AUTHENTICATED') {
-    res.status(401).json({ error: 'unauthorized' });
-    return;
-  }
-  res.status(403).json({ error: 'forbidden' });
-}
-
-export function requirePrincipal(
-  authenticate: (req: Request) => { userId: string; sessionId: string } | null,
-) {
-  return (req: Request, _res: Response, next: NextFunction): void => {
-    req.platformPrincipal = authenticate(req);
-    next();
-  };
-}
-
-export function requirePermission(input: {
-  readonly authz: AuthorizationService;
-  readonly permission: Permission;
-  readonly workspaceIdFrom?: (req: Request) => string;
-  readonly limiter?: RateLimiter;
-  readonly bucket?: 'public' | 'auth' | 'expensive';
-}) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    const workspaceId = (input.workspaceIdFrom ?? (() => ''))(req);
-    const decision = input.authz.authorize({
-      userId: req.platformPrincipal?.userId ?? null,
-      workspaceId,
-      permission: input.permission,
-    });
-    if (!decision.allowed) {
-      send(res, decision);
-      return;
+declare global {
+  namespace Express {
+    interface Request {
+      principal?: AuthenticatedPrincipal | null;
     }
-    if (input.limiter && !input.limiter.allow(`perm:${input.permission}:${req.platformPrincipal?.userId ?? 'anon'}`, req, input.bucket ?? 'auth').allowed) {
-      res.status(429).json({ error: 'rate_limited' });
-      return;
+  }
+}
+
+export type PrincipalResolver = (
+  req: Request
+) => AuthenticatedPrincipal | null | Promise<AuthenticatedPrincipal | null>;
+
+export function requirePrincipal(resolver?: PrincipalResolver) {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    if (resolver) {
+      req.principal = await resolver(req);
     }
     next();
   };
 }
 
-/** Resource-aware variant — this is the IDOR gate for object routes. */
-export function requireResource(input: {
+export interface RequireResourceOptions {
   readonly authz: AuthorizationService;
-  readonly resource: (req: Request) => ResourceRef | null;
+  readonly resource: (req: Request) => ResourceRef | null | Promise<ResourceRef | null>;
   readonly operation: ResourceOperation;
-  readonly workspaceIdFrom?: (req: Request) => string;
-}) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    const resource = input.resource(req);
+  readonly workspaceIdFrom: (req: Request) => string;
+}
+
+export function requireResource(options: RequireResourceOptions) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const principal = req.principal;
+    if (!principal || !principal.userId) {
+      res.status(401).json({ error: 'unauthorized' });
+      return;
+    }
+
+    const resource = await options.resource(req);
     if (!resource) {
       res.status(404).json({ error: 'not_found' });
       return;
     }
-    const workspaceId = (input.workspaceIdFrom ?? (() => resource.workspaceId))(req);
-    const decision = input.authz.authorizeResource({
-      userId: req.platformPrincipal?.userId ?? null,
+
+    const workspaceId = options.workspaceIdFrom(req);
+    const decision = options.authz.authorizeResource({
+      userId: principal.userId,
       workspaceId,
       resource,
-      operation: input.operation,
+      operation: options.operation,
     });
+
     if (!decision.allowed) {
-      send(res, decision);
+      res.status(403).json({ error: 'forbidden' });
       return;
     }
+
     next();
   };
 }
 
-export { deny };
+export interface RequirePermissionOptions {
+  readonly authz: AuthorizationService;
+  readonly permission: Permission;
+  readonly workspaceIdFrom: (req: Request) => string;
+}
+
+export function requirePermission(options: RequirePermissionOptions) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const principal = req.principal;
+    if (!principal || !principal.userId) {
+      res.status(401).json({ error: 'unauthorized' });
+      return;
+    }
+
+    const workspaceId = options.workspaceIdFrom(req);
+    const decision = options.authz.authorize({
+      userId: principal.userId,
+      workspaceId,
+      permission: options.permission,
+    });
+
+    if (!decision.allowed) {
+      res.status(403).json({ error: 'forbidden' });
+      return;
+    }
+
+    next();
+  };
+}
