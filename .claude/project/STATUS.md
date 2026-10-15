@@ -1,4 +1,4 @@
-<!-- status-fingerprint: 923484d08522a439 -->
+<!-- status-fingerprint: d644352fee0dbbf6 -->
 # VN-STOCK-AI-PRO — Status
 
 Living status file, maintained by Claude (orchestrator). Every repository change gets a Changelog
@@ -13,7 +13,7 @@ this file records only evidence produced by a command. Re-check numbers that mat
 
 | Item | Value | Evidence |
 |---|---|---|
-| Branch / HEAD | `main` @ `55d3ff8` | `git log -1` |
+| Branch / HEAD | `main` @ `41e5771` = `origin/main` (pushed 2026-10-16 ~05:08 with the user's approval) | `git status -sb`, `git log origin/main` |
 | Typecheck | **109** errors | `npx tsc --noEmit` with the restored pre-a277613 tsconfig (563 before the restore; 117 on 2026-10-13); 85 are vitest globals in tests, 24 in rebalancing tests |
 | Build | **PASS** | `npm run build` exit 0 (vite + esbuild server bundle) |
 | Full test suite | not run | needs the user's approval |
@@ -43,14 +43,14 @@ which `src/services/trading/PaperOrderRiskBoundary.ts` still imports.
 |---|---|---|---|---|
 | C1 | Risk core deleted: `RiskGuard.ts`, `PositionSizer.ts`, `VietnamLotRule.ts`, `TradingDataValidator.ts` are GONE; `PaperOrderRiskBoundary.ts:5-6` still imports two of them and no route mounts it, so no order path goes through risk checks | `src/lib/trading/**`, `src/services/trading/PaperOrderRiskBoundary.ts` | — | yes |
 | C2 | Production `MacroRegimeService` imports test fixtures (`__tests__/macroFixtures.ts`) | `src/services/macro-regime/MacroRegimeService.ts:2` | `GET /api/macro/radar` (`server.ts:135`) | no |
-| C3 | Money flow fabricates `volumeRatio = 999` and labels it SURGE when the 20-day average volume is 0 | `src/lib/analysis/moneyFlow/MoneyFlowEngine.ts:321-322` | `server.ts`, `StockMoneyFlow.tsx` | no |
+| C3 | ~~FIXED 2026-10-15 by FIX-C3~~ Money flow fabricated `volumeRatio = 999` and labelled it SURGE when the rounded 20-session average volume is 0 (reachable only with tiny volumes, e.g. 19 zeros + latest 9) | `src/lib/analysis/moneyFlow/MoneyFlowEngine.ts:321-322` | `server.ts`, `StockMoneyFlow.tsx` | no |
 | C4 | DCF / dividend valuation silently default growth 10%, terminal 3%, WACC 10.5%, dividend growth 4% when inputs are missing | `src/lib/analysis/valuation/formulas.ts:71-73,129` | valuation routes | no |
 | C5 | UI hooks call 10 `marketService` methods that no longer exist | `src/hooks/useMarketQueries.ts:69…`, `src/services/market/index.ts` | `/`, `/dashboard`, `/market`, `/sector-intelligence` | no (index.ts) |
 | C6 | `RecommendationEngine.rank` / `generateAllHorizons` no longer exist (now `rankUniverse` / `generateMultiHorizon`) | `src/pages/RecommendationsPage.tsx:17`, `src/pages/StockDetailPage.tsx:71` | `/recommendations`, `/stock/:symbol` | no |
 | C7 | `HORIZON_LABELS[h]` is an object but restored pages render it as text (React #31) | `src/pages/StrategyLabPage.tsx:235`, `src/pages/BacktestPage.tsx:209` | `/strategy-lab`, `/backtest` | no |
 | C8 | ~~FIXED 2026-10-15 by FIX-C8~~ `MacroNewsPage` treated a null/non-JSON body as success and crashed on `.items` | `src/pages/MacroNewsPage.tsx:48-58,514-538` | `/news-macro` | no |
 | C9 | Strategy service imports the missing `StrategyContextAggregator.ts`; rebalancing engines import the missing `./types.ts` (module unused outside itself) | `src/services/strategy/StrategyIntelligenceService.ts:3`, `src/lib/rebalancing-decision/{ConstraintEngine.ts:20,ConstrainedAllocator.ts:15}` | strategy API | no |
-| C10 | Recommendation engine: win rate defaults to 0.5 when the score is null; `new Date()` inside the engine (determinism rule) | `src/lib/analysis/strategy/RecommendationEngine.ts:142,274-275` | recommendations | no |
+| C10 | ~~FIXED 2026-10-15 by FIX-C10~~ Recommendation engine: win rate defaulted to 0.5 when the score is null; `new Date()` inside the engine (determinism rule) | `src/lib/analysis/strategy/RecommendationEngine.ts:142,274-275` | recommendations | no |
 | C11 | ETF intelligence service returns hard-coded NAV 24,500 / price 24,550 labelled `CURRENT` (no importer today) | `src/services/etf/EtfIntelligenceService.ts:14-21` | unreachable | no |
 | C12 | Dashboard widgets read fields the reverted types no longer have (`trend`, `signalType`, `ceilings`, …; ~130 tsc errors) | `src/components/dashboard/*` | `/dashboard` | no |
 | C13 | ~~FIXED 2026-10-15 by FIX-C13~~ `StrategyContextAggregator` defaulted `evaluatedAt` to the wall clock (`new Date()`, line 57) and checks market/derivatives/ETF snapshot look-ahead against it, not against `asOfDate`: a snapshot after `asOfDate` but before "now" is accepted. Its test (`StrategyContextAggregator.test.ts:52-63`, fixture 2026-10-15) became a time bomb on 2026-10-15 | `src/lib/strategy/StrategyContextAggregator.ts:57,188-202` | strategy API | no |
@@ -112,6 +112,15 @@ audit tasks: `docs/audit/2026-10-15/inputs/`. Each report is checked by a citati
 | FIX-C8 | `/news-macro` fails closed on a 200 response with a null/non-JSON body | **PASS** | `FIX-C8-20261015-172953` (631 s): only the 2 allowed files; diff = `export` + a null/non-object check in `fetchJson` (`!res.ok` branch untouched); tsc 109 = baseline; Claude re-ran `MacroNewsPageFetch.test.ts` + `PhaseFiveViews.test.tsx` 20/20, `npm run build` exit 0, headless `/news-macro` renders with error states, no page error (route QA now 24/24). Minor: the invalid-JSON test checks the message prefix, not the URL |
 | FIX-C13 | look-ahead judged against asOfDate, not the wall clock | FAIL, fixing (attempt 1 of 3) | `FIX-C13-20261015-174725` (613 s): diff correct (pure `endOfVnTradingDayIso`, `evaluatedAt` derivation only), tsc 109; the old time-bomb test now passes, but Claude's test run found the new "same-day NOT rejected" test wrong: it injects no derivatives snapshot, and `DerivativesIntelligenceService` prices with LIVE quotes stamped now, so rejection is correct look-ahead. Also the helper split an existing JSDoc from its function |
 | FIX-C13 (final) | — | **PASS** on fix 2 | fix 1 `FIX-C13-fix1-20261015-195930` (578 s) corrected the test (injects a same-day derivatives snapshot; new case proves a live derivatives snapshot is rejected) and moved the JSDoc, but again had no report; fix 2 `FIX-C13-fix2-20261015-201634`: report-only, `STATUS: PASS`, no file changed. Claude verified `npx vitest run src/lib/strategy` 13/13 files, 71/71 (the old time-bomb test passes), tsc 109 |
+| FIX-C3 (final) | — | **PASS** on fix 1 | `FIX-C3-fix1-20261015-204835` (284 s, same session): only the test file changed, exactly as briefed (latest volume 9 so 9/20 rounds to 0; `volumeSMA20` 0 not null; broken lower-case SURGE check replaced by a 'trung tính' reason check); runner vitest 10/10. Claude: `npx vitest run src/lib/analysis/moneyFlow src/lib/analysis/strategy` 4/4 files, 94/94; tsc 109; mutation check (`npx tsx` on scratchpad copies) — same input: old engine `ratio 999 / SURGE / score 58`, fixed engine `null / UNAVAILABLE / 50`, so the test catches the defect. **Note:** the engine half of the fix is already in the user's commit `b3a6180` (committed and pushed mid-run); the tests are only in the working tree |
+| FIX-C3 | money flow: no 999/SURGE without a positive 20-session baseline | FAIL on run 1 | `FIX-C3-20261015-201758` (840 s): engine diff correct and minimal (`'UNAVAILABLE'` status, default `'UNAVAILABLE'`, else branch `volumeRatio = null`, volScore 50 + reason); every positive-baseline branch still sets its own status; UI prints the status as text. But OpenCode's self-reported PASS is false: Claude's `npx vitest run src/lib/analysis/moneyFlow src/lib/analysis/strategy` → 2 failed / 92 passed — both new tests are wrong (the 20-session window includes the latest bar, so 20 prior zeros + latest 500,000 gives SMA 25,000 and ratio 20, not null; all-zero volumes give `volumeSMA20` 0, not null; the "no SURGE" check lowercases the text then searches for `SURGE`). The 999 branch is reached only when the rounded SMA is 0 while the latest volume is > 0 (e.g. 19 zeros + latest 9). Runner "scope violation" = false positive: the user committed `b3a6180` during the run; Claude compared every flagged file's pre-snapshot copy with `b3a6180` — identical (index.html modulo CRLF) |
+| FIX-C10 (final) | — | **PASS** on fix 1 | `FIX-C10-fix1-20261015-*` (264 s, same session): only the test file changed, exactly as briefed (all six scores null + support 95,000 / resistance 110,000 → score null, envelope present, expectedReturn null; the self-comparing test now checks the clamp formula for a non-null score); runner vitest 13/13. Claude: `npx vitest run src/lib/analysis/strategy src/pages/recommendations src/lib/analysis/moneyFlow` 6/6 files, 129/129; tsc 109; no `: 0.5;` or wall-clock `asOfDate` left; mutation check (temporary copy of the HEAD engine beside the fixed one, deleted afterwards): same input → HEAD engine expectedReturn not null, fixed null. Left as is (separate item): `rankUniverse` stamps `generatedAt` with `new Date()` (line 376). Callers in `server.ts` (protected) do not pass `asOfDate` yet, so API recommendations now carry `asOfDate: null` instead of today's date |
+| FIX-C10 | recommendation: no invented 50% win rate, no wall-clock asOfDate | **FAIL** on run 1, fixing (attempt 1 of 3) | `FIX-C10-20261015-205719` (559 s): only the 2 allowed files; engine diff exactly as briefed (win rate null when score null, expectedReturn requires it, optional `asOfDate`/`generatedAt` params, `asOfDate: params.asOfDate ?? null`). OpenCode again self-reported PASS, but the runner's vitest: 1 failed / 12 passed — new test "expectedReturn null when score is null" passes all six component scores, so score is not null (got 2.8); another new test compares two identical calls (proves nothing). Claude read `StrategyScorer.ts:114,129` (score null only when all 6 components are null) and `RecommendationEngine.ts:91-104` (envelope independent of score) for the fix brief |
+| FIX-SNAPSHOT-A (final) | indicator snapshot reports null instead of placeholders (SMA50/200, goldenCross, MACD, volume ratio) | **PASS** on fix 2 (+ 1-line Claude follow-up) | run 1 FAIL (truncated test, wrong length checks), fix 1 FAIL (MACD labels dropped, 95-candle test dropped), fix 2 `FIX-SNAPSHOT-A-fix2-*` (307 s): exactly the briefed edits. Claude: `npx vitest run src/lib/indicators src/components/stock src/services/market` 15/15 files, 250/250; tsc 109. The existing `src/services/market/__tests__/vpsAndHistoryBundle.test.ts:49` asserted the placeholder (40 candles, `sma50.value > 0`) — Claude changed it to `toBeNull()` with a comment (stricter, matches the test title "without synthetic fallback"). Mutation check (temporary HEAD copy, deleted): 95 candles → HEAD fills SMA200, fixed gives goldenCross null. Render check (temporary test, deleted): 95 falling candles → no GOLDEN CROSS / Uptrend text / NaN; 30 candles → "Chưa đủ dữ liệu để tính MACD" |
+| FIX-SNAPSHOT-B (final) | indicator panel says "chưa đủ dữ liệu" instead of asserting MA200 / volume / MACD state for null values | **PASS** on fix 1 | run 1 FAIL (deleted an existing test, NORMAL volume shown as "--", wrote `AGENTS.md_sect7_report.txt`); fix 1 `FIX-SNAPSHOT-B-fix1-*` (225 s): the deleted test restored verbatim (test file diff vs HEAD = additions only), NORMAL → "BÌNH THƯỜNG", null → "--" + neutral badge, MA200 three-way text, volume three-way text, explicit `goldenCross === true` badge; 3 new render tests from real short-history candles. Claude: `npx vitest run src/components/stock src/lib/indicators src/services/market src/middleware/platform src/lib/analysis/strategy src/lib/analysis/moneyFlow src/pages/recommendations` 24/24 files, 395/395; tsc 109. Cosmetic: the volume badge style has a redundant NORMAL branch (same class as the fallback) |
+| FIX-SIGNAL | `Signal` shows no invented model % for a string rating; dashboard summary passes no confidence | **in-scope change correct (Claude-verified); run FAIL per protocol (scope violation)** | `FIX-SIGNAL-*` (934 s): `Signal.tsx` renders high/medium/low as "Mức tin cậy: Cao/Trung bình/Thấp" without %, a finite number as "Độ tin cậy mô hình: n%", NaN/undefined as nothing; `AIMarketSummaryCard.tsx` dropped `confidence="high"`; new `src/components/ui/__tests__/Signal.test.tsx` (6 cases; title typo "Tháp"). Self-reported PARTIAL because it may not run vitest (correct per AGENTS.md §5). Scope violation: new untracked root file `report.md` (1,040 B, report text only) — left in place, delete on the user's approval; no retry (it cannot undo a created file without deleting it). Claude: `npx vitest run src/components/ui src/components/dashboard src/components/stock` 5/5 files, 33/33; tsc 109 |
+| FIX-AISUMMARY-UI | AI summary card: trend badge follows the data, no fixed bullish text / "Hấp thụ tốt" badge, RULE-BASED not CALCULATED | **PASS** (run 1) | `FIX-AISUMMARY-UI-*`: diff exactly as briefed (badge up/down/default + TrendingUp/TrendingDown/Minus; static MA20 paragraph → "Xếp loại theo tỷ lệ mã tăng/giảm (quy tắc cố định): {trend} — điểm quy tắc {trendScore}/100."; badge removed; CALCULATED → RULE-BASED); new `src/components/dashboard/__tests__/AIMarketSummaryCard.test.tsx` (3 cases; TIÊU CỰC asserts no `bg-terminal-up/12`, which the old always-up badge produced); no stray files. Claude: `npx vitest run src/components src/pages` 20/20 files, 281/281; tsc 109. Provider part (fixed moneyFlow / riskAlerts strings in `RealMarketDataProvider`) still open, waits on `dadad07` |
+| FIX-SHELL-ERRORS | `/ai-analyst` loading/error instead of blank; quick-view modal loading/error/no-data body | **in-scope change correct (Claude-verified); run FAIL per protocol (scope violation)** | `FIX-SHELL-ERRORS-*` (319 s): `App.tsx` and `StockQuickViewModal.tsx` exactly as briefed; new `src/components/stock/__tests__/StockQuickViewModal.test.tsx` (4 cases). Stray root file `_STATUS.md` (952 B, report text only) — left, delete on approval. Claude: `npx vitest run src/components src/pages src/store` 22/22 files, 296/296; tsc 109; fresh `npx vite build` served through the vercel.json simulation, external hosts aborted: `/ai-analyst` shows "Đang tải nhận định thị trường…" at 0.3 s and ErrorState "Không tải được nhận định thị trường" + "Thử lại" at 8 s, no page error (before: blank main area) |
 | DOC-MAP | synthesise all area reports into `docs/audit/2026-10-15/PROJECT_MAP_DRAFT.md` | **BLOCKED** (provider) | `DOC-MAP-20261015-134750` (1105 s): three `[504] Upstream idle timeout` stream errors while the model generated the whole draft at once; OpenCode exit 1; no file written. Not retried (BLOCKED = stop and report) |
 
 Note (2026-10-15 09:53): another Claude Code session in VS Code (`claude.exe` PID 16656, not this one)
@@ -120,6 +129,13 @@ Kho Báu runner), so delegation waits until they exit. A second Kho Báu stream 
 `D:\trithuc\kho_bau_luong_b\docs\opencode\run-all.ps1` (ignored by the guard since 10:15).
 
 ## Pending user decisions
+
+**Junk files from OpenCode (delete on approval):** `AGENTS.md_sect7_report.txt`, `report.md`, `_STATUS.md` (repo root, untracked, report text only). The free model writes one in about half the runs despite the brief; a config-level stop (deny edits to new root files in `opencode.json`, protected) needs the user.
+
+**DONE 2026-10-16 (user: "bạn tự chọn cách hợp lý đi, sau đó push code lên"):** `dadad07` reverted (`a8e0a8f`, tree == `b3a6180`) and `vercel.json` committed (`41e5771`), pushed. Was: **2026-10-15 20:45 — `origin/main` commit `dadad07`:** revert it and push (Claude's recommendation, see
+Changelog "Vercel black screen"). Safe method that never touches the working tree (local edits now include
+`vpsAndHistoryBundle.test.ts`, which `dadad07` deletes, so a plain `git pull` would refuse): `git fetch origin`;
+`R=$(git commit-tree b3a6180^{tree} -p origin/main -m "Revert dadad07 ...")`; `git merge --ff-only $R`; `git push origin main`; also decide where the Express backend runs, since Vercel serves only the static frontend.
 
 **Done 2026-10-15:** restore steps 0-13 (table in the Changelog). **Next (user decisions):** the user commits the working tree themselves; the fix-forward defects C3, C4, C8, C10, C13 go to OpenCode one at a time. Open notes: HSTS dropped by the restored security headers; the restored UI calls `bgapidatafeed.vps.com.vn` from the browser; tsc parses `dist/` (consider `"exclude": ["dist"]`, protected file).
 
@@ -261,3 +277,114 @@ Claude's uncommitted work from 2026-10-15: see the Changelog.
   tests 7/7 files, 63/63; tsc 109; build exit 0. Port: dev listens on 0.0.0.0:3000, which matches the AI Studio
   template (first commit `8a5ce61`: `const PORT = 3000`); not changed. Not verified inside AI Studio itself (no
   access from this machine) — the user must reload the Preview.
+- **Vercel black screen at https://vn-stock-ai-pro.vercel.app/ (user report 20:30; diagnosed by Claude).**
+  - Symptom (headless Chromium on the live site): HTTP 200, `assets/index-s7pixLGl.js` 200, `#root` empty, body bg
+    `rgb(11,14,20)`; the module evaluates (`import()` resolves) but React never mounts. Re-running the same deployed
+    bundle with hooks in the main world caught `reportError: No QueryClient set, use QueryClientProvider to set one`.
+  - Cause: Vercel built **`origin/main` = `dadad07`** ("feat(auth): restore and verify identity modules", author
+    `ducmanh2802`, 20:26, 5 min after the user's `b3a6180`; local is behind 1, not pulled). Its `src/main.tsx` renders
+    `<App/>` without `QueryProvider`/`GlobalErrorBoundary`, so the first `useQuery` throws and React unmounts the root.
+    `dadad07` is a stale snapshot like `a277613`: vs `b3a6180` it deletes 242 files (115 tests) and modifies 102,
+    deletes `package-lock.json`, rewrites `src/services/trading/PaperOrderRiskBoundary.ts` (protected), and re-adds
+    exactly the 4 files restore step 13 removed (`DemoBadge.tsx`, `PhasePlaceholderPage.tsx`,
+    `src/middleware/__tests__/{auth,rateLimit}.test.ts`); it is closer to `a277613` (178 files differ) than to `b3a6180` (348).
+  - Also found on the live site: `/server.cjs` (566 KB) and `/server.cjs.map` (1.1 MB, backend source) are public
+    (`npm run build` also bundles the server into `dist/`); no security headers/CSP (Express does not run on Vercel);
+    deep links (`/dashboard`) and every `/api/*` return 404 text/plain.
+  - Local check: `npx vite build --outDir <scratchpad>` exit 0; served statically like Vercel it renders (#root 1,213
+    chars, header + main); only `/api/*` 404s (no backend on a static host).
+  - **Fix prepared (Claude, takes effect only after the user's push):** new `vercel.json` — `buildCommand: npx vite build`
+    (no server bundle published), SPA rewrite `/((?!api/|assets/).*)` → `/index.html`, and the exact production header
+    set of `securityHeaders` (CSP, DENY, nosniff, …). New test `src/middleware/platform/__tests__/vercelConfig.test.ts`
+    fails if vercel.json drifts from `security.ts`. Evidence: `npx vitest run src/middleware/platform` 3/3 files, 13/13;
+    tsc 109; simulation applying vercel.json to the local build: `/`, `/market`, `/settings` all 200 + CSP present, render,
+    0 CSP violations; `/server.cjs` returns index.html; `/api/health` and `/assets/missing.js` 404.
+  - **Not done (needs the user):** reverting `dadad07` and pushing; hosting the backend (`server.ts`) somewhere — on
+    Vercel every `/api` feature stays unavailable.
+- **FIX-C3 (OpenCode) = FAIL on run 1** — see Delegations; retry 1 of 3 via `-Session` with the exact test errors.
+- **FIX-C3 (OpenCode) = PASS on fix 1** — see Delegations (brief `.claude/project/fixes/FIX-C3-fix1.md`).
+- **Delegation order vs `dadad07` (Claude):** while the user decides on reverting `dadad07`, only tasks whose files
+  `dadad07` does not touch run, so a later `git pull --ff-only` / revert is not blocked by local edits. FIX-C10
+  (RecommendationEngine + its test: untouched) runs next; held: FIX-C4 (`CanonicalFinancialFactsAdapter.ts` deleted by
+  `dadad07`), FIX-RISKCENTER (`RiskCenterPage.tsx` modified), FIX-MARKETSTATUS (`src/types/market.ts` modified).
+  FIX-C10 brief now requires OpenCode to run the test file itself (FIX-C3 run 1 claimed PASS without running it).
+- **FIX-C10 (OpenCode) = FAIL on run 1** (wrong tests, false self-reported PASS) — retry 1 of 3 via `-Session`, test file only (brief `.claude/project/fixes/FIX-C10-fix1.md`).
+- **FIX-C10 (OpenCode) = PASS on fix 1** — see Delegations. Uncommitted: RecommendationEngine.ts + recommendation.test.ts.
+- **FIX-SNAPSHOT-A delegated (Claude brief `.claude/project/fixes/FIX-SNAPSHOT-A.md`):** post-restore lead #6 (high,
+  not protected, untouched by `dadad07`): `src/lib/indicators/snapshot.ts` substitutes placeholders (SMA50/200 =
+  current price, MACD 0/0/0 labelled BEARISH, volume divisor `|| 1`) — Claude re-read the code: `calculateMACD`
+  returns [] below 35 candles (`macd.ts:18`), so even the 30-candle test sample gets the fake MACD. Split in two:
+  A = engine + types + test (now); B = UI wording in `StockTechnicalIndicators.tsx` (lines 216-218, 235, 247-249
+  still assert a state when data is missing). Baseline: `npx vitest run src/lib/indicators
+  src/components/stock/__tests__/StockHardenedComponents.test.tsx` 2/2 files, 29/29.
+- **FIX-SNAPSHOT-A (OpenCode) = FAIL on run 1** (`FIX-SNAPSHOT-A-20261015-212102`, 1043 s; only the 3 allowed files;
+  self-reported PASS is false): test file truncated (`indicators.test.ts(300,1): TS1005 ')' expected`, vitest
+  "Transform failed"), so tsc stopped at 1 error. Claude's review of the diff: `types.ts` correct; `snapshot.ts`
+  wrong — tests `sma50Series.length >= 50` / `sma200Series.length >= 200` / `macdSeries.length >= 35` on result
+  arrays (would hide a valid SMA50 at 95 candles; `calculateSMA` returns [] when short, `sma.ts:25`), `latestMACD`
+  const used outside its block, unrequested `latestVol.value > 0` (a 0-volume day must be DRY); tests: a '30 candles'
+  case expects null volume with real volumes, a MACD check `typeof t === 'number'` on typeof strings is always false.
+  Retry 1 of 3 via `-Session` with exact code blocks (brief `.claude/project/fixes/FIX-SNAPSHOT-A-fix1.md`).
+- **FIX-SNAPSHOT-A fix 1 (OpenCode) = FAIL** (`FIX-SNAPSHOT-A-fix1-*`, 691 s; runner: tsc 109, vitest 2/2 files 33/33):
+  `snapshot.ts` now matches the briefed code except the MACD branches lost their `macdLabel = ...` lines, so an
+  available MACD is still labelled "Chưa đủ dữ liệu" (regression, not caught by any test); tests: the 95-candle case
+  (the main defect) was dropped and the briefed `goldenCross === true` check is missing. Retry 2 of 3 with exact code
+  (brief `.claude/project/fixes/FIX-SNAPSHOT-A-fix2.md`; `types.ts` is correct and no longer allowed).
+- **FIX-SNAPSHOT-A (OpenCode) = PASS on fix 2**; Claude edited one assertion in `src/services/market/__tests__/vpsAndHistoryBundle.test.ts` (see Delegations). Next: FIX-SNAPSHOT-B (UI wording for null indicators).
+- **FIX-SNAPSHOT-B delegated** (brief `.claude/project/fixes/FIX-SNAPSHOT-B.md`): `StockTechnicalIndicators.tsx`
+  texts for null indicators (MA200 line 215-219, volume badge 235 and text 246-250, neutral MACD badge for a null
+  trend) + 2 render tests from real short-history candles. Both files clean and untouched by `dadad07`.
+- **FIX-SNAPSHOT-B (OpenCode) = FAIL on run 1** (`FIX-SNAPSHOT-B-*`, 457 s; runner vitest 2/2 files 35/35, tsc 109):
+  (1) it DELETED the existing test 'handles non-finite values in technical indicators gracefully without crashing'
+  (replaced it with a new one); (2) regression: a real `NORMAL` volume trend now renders '--' instead of 'BÌNH
+  THƯỜNG'; (3) scope violation: wrote its report to a new untracked root file `AGENTS.md_sect7_report.txt` (1,334 B,
+  only the report text) — left in place, delete on the user's approval; (4) it says bash refused `npx vitest`.
+  The MA200 text, volume text and neutral badges are as briefed. Retry 1 of 3 via `-Session`
+  (brief `.claude/project/fixes/FIX-SNAPSHOT-B-fix1.md`, restores the test verbatim from HEAD).
+- **FIX-SNAPSHOT-B (OpenCode) = PASS on fix 1.** Post-restore lead #6 (indicator placeholders, high) is resolved by FIX-SNAPSHOT-A + B (uncommitted). Root junk file `AGENTS.md_sect7_report.txt` (OpenCode, report text only) awaits the user's approval to delete.
+- **FIX-SIGNAL delegated** (brief `.claude/project/fixes/FIX-SIGNAL.md`): post-restore lead "Signal turns a
+  qualitative confidence label into a fabricated model percentage" (`src/components/ui/Signal.tsx:40-42` maps
+  high/medium/low → 88/65/40 %; `AIMarketSummaryCard.tsx:44` passes `confidence="high"`). Files untouched by
+  `dadad07`, clean. SourceBadge lead (10 files) deferred: needs splitting.
+- **Correction (Claude, 2026-10-15 ~22:30):** `AGENTS.md` §5 (lines 72-78) forbids OpenCode from running tests and `opencode.json` bash allows only git reads and `npx tsc`. The FIX-C10, FIX-SNAPSHOT-A/B and FIX-SIGNAL briefs (and fix briefs) wrongly told it to run vitest; calling its PASS "false" for not running tests was partly Claude's brief error. (Its claims that tests passed, e.g. FIX-C3 run 1, still broke §5: "Never claim tests pass".) From now on briefs follow `.claude/opencode/brief-template.md`: tests are run only by the runner (`-VerifyTests`) and Claude.
+- **FIX-SIGNAL (OpenCode):** in-scope change verified correct; run FAIL for the stray `report.md` (see Delegations).
+- **FIX-AISUMMARY-UI delegated** (brief `.claude/project/fixes/FIX-AISUMMARY-UI.md`): post-restore lead
+  "AIMarketSummaryCard prints a fixed bullish narrative and a 'Hấp thụ tốt' badge regardless of data, labelled
+  CALCULATED" — UI part only (`AIMarketSummaryCard.tsx`, already dirty from FIX-SIGNAL = OpenCode output, hence
+  `-AllowDirty`) + new test. The provider part (`RealMarketDataProvider.getAIMarketSummary` fixed moneyFlow /
+  riskAlerts strings) waits: `dadad07` deletes that file. Deferred: LearningPathPage hooks order (low, harmless with
+  the static catalog), RSI flat series (needs a 50-vs-null decision), SourceBadge default (10 files).
+- **FIX-AISUMMARY-UI (OpenCode) = PASS** — see Delegations.
+- **FIX-SHELL-ERRORS delegated** (brief `.claude/project/fixes/FIX-SHELL-ERRORS.md`): post-restore lead "Shell drops
+  query errors outside the 3 market views" — remaining parts: blank `/ai-analyst` (`App.tsx:284`) and a silent
+  quick-view modal (`StockQuickViewModal.tsx:27`). Files clean, untouched by `dadad07`. Held (files changed by
+  `dadad07`): unknown market status shown as TRADING (`src/types/market.ts`), quick view / detail sharing
+  `selectedStockSymbol` (`useAppStore.ts`).
+- **FIX-SHELL-ERRORS (OpenCode):** in-scope change verified (incl. runtime `/ai-analyst` check); run FAIL for the stray `_STATUS.md`. **Delegation paused here** — remaining delegable leads are low severity (ErrorBoundary stack trace in production, Metric NaN%, ScoreRing 0/D for a missing score, LearningPathPage hooks order, CommandPalette, Sidebar, `MARKET_KEYS.watchlist` in-place sort); the rest wait on the user (`dadad07` revert: C4, RiskCenter, market status, quick-view symbol, provider AI-summary strings; decisions: RSI flat-series value, SourceBadge default, backend hosting).
+
+### 2026-10-16
+- **Revert + deploy fix pushed (Claude, user-approved "tự chọn cách hợp lý ... push code lên").** Deleted the 3 OpenCode junk report files (content checked: report text only). `git fetch` (origin/main still `dadad07`); revert via `git commit-tree b3a6180^{tree} -p origin/main` → `a8e0a8f` (tree verified equal to `b3a6180`), `git merge --ff-only` (no working-tree change); `41e5771` fix(deploy): vercel.json + vercelConfig.test.ts (platform tests 3/3 files, 13/13). Clean-checkout check: `git archive HEAD` into the scratchpad + junctioned node_modules → `npx vite build` OK, bundle `index-BdywYEDk.js`, no server.cjs. `git push origin main`: `dadad07..41e5771`.
+- **Live verification (https://vn-stock-ai-pro.vercel.app, 05:09):** new bundle `index-BdywYEDk.js`; CSP, `X-Frame-Options: DENY`, nosniff present; `/server.cjs` and `.map` now return index.html (text/html), `/dashboard` 200, `/api/health` 404. Headless Chromium: `/` #root 7,575 chars (dashboard with market indices), `/market` 3,953, `/settings` 3,493; header + main present; 0 page errors, 0 CSP violations. **Black screen fixed.** Backend (`/api/*`) is still not hosted anywhere.
+- **Pre-push review workflow** (2 read-only lenses: consumers/regressions, test/data integrity) running over the uncommitted fixes before they are committed.
+- **Pre-push review workflow `wf_c0147963-d43` (2 read-only agents, 605 s).** Consumers lens: vitest 19 files / 303
+  tests, tsc 109; integrity lens: vitest 42 files / 642 tests, tsc 109; ran the new tests against HEAD code (git archive
+  + junction): 18/76 fail on HEAD as intended; no pre-existing assertion removed except the intended
+  vpsAndHistoryBundle one. Findings fixed by Claude before commit (user: "tự chọn cách hợp lý"):
+  `StockTechnicalIndicators` treated a real 0 volume ratio as missing ("Chưa đủ dữ liệu" next to CẠN KIỆT + a valid MA20)
+  → `isFiniteNumber`, plus a dry-volume text for DRY (the balanced text next to CẠN KIỆT was pre-existing);
+  `StockCandlestickChart` MACD/Signal rendered empty for null → '--'; tests tightened: generatedAt pass-through uses a
+  fixed past instant (passed on HEAD before), AIMarketSummaryCard badge asserted inside the trend section only,
+  moneyFlow misleading comment replaced by a neutral-reason assertion, new ratio-0 component test. After: vitest
+  `src/components src/pages src/store src/lib/indicators src/lib/analysis/strategy src/lib/analysis/moneyFlow
+  src/services/market src/middleware/platform` 42/42 files, 643/643; tsc 109; clean-checkout `npx vite build` OK
+  (`index-DTUP0r6m.js`).
+- **Commits (Claude, user-approved push):** `9595975` test(moneyFlow) FIX-C3, `1d8026c` fix(recommendation) FIX-C10,
+  `02ba229` fix(indicators) SNAPSHOT-A/B + follow-ups, `e79cec3` fix(ui) SIGNAL + AISUMMARY-UI, `d1ca83f` fix(shell)
+  SHELL-ERRORS, then this docs commit.
+- **Open, from the review (need the user or a new task):** (major, not a regression) the AI summary is still template
+  text — provider `RealMarketDataProvider.getAIMarketSummary` hard-codes the moneyFlow sentence, the second sentence of
+  overallComment and riskAlerts, trendScore is a 72/55/38 bucket, and the card header says "AI ... theo thời gian thực"
+  (now delegable: `dadad07` is reverted); (protected, proposal) `server.ts:883` never passes `asOfDate`, so API
+  recommendations carry `asOfDate: null`; (protected trading core, proposal) `BacktestEngine.ts:582-611` feeds constant
+  scores 65/35 and falls back to target ×1.15 / stop ×0.95 / RR 2.5; (proposal) tsconfig has no `strictNullChecks`,
+  so tsc does not check the new nullable types.

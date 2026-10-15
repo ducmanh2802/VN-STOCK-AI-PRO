@@ -40,9 +40,12 @@ ACCEPTANCE CRITERIA:
 2. Existing tests pass (or the report names any test that asserted the old behaviour); new tests pass.
 3. `npx tsc --noEmit` reports no new errors versus the baseline.
 
-VERIFY (the orchestrator runs these; you may run only `npx tsc --noEmit`):
+VERIFY (the orchestrator re-runs both; you MUST run both yourself before reporting PASS — a PASS without a
+passing test run is a false report):
 - npx tsc --noEmit -> no new errors versus BASELINE
-- npx vitest run src/lib/analysis/strategy src/pages/recommendations -> all pass
+- npx vitest run src/lib/analysis/strategy/__tests__/recommendation.test.ts -> all pass
+  (the orchestrator also runs `npx vitest run src/lib/analysis/strategy src/pages/recommendations`)
+- Leave `rankUniverse`'s `const now = new Date().toISOString();` (line 376) unchanged; it is a separate item.
 
 BASELINE: tsc 109 errors. Known failing tests: 9 in src/lib/rebalancing-decision, 1 in
 src/test/reachabilityGate.test.ts, 1 in src/lib/strategy/__tests__/StrategyContextAggregator.test.ts (separate task).
