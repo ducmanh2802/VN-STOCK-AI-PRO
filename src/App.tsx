@@ -281,8 +281,18 @@ export default function App() {
                   <RecommendationsPage onSelectStock={handleSelectStock} />
                 )}
 
-                {currentView === 'ai-analyst' && aiSummary && (
-                  <AIAnalystPage aiSummary={aiSummary} />
+                {currentView === 'ai-analyst' && (
+                  aiSummaryQuery.isLoading ? (
+                    <LoadingState variant="terminal" message="Đang tải nhận định thị trường…" />
+                  ) : aiSummary ? (
+                    <AIAnalystPage aiSummary={aiSummary} />
+                  ) : (
+                    <ErrorState
+                      message="Không tải được nhận định thị trường. Vui lòng thử lại."
+                      error={aiSummaryQuery.error ?? null}
+                      onRetry={() => aiSummaryQuery.refetch()}
+                    />
+                  )
                 )}
 
                 {currentView === 'stock-detail' && (
@@ -387,6 +397,8 @@ export default function App() {
         stock={stockDetailQuery.data || null}
         isOpen={quickViewModalOpen}
         onClose={closeQuickView}
+        isLoading={stockDetailQuery.isLoading}
+        error={stockDetailQuery.error}
         isWatchlisted={selectedStockSymbol ? isWatchlisted(selectedStockSymbol) : false}
         onToggleWatchlist={toggleWatchlist}
         onViewDetail={navigateToStock}

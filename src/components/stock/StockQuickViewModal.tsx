@@ -10,6 +10,8 @@ import { X, BookmarkPlus, BookmarkCheck, ShieldCheck } from 'lucide-react';
 interface StockQuickViewModalProps {
   stock: StockSummary | null;
   isOpen: boolean;
+  isLoading?: boolean;
+  error?: unknown;
   onClose: () => void;
   isWatchlisted: boolean;
   onToggleWatchlist: (symbol: string) => void;
@@ -19,12 +21,44 @@ interface StockQuickViewModalProps {
 export function StockQuickViewModal({
   stock,
   isOpen,
+  isLoading,
+  error,
   onClose,
   isWatchlisted,
   onToggleWatchlist,
   onViewDetail,
 }: StockQuickViewModalProps) {
-  if (!isOpen || !stock) return null;
+  if (!isOpen) return null;
+      if (!stock) {
+        return (
+          <div
+            id="modal-stock-quickview-backdrop"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-terminal-bg/85 backdrop-blur-xs"
+            onClick={onClose}
+          >
+            <div
+              id="modal-stock-quickview-content"
+              className="w-full max-w-md bg-terminal-surface border border-terminal-border rounded-sm shadow-2xl p-5 text-sm text-terminal-text-secondary space-y-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p>
+                {isLoading
+                  ? 'Đang tải dữ liệu mã cổ phiếu…'
+                  : error
+                    ? 'Không tải được dữ liệu mã cổ phiếu. Vui lòng thử lại.'
+                    : 'Không có dữ liệu cho mã cổ phiếu này.'}
+              </p>
+              <button
+                id="btn-modal-quickview-close"
+                onClick={onClose}
+                className="px-3 py-1.5 text-xs rounded border border-terminal-border hover:bg-terminal-surface-hover"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        );
+      }
 
   const isUp = stock.change > 0;
   const isDown = stock.change < 0;
