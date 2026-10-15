@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Signal } from '../ui/Signal';
 import { SourceBadge, provenanceFromIsDemo } from '../common/SourceBadge';
-import { Sparkles, TrendingUp, AlertTriangle, ShieldAlert, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
+import { Sparkles, TrendingUp, TrendingDown, Minus, AlertTriangle, ShieldAlert, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
 
 export interface AIMarketSummaryCardProps {
   summary: AIMarketSummary;
@@ -41,7 +41,6 @@ export function AIMarketSummaryCard({ summary, onSelectStock }: AIMarketSummaryC
             type={signalType}
             score={summary.trendScore}
             label={summary.trend}
-            confidence="high"
           />
           <div className="hidden sm:flex items-center gap-1 text-[11px] font-mono text-terminal-text-muted">
             <Clock className="w-3.5 h-3.5" />
@@ -59,13 +58,13 @@ export function AIMarketSummaryCard({ summary, onSelectStock }: AIMarketSummaryC
               <span className="text-xs font-mono font-semibold text-terminal-text-secondary uppercase tracking-wider">
                 1. Xu Hướng Thị Trường
               </span>
-              <Badge variant="up" size="xs">
-                <TrendingUp className="w-3 h-3" />
+              <Badge variant={summary.trend === 'TÍCH CỰC' ? 'up' : summary.trend === 'TIÊU CỰC' ? 'down' : 'default'} size="xs">
+                {summary.trend === 'TÍCH CỰC' ? <TrendingUp className="w-3 h-3" /> : summary.trend === 'TIÊU CỰC' ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
                 {summary.trend}
               </Badge>
             </div>
             <p className="text-xs text-terminal-text-secondary leading-relaxed">
-              Thị trường đang duy trì xu thế tăng điểm ngắn hạn trên các đường trung bình động (MA20). Lực cầu chủ động tại các vùng hỗ trợ giúp chỉ số giữ vững trạng thái tích cực.
+              Xếp loại theo tỷ lệ mã tăng/giảm (quy tắc cố định): {summary.trend} — điểm quy tắc {summary.trendScore}/100.
             </p>
           </div>
 
@@ -75,9 +74,6 @@ export function AIMarketSummaryCard({ summary, onSelectStock }: AIMarketSummaryC
               <span className="text-xs font-mono font-semibold text-terminal-text-secondary uppercase tracking-wider">
                 2. Vận Động Dòng Tiền
               </span>
-              <Badge variant="accent" size="xs">
-                Hấp thụ tốt
-              </Badge>
             </div>
             <p className="text-xs text-terminal-text-secondary leading-relaxed">
               {summary.moneyFlow}
@@ -156,8 +152,8 @@ export function AIMarketSummaryCard({ summary, onSelectStock }: AIMarketSummaryC
             </span>
           </div>
           <Badge variant="ref" size="xs">
-            CALCULATED
-          </Badge>
+              RULE-BASED
+            </Badge>
         </div>
       </CardContent>
     </Card>

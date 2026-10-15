@@ -37,9 +37,20 @@ export const Signal: React.FC<SignalProps> = ({
   className,
   ...props
 }) => {
-  const confidence = typeof confidenceProp === 'string'
-    ? confidenceProp === 'high' ? 88 : confidenceProp === 'medium' ? 65 : 40
-    : confidenceProp;
+  const isFiniteNum = typeof confidenceProp === 'number' && Number.isFinite(confidenceProp);
+  const confidenceElement = typeof confidenceProp === 'string' && (confidenceProp === 'high' || confidenceProp === 'medium' || confidenceProp === 'low')
+    ? <div className="flex items-center gap-1.5 text-xs text-terminal-text-secondary pt-1 border-t border-terminal-border-subtle">
+        <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+        <span className="text-[11px]">Mức tin cậy:</span>
+        <span className="font-mono font-semibold text-terminal-text-primary">{confidenceProp === 'high' ? 'Cao' : confidenceProp === 'medium' ? 'Trung bình' : 'Thấp'}</span>
+      </div>
+    : isFiniteNum ? (
+      <div className="flex items-center gap-1.5 text-xs text-terminal-text-secondary pt-1 border-t border-terminal-border-subtle">
+        <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+        <span className="text-[11px]">Độ tin cậy mô hình:</span>
+        <span className="font-mono font-semibold text-terminal-text-primary">{confidenceProp}%</span>
+      </div>
+    ) : null;
   const signalConfig = React.useMemo(() => {
     switch (type) {
       case 'BUY':
@@ -168,13 +179,7 @@ export const Signal: React.FC<SignalProps> = ({
       )}
 
       {/* Confidence Pill */}
-      {confidence !== undefined && (
-        <div className="flex items-center gap-1.5 text-xs text-terminal-text-secondary pt-1 border-t border-terminal-border-subtle">
-          <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-          <span className="text-[11px]">Độ tin cậy mô hình:</span>
-          <span className="font-mono font-semibold text-terminal-text-primary">{confidence}%</span>
-        </div>
-      )}
+      {confidenceElement}
 
       {/* Reasons breakdown */}
       {reasons && reasons.length > 0 && (
