@@ -13,9 +13,18 @@
   subagents never run OpenCode, and Claude never redoes a BLOCKED task while presenting it as
   OpenCode's work.
 
+## Project knowledge (read first)
+- `.claude/project/PROJECT_MAP.md`: subsystem map from the 2026-10-15 audit. `.claude/project/STATUS.md`:
+  current state, open issues, delegations, pending decisions, changelog — evidence only, each entry
+  dated with its command. Re-verify a number before acting on it.
+- Every change (yours, OpenCode's or the user's) gets a STATUS.md changelog entry, then
+  `node .claude/hooks/status-guard.mjs --stamp`. The Stop hook in `.claude/settings.json` enforces this.
+
 ## Hard rules
 - Never pass `--auto` to `opencode run`. Never run two OpenCode runs at once, and do not edit
-  files while one is running (check that `Get-Process opencode*` returns nothing first).
+  files while one is running. The runner's guard enforces this and ignores only OpenCode
+  processes descending from the Kho Báu queue runner
+  (`D:\trithuc\kho_bau_tri_thuc\docs\opencode\run-all.ps1`, another repo; user decision 2026-10-15).
 - No commit, push, stash, reset, clean, checkout / restore, deploy, package install or
   migration without the user's explicit approval for that specific action. Never run
   `drizzle-kit push`.
@@ -29,7 +38,8 @@
 - No PASS without evidence you produced yourself. Unverifiable → BLOCKED.
 
 ## Per-task protocol
-1. **Preflight** — confirm branch / HEAD and that `Get-Process opencode*` returns nothing. The
+1. **Preflight** — confirm branch / HEAD and that no OpenCode process outside the Kho Báu runner
+   is running (`-DryRun` runs that guard). The
    runner snapshots git status plus the SHA-256 and a copy of every dirty / ALLOWED file per run.
 2. **Brief** — copy `.claude/opencode/brief-template.md` into the scratchpad and fill every
    field: TASK ID, GOAL, CONTEXT, ALLOWED FILES (exact paths; list new files too), DO NOT TOUCH,

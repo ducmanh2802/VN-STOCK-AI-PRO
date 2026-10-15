@@ -1,101 +1,311 @@
-import React, { useState } from 'react';
-import type { InvestmentHorizon } from '../types/recommendation';
-import { HORIZON_LABELS } from '../types/recommendation';
-import { RecommendationEngine } from '../lib/analysis/strategy/RecommendationEngine';
-import { VIETNAM_STOCKS_UNIVERSE } from '../services/market/stockUniverse';
-import { Sparkles, ArrowUpRight, ShieldCheck } from 'lucide-react';
-import { Badge } from '../components/ui/Badge';
-import { formatVND, formatPercent } from '../utils/formatters';
+import React, { useState, useMemo } from 'react';
+import {
+  Sparkles,
+  TrendingUp,
+  Filter,
+  ChevronRight,
+  Layers,
+  AlertCircle,
+  Clock,
+  Database,
+  RefreshCw,
+  Search,
+  CheckCircle2,
+} from 'lucide-react';
+import { InvestmentHorizon, HORIZON_LABELS, RecommendationSignal } from '../types/recommendation';
+import { useRecommendationRankings } from '../hooks/useMarketQueries';
+import { StockRecommendationsView } from '../components/stock/StockRecommendationsView';
+import { RankingsTable } from './recommendations/RankingsTable';
+import { LearnThis } from '../components/learning/LearningWidgets';
+import {
+  makeRankingSorter,
+  RankingSortKey,
+  SortDirection,
+  formatEvaluationTimestamp,
+} from './recommendations/metrics';
 
-export interface RecommendationsPageProps {
+interface RecommendationsPageProps {
   onSelectStock: (symbol: string) => void;
 }
 
 export const RecommendationsPage: React.FC<RecommendationsPageProps> = ({ onSelectStock }) => {
-  const [horizon, setHorizon] = useState<InvestmentHorizon>('SHORT_TERM');
+  const [strategy, setStrategy] = useState<InvestmentHorizon>('SHORT_TERM');
+  const [activeTabStock, setActiveTabStock] = useState<string>('FPT');
+  const [signalFilter, setSignalFilter] = useState<RecommendationSignal | 'ALL'>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortBy, setSortBy] = useState<RankingSortKey>('rank');
+  const [sortOrder, setSortOrder] = useState<SortDirection>('asc');
 
-  const ranking = RecommendationEngine.rank({
-    horizon,
-    limit: 12,
-  });
+  const { data, isLoading, error, refetch, isFetching } = useRecommendationRankings(strategy);
+
+  const rankings = useMemo(() => {
+    return Array.isArray(data?.rankings) ? data.rankings : [];
+  }, [data?.rankings]);
+
+  const sortedAndFilteredRankings = useMemo(() => {
+    let filtered = rankings;
+
+    // Filter by signal if specified
+    if (signalFilter !== 'ALL') {
+      filtered = filtered.filter((r) => r.signal === signalFilter);
+    }
+
+    // Filter by search query (symbol or company name)
+    const cleanSearch = searchQuery.trim().toLowerCase();
+    if (cleanSearch) {
+      filtered = filtered.filter((r) => {
+        const sym = (r.symbol || '').toLowerCase();
+        const comp = (r.companyName || '').toLowerCase();
+        return sym.includes(cleanSearch) || comp.includes(cleanSearch);
+      });
+    }
+
+    const sorter = makeRankingSorter(sortBy, sortOrder);
+    return [...filtered].sort(sorter);
+  }, [rankings, signalFilter, searchQuery, sortBy, sortOrder]);
+
+  const handleSort = (key: RankingSortKey) => {
+    if (sortBy === key) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(key);
+      setSortOrder(key === 'rank' || key === 'symbol' || key === 'companyName' ? 'asc' : 'desc');
+    }
+  };
+
+  const handleNavigateToStock = (symbol: string) => {
+    const clean = (symbol || '').trim().toUpperCase();
+    if (clean) {
+      onSelectStock(clean);
+    }
+  };
+
+  const handleSelectRowStock = (symbol: string) => {
+    const clean = (symbol || '').trim().toUpperCase();
+    if (clean) {
+      setActiveTabStock(clean);
+    }
+  };
+
+  const resetFilters = () => {
+    setSignalFilter('ALL');
+    setSearchQuery('');
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-terminal-border">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-            <Sparkles className="w-4 h-4" />
+      {/* Page header — flat terminal strip, no gradient banner */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pb-3 border-b border-terminal-border">
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-terminal-accent" />
+            <h1 className="text-[19px] font-semibold text-terminal-text-primary tracking-tight font-mono">
+              AI INVESTMENT RECOMMENDATIONS
+            </h1>
+            <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-mono bg-terminal-surface-elevated text-terminal-text-muted border border-terminal-border">
+              PHASE 19.5.5
+            </span>
           </div>
-          <div>
-            <h1 className="page-title">Khuyến Nghị Đầu Tư Đa Khung Thời Gian (AI Recommendations)</h1>
-            <p className="text-xs text-terminal-text-muted">
-              Kết hợp mô hình định lượng Technical + Fundamental + Money Flow + Risk/Reward
-            </p>
-          </div>
+          <p className="text-[11px] text-terminal-text-muted max-w-[42rem] font-sans leading-relaxed">
+            Hệ thống xếp hạng và chấm điểm chiến lược đa khung thời gian (StrategyScorer + SignalEngine + RiskRewardEngine) dựa trên dữ liệu giao dịch thực tế từ KBS & VPS.
+          </p>
+          <LearnThis feature="Recommendations" />
         </div>
 
-        {/* Horizon Selector */}
-        <div className="flex items-center gap-1 bg-terminal-surface border border-terminal-border p-1 rounded">
-          {(['SHORT_TERM', 'MEDIUM_TERM', 'LONG_TERM'] as InvestmentHorizon[]).map((h) => (
-            <button
-              key={h}
-              onClick={() => setHorizon(h)}
-              className={`px-3 py-1 text-xs font-mono font-medium rounded transition-colors ${
-                horizon === h
-                  ? 'bg-terminal-accent text-white font-bold'
-                  : 'text-terminal-text-muted hover:text-terminal-text'
-              }`}
-            >
-              {HORIZON_LABELS[h].vi}
-            </button>
-          ))}
+        {/* Horizon Tabs */}
+        <div className="flex items-center bg-terminal-bg p-0.5 rounded-sm border border-terminal-border shrink-0">
+          {(['SHORT_TERM', 'MEDIUM_TERM', 'LONG_TERM'] as InvestmentHorizon[]).map((hz) => {
+            const isSelected = strategy === hz;
+            return (
+              <button
+                key={hz}
+                onClick={() => setStrategy(hz)}
+                aria-pressed={isSelected}
+                className={`px-2.5 py-1 rounded-sm text-[11px] font-mono transition-colors cursor-pointer ${
+                  isSelected
+                    ? 'bg-terminal-surface-elevated text-terminal-text-primary'
+                    : 'text-terminal-text-muted hover:text-terminal-text-secondary'
+                }`}
+              >
+                {HORIZON_LABELS[hz].split(' ')[0]}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {ranking.rankings.map((rec: any) => {
-          const meta = VIETNAM_STOCKS_UNIVERSE.find((s) => s.symbol === rec.symbol);
-          return (
-            <div
-              key={rec.symbol}
-              onClick={() => onSelectStock(rec.symbol)}
-              className="bg-terminal-surface border border-terminal-border rounded p-4 space-y-3 cursor-pointer hover:border-terminal-accent transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-base font-bold text-terminal-text">{rec.symbol}</span>
-                  <Badge variant="subtle" size="xs">
-                    {meta?.exchange ?? 'HOSE'}
-                  </Badge>
-                </div>
-                <Badge
-                  variant={rec.signal === 'BUY' ? 'up' : rec.signal === 'SELL' ? 'down' : 'subtle'}
-                  size="xs"
-                >
-                  {rec.signal}
-                </Badge>
-              </div>
-
-
-              <div className="text-xs text-terminal-text-muted truncate">
-                {meta?.companyName ?? rec.symbol}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-terminal-border/60 text-xs">
-                <div>
-                  <span className="text-terminal-text-muted block text-[10px] font-mono">ĐIỂM COMPOSITE</span>
-                  <span className="font-mono font-bold text-terminal-accent text-sm">{rec.score} / 100</span>
-                </div>
-                <div>
-                  <span className="text-terminal-text-muted block text-[10px] font-mono">KỲ VỌNG LỢI NHUẬN</span>
-                  <span className="font-mono font-bold text-emerald-400 text-sm">
-                    {rec.targetReturn ? `+${rec.targetReturn.toFixed(1)}%` : '—'}
+      {/* Universe Strategy Rankings Table */}
+      <div className="p-3 rounded-sm bg-terminal-surface border border-terminal-border space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              Bảng Xếp Hạng Khuyến Nghị Theo Chiến Lược ({HORIZON_LABELS[strategy]})
+            </h3>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-slate-400 mt-1">
+              <span>
+                Tổng số mã phân tích: <strong className="text-slate-200">{data?.universeSize ?? rankings.length}</strong> mã
+              </span>
+              <span>•</span>
+              <span>
+                Hiển thị: <strong className="text-emerald-400">{sortedAndFilteredRankings.length}</strong> mã
+              </span>
+              {data?.generatedAt && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-slate-400">
+                    <Clock className="w-3 h-3 text-slate-500" />
+                    Đánh giá lúc: {formatEvaluationTimestamp(data.generatedAt)}
                   </span>
-                </div>
-              </div>
+                </>
+              )}
+              {data?.dataSource && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-slate-400">
+                    <Database className="w-3 h-3 text-emerald-500/80" />
+                    Nguồn: {data.dataSource === 'KBS_VPS' ? 'KBS & VPS' : data.dataSource}
+                  </span>
+                </>
+              )}
+              {data?.dataStatus && (
+                <>
+                  <span>•</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded text-[10px] font-mono border ${
+                      data.dataStatus === 'OK'
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                    }`}
+                  >
+                    {data.dataStatus === 'OK' ? 'CHUẨN HÓA ĐỒNG BỘ' : data.dataStatus}
+                  </span>
+                </>
+              )}
             </div>
-          );
-        })}
+          </div>
+
+          {/* Controls: Search, Filter, Refresh */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm mã hoặc tên CT..."
+                className="pl-8 pr-3 py-1 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 w-44"
+              />
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-mono">
+              <span className="text-slate-500 px-1.5 text-[11px] flex items-center gap-1">
+                <Filter className="w-3 h-3" /> Lọc:
+              </span>
+              {(['ALL', 'BUY', 'HOLD', 'SELL'] as const).map((sig) => (
+                <button
+                  key={sig}
+                  onClick={() => setSignalFilter(sig)}
+                  className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors cursor-pointer ${
+                    signalFilter === sig
+                      ? sig === 'BUY'
+                        ? 'bg-emerald-500 text-slate-950'
+                        : sig === 'SELL'
+                        ? 'bg-rose-500 text-white'
+                        : sig === 'HOLD'
+                        ? 'bg-amber-500 text-slate-950'
+                        : 'bg-slate-700 text-white'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {sig === 'ALL' ? 'Tất cả' : sig === 'BUY' ? 'MUA' : sig === 'HOLD' ? 'GIỮ' : 'BÁN'}
+                </button>
+              ))}
+            </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              title="Làm mới dữ liệu xếp hạng"
+              className="p-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-400 hover:text-emerald-400 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-emerald-400' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Table / States */}
+        {isLoading ? (
+          <div className="py-12 text-center text-xs font-mono text-slate-400">
+            <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            Đang chấm điểm và xếp hạng chiến lược toàn rổ cổ phiếu...
+          </div>
+        ) : error ? (
+          <div className="py-8 px-4 text-center rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-mono text-rose-300 flex flex-col items-center justify-center gap-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-400" />
+              <span>Không thể tải bảng xếp hạng khuyến nghị: {(error as Error)?.message || 'Lỗi mạng hoặc máy chủ'}</span>
+            </div>
+            <button
+              onClick={() => refetch()}
+              className="px-3 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 text-xs font-mono transition-colors cursor-pointer"
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : sortedAndFilteredRankings.length === 0 ? (
+          <div className="py-12 text-center text-xs font-mono text-slate-400 bg-slate-950/20 rounded-lg border border-slate-800/60 p-6 space-y-2">
+            <p className="text-slate-300 font-semibold">
+              {rankings.length === 0
+                ? 'Chưa có dữ liệu xếp hạng chiến lược cho khung thời gian này.'
+                : 'Không có mã nào thỏa mãn điều kiện lọc.'}
+            </p>
+            <p className="text-slate-500 text-[11px]">
+              {rankings.length === 0
+                ? 'Vui lòng kiểm tra lại kết nối nguồn dữ liệu định lượng.'
+                : 'Thử chuyển bộ lọc tín hiệu về "Tất cả" hoặc xóa ô tìm kiếm.'}
+            </p>
+            {(signalFilter !== 'ALL' || searchQuery.trim() !== '') && (
+              <button
+                onClick={resetFilters}
+                className="mt-2 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded text-xs font-mono inline-block cursor-pointer"
+              >
+                Đặt lại bộ lọc & tìm kiếm
+              </button>
+            )}
+          </div>
+        ) : (
+          <RankingsTable
+            rankings={sortedAndFilteredRankings}
+            activeStockSymbol={activeTabStock}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSort={handleSort}
+            onSelectRowStock={handleSelectRowStock}
+            onNavigateToStock={handleNavigateToStock}
+          />
+        )}
+      </div>
+
+      {/* Deep-dive Stock Recommendation Panel for Selected Stock */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-200 font-mono uppercase tracking-wider flex items-center gap-2">
+            <Layers className="w-4 h-4 text-emerald-400" />
+            Chi Tiết Khuyến Nghị Định Lượng: <span className="text-emerald-400">{activeTabStock}</span>
+          </h3>
+          <button
+            onClick={() => handleNavigateToStock(activeTabStock)}
+            className="text-xs font-mono text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            Mở trang phân tích đầy đủ {activeTabStock} <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <StockRecommendationsView symbol={activeTabStock} />
       </div>
     </div>
   );

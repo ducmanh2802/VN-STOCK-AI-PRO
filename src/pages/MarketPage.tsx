@@ -4,7 +4,7 @@ import type { MarketIntelligenceSnapshot } from '../lib/analysis/market/types';
 import { MarketOverview } from '../components/dashboard/MarketOverview';
 import { MarketHeatmap } from '../components/dashboard/MarketHeatmap';
 import { TopMovers } from '../components/dashboard/TopMovers';
-import { DemoBadge } from '../components/common/DemoBadge';
+import { SourceBadge } from '../components/common/SourceBadge';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorBoundary';
 import { formatBillionVND, formatPercent } from '../utils/formatters';
@@ -86,7 +86,7 @@ export function MarketPage({
           <h1 className="text-2xl font-semibold tracking-tight text-terminal-text">Market Intelligence</h1>
           <p className="mt-1 max-w-[42rem] text-sm text-terminal-muted">A canonical view of market state, breadth, participation, structure and risk.</p>
         </div>
-        <DemoBadge size="md" />
+        <SourceBadge size="md" />
       </header>
 
       <MarketOverview indices={indices} />
@@ -97,16 +97,13 @@ export function MarketPage({
         <div className="space-y-4" aria-label="Market intelligence analysis">
           <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
             <IntelPanel title="Market state" eyebrow="01 / current regime">
-              {regime ? (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <div><p className="metric-label">Regime</p><p className="mt-1 text-lg font-semibold text-terminal-accent">{stateLabel[regime.regime] ?? regime.regime}</p></div>
-                  <div><p className="metric-label">Confidence</p><p className="metric-value-lg">{regime.confidence.toFixed(0)}<span className="text-sm text-terminal-muted">/100</span></p></div>
-                  <div><p className="metric-label">Trend score</p><p className="metric-value-lg">{ratio(regime.scores?.trendScore, 0)}</p></div>
-                  <div><p className="metric-label">As of</p><p className="mt-1 font-mono text-xs text-terminal-muted">{regime.timestamp ? new Date(regime.timestamp).toLocaleString('vi-VN') : '—'}</p></div>
-                </div>
-              ) : <DataUnavailable />}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div><p className="metric-label">Regime</p><p className="mt-1 text-lg font-semibold text-terminal-accent">{stateLabel[regime.regime] ?? regime.regime}</p></div>
+                <div><p className="metric-label">Confidence</p><p className="metric-value-lg">{regime.confidence.toFixed(0)}<span className="text-sm text-terminal-muted">/100</span></p></div>
+                <div><p className="metric-label">Trend score</p><p className="metric-value-lg">{ratio(regime.scores.trendScore, 0)}</p></div>
+                <div><p className="metric-label">As of</p><p className="mt-1 font-mono text-xs text-terminal-muted">{new Date(regime.timestamp).toLocaleString('vi-VN')}</p></div>
+              </div>
             </IntelPanel>
-
             <IntelPanel title="Data quality" eyebrow="authoritative coverage">
               <div className="flex items-end justify-between gap-4"><div><p className="metric-label">Coverage</p><p className="metric-value-xl">{snapshot.dataQuality.coveragePercent.toFixed(1)}%</p></div><div className="text-right text-xs text-terminal-muted"><p>{snapshot.dataQuality.validSymbols} valid / {snapshot.dataQuality.totalUniverseSymbols} universe</p><p className="mt-1">{snapshot.dataQuality.isFailClosed ? 'Fail-closed' : 'Validated'}</p></div></div>
               <div className="mt-3 h-1.5 overflow-hidden rounded bg-terminal-surface-high"><div className="h-full bg-terminal-accent" style={{ width: `${Math.min(snapshot.dataQuality.coveragePercent, 100)}%` }} /></div>
@@ -123,7 +120,7 @@ export function MarketPage({
             </IntelPanel>
             <IntelPanel title="Participation & momentum" eyebrow="03 / moving average health">
               {breadth ? <div className="grid grid-cols-3 gap-3"><div><p className="metric-label">Above MA20</p><p className="metric-value-lg">{percent(breadth.percentAboveMA20)}</p></div><div><p className="metric-label">Above MA50</p><p className="metric-value-lg">{percent(breadth.percentAboveMA50)}</p></div><div><p className="metric-label">Above MA200</p><p className="metric-value-lg">{percent(breadth.percentAboveMA200)}</p></div></div> : <DataUnavailable />}
-              <div className="mt-5 grid grid-cols-2 gap-3 border-t border-terminal-border/60 pt-3 text-xs"><span className="text-terminal-muted">Momentum score <strong className="font-mono text-terminal-text">{ratio(regime?.scores?.momentumScore, 0)}</strong></span><span className="text-terminal-muted">Liquidity score <strong className="font-mono text-terminal-text">{ratio(regime?.scores?.liquidityScore, 0)}</strong></span></div>
+              <div className="mt-5 grid grid-cols-2 gap-3 border-t border-terminal-border/60 pt-3 text-xs"><span className="text-terminal-muted">Momentum score <strong className="font-mono text-terminal-text">{ratio(regime.scores.momentumScore, 0)}</strong></span><span className="text-terminal-muted">Liquidity score <strong className="font-mono text-terminal-text">{ratio(regime.scores.liquidityScore, 0)}</strong></span></div>
             </IntelPanel>
           </div>
 
@@ -138,8 +135,7 @@ export function MarketPage({
       )}
 
       <MarketHeatmap sectors={sectors} onSelectStock={onSelectStock} />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2"><TopMovers gainers={gainers} losers={losers} active={active} onSelectStock={onSelectStock} /><IntelPanel title="Sector performance" eyebrow="existing market view"><div className="overflow-x-auto"><table className="w-full text-left text-xs font-mono"><thead><tr className="border-b border-terminal-border text-terminal-muted"><th className="py-2 pr-2">Sector</th><th className="py-2 text-right">Change</th><th className="py-2 text-right">Trading Value</th><th className="py-2 text-right">Leader</th></tr></thead><tbody>{sectors.map((sec) => <tr key={sec.id} className="border-b border-terminal-border/40 hover:bg-terminal-surface-high/60"><td className="py-2 pr-2 text-terminal-text">{sec.name}</td><td className={`py-2 text-right font-semibold ${sec.changePercent >= 0 ? 'text-terminal-positive' : 'text-terminal-negative'}`}>{formatPercent(sec.changePercent)}</td><td className="py-2 text-right text-terminal-muted">{formatBillionVND(sec.totalValue)}</td><td className="py-2 text-right"><button onClick={() => onSelectStock(sec.topStock)} className="rounded border border-terminal-border px-2 py-1 text-terminal-accent transition-colors hover:bg-terminal-accent/10">{sec.topStock}</button></td></tr>)}</tbody></table></div></IntelPanel></div>
-
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2"><TopMovers gainers={gainers} losers={losers} active={active} onSelectStock={onSelectStock} /><IntelPanel title="Sector performance" eyebrow="existing market view"><div className="overflow-x-auto"><table className="w-full text-left text-xs font-mono"><thead><tr className="border-b border-terminal-border text-terminal-muted"><th className="py-2 pr-2">Sector</th><th className="py-2 text-right">Change</th><th className="py-2 text-right">Market cap</th><th className="py-2 text-right">Leader</th></tr></thead><tbody>{sectors.map((sec) => <tr key={sec.id} className="border-b border-terminal-border/40 hover:bg-terminal-surface-high/60"><td className="py-2 pr-2 text-terminal-text">{sec.name}</td><td className={`py-2 text-right font-semibold ${sec.changePercent >= 0 ? 'text-terminal-positive' : 'text-terminal-negative'}`}>{formatPercent(sec.changePercent)}</td><td className="py-2 text-right text-terminal-muted">{formatBillionVND(sec.marketCap)}</td><td className="py-2 text-right"><button onClick={() => onSelectStock(sec.leaderSymbol)} className="rounded border border-terminal-border px-2 py-1 text-terminal-accent transition-colors hover:bg-terminal-accent/10">{sec.leaderSymbol}</button></td></tr>)}</tbody></table></div></IntelPanel></div>
     </div>
   );
 }

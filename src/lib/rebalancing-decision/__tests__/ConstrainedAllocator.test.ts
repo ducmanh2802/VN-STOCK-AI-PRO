@@ -8,7 +8,9 @@ describe('ConstrainedAllocator — bounded simplex projection', () => {
       maxIterations: 100,
       tolerance: 1e-9,
     });
-    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(result.detail);
+    }
     expect(result.iterations).toBeGreaterThan(0);
     // A should be clipped to at most 0.6; with default lo=0, hi=1 but projection may still keep 0.9 if no band → the test ensures bands matter when specified
   });

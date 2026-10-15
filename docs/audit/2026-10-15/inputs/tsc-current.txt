@@ -1,0 +1,594 @@
+﻿scripts/reconcile-daily-prices.ts(11,44): error TS2307: Cannot find module '../src/services/data/dailyPriceReconciliation.ts' or its corresponding type declarations.
+scripts/verify-real-backtest.ts(19,38): error TS2307: Cannot find module '../src/lib/trading/backtest/BacktestDataProvider.ts' or its corresponding type declarations.
+scripts/verify-real-backtest.ts(20,32): error TS2307: Cannot find module '../src/lib/trading/backtest/BacktestEngine.ts' or its corresponding type declarations.
+scripts/verify-real-backtest.ts(253,18): error TS7031: Binding element 'currentIndex' implicitly has an 'any' type.
+scripts/verify-real-backtest.ts(253,32): error TS7031: Binding element 'currentCandle' implicitly has an 'any' type.
+scripts/verify-real-backtest.ts(276,47): error TS7006: Parameter 't' implicitly has an 'any' type.
+scripts/verify-real-backtest.ts(294,18): error TS7031: Binding element 'currentIndex' implicitly has an 'any' type.
+scripts/verify-real-backtest.ts(294,32): error TS7031: Binding element 'currentCandle' implicitly has an 'any' type.
+scripts/verify-real-backtest.ts(337,18): error TS7031: Binding element 'currentIndex' implicitly has an 'any' type.
+scripts/verify-real-backtest.ts(337,32): error TS7031: Binding element 'currentCandle' implicitly has an 'any' type.
+scripts/verify-real-backtest.ts(359,52): error TS7006: Parameter 't' implicitly has an 'any' type.
+server.ts(664,33): error TS2339: Property 'bars' does not exist on type 'HistoricalCandle[]'.
+server.ts(664,46): error TS2339: Property 'bars' does not exist on type 'HistoricalCandle[]'.
+server.ts(665,64): error TS2339: Property 'candles' does not exist on type 'HistoricalCandle[]'.
+server.ts(665,73): error TS2554: Expected 1 arguments, but got 2.
+server.ts(666,25): error TS2339: Property 'from' does not exist on type 'HistoricalCandle[]'.
+server.ts(667,23): error TS2339: Property 'to' does not exist on type 'HistoricalCandle[]'.
+server.ts(671,27): error TS2339: Property 'symbol' does not exist on type 'HistoricalCandle[]'.
+server.ts(672,30): error TS2339: Property 'timeframe' does not exist on type 'HistoricalCandle[]'.
+server.ts(675,32): error TS2339: Property 'retrievedAt' does not exist on type 'HistoricalCandle[]'.
+server.ts(759,33): error TS2339: Property 'candles' does not exist on type 'HistoricalCandle[]'.
+server.ts(772,54): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(773,53): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(790,32): error TS2339: Property 'from' does not exist on type 'HistoricalCandle[]'.
+server.ts(791,30): error TS2339: Property 'to' does not exist on type 'HistoricalCandle[]'.
+server.ts(795,32): error TS2339: Property 'retrievedAt' does not exist on type 'HistoricalCandle[]'.
+server.ts(822,31): error TS2339: Property 'candles' does not exist on type 'HistoricalCandle[]'.
+server.ts(830,31): error TS2339: Property 'candles' does not exist on type 'HistoricalCandle[]'.
+server.ts(832,52): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(833,51): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(843,45): error TS2339: Property 'quarterly' does not exist on type 'VpsNormalizedFundamentals'.
+server.ts(844,46): error TS2339: Property 'quarterly' does not exist on type 'VpsNormalizedFundamentals'.
+server.ts(845,46): error TS2339: Property 'quarterly' does not exist on type 'VpsNormalizedFundamentals'.
+server.ts(846,47): error TS2339: Property 'quarterly' does not exist on type 'VpsNormalizedFundamentals'.
+server.ts(871,36): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(871,69): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+server.ts(871,74): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(872,39): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+server.ts(872,44): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(932,37): error TS2339: Property 'candles' does not exist on type 'HistoricalCandle[]'.
+server.ts(937,58): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(938,57): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(947,52): error TS2339: Property 'quarterly' does not exist on type 'VpsNormalizedFundamentals'.
+server.ts(948,51): error TS2339: Property 'quarterly' does not exist on type 'VpsNormalizedFundamentals'.
+server.ts(949,52): error TS2339: Property 'quarterly' does not exist on type 'VpsNormalizedFundamentals'.
+server.ts(964,43): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(964,76): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+server.ts(964,81): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(965,46): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+server.ts(965,51): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server.ts(993,11): error TS2353: Object literal may only specify known properties, and 'strategy' does not exist in type 'RankingRequest'.
+server.ts(1147,33): error TS2339: Property 'then' does not exist on type 'void'.
+server.ts(1148,59): error TS2339: Property 'status' does not exist on type 'EodIngestionScheduler'.
+src/components/dashboard/__tests__/MarketBreadthWidget.test.tsx(19,3): error TS2353: Object literal may only specify known properties, and 'ceilings' does not exist in type 'MarketBreadth'.
+src/components/dashboard/__tests__/MarketIntelligenceWidget.test.tsx(170,13): error TS2353: Object literal may only specify known properties, and 'levelSource' does not exist in type 'IndexData'.
+src/components/dashboard/__tests__/MarketIntelligenceWidget.test.tsx(188,13): error TS2353: Object literal may only specify known properties, and 'levelSource' does not exist in type 'IndexData'.
+src/components/dashboard/AIMarketSummaryCard.tsx(15,13): error TS2339: Property 'trend' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(15,52): error TS2339: Property 'trend' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(30,77): error TS2339: Property 'isDemo' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(42,28): error TS2339: Property 'trendScore' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(43,28): error TS2339: Property 'trend' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(48,28): error TS2339: Property 'updatedAt' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(64,26): error TS2339: Property 'trend' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(83,24): error TS2339: Property 'moneyFlow' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(97,24): error TS2339: Property 'strongSectors' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(97,43): error TS7006: Parameter 'sec' implicitly has an 'any' type.
+src/components/dashboard/AIMarketSummaryCard.tsx(97,48): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/components/dashboard/AIMarketSummaryCard.tsx(113,24): error TS2339: Property 'weakSectors' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(113,41): error TS7006: Parameter 'sec' implicitly has an 'any' type.
+src/components/dashboard/AIMarketSummaryCard.tsx(113,46): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/components/dashboard/AIMarketSummaryCard.tsx(130,22): error TS2339: Property 'riskAlerts' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(130,38): error TS7006: Parameter 'risk' implicitly has an 'any' type.
+src/components/dashboard/AIMarketSummaryCard.tsx(130,44): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/components/dashboard/AIMarketSummaryCard.tsx(146,22): error TS2339: Property 'overallComment' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AIMarketSummaryCard.tsx(155,48): error TS2339: Property 'disclaimer' does not exist on type 'AIMarketSummary'.
+src/components/dashboard/AITopSignalsWidget.tsx(99,44): error TS2339: Property 'signalType' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(99,72): error TS2339: Property 'signalType' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(100,51): error TS2339: Property 'signalType' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(101,46): error TS2339: Property 'signalType' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(101,76): error TS2339: Property 'signalType' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(107,45): error TS2339: Property 'signalType' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(159,97): error TS2339: Property 'isDemo' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(213,30): error TS2339: Property 'exchange' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(216,30): error TS2339: Property 'sector' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(220,28): error TS2339: Property 'companyName' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(225,41): error TS2339: Property 'signalType' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(225,57): error TS2339: Property 'signalLabel' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(238,38): error TS2339: Property 'currentPrice' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(254,28): error TS2339: Property 'upsidePercent' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(254,74): error TS2339: Property 'upsidePercent' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(255,35): error TS2339: Property 'upsidePercent' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(264,26): error TS2339: Property 'technicalSummary' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(266,24): error TS2339: Property 'catalysts' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(266,41): error TS2339: Property 'catalysts' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(269,55): error TS2339: Property 'catalysts' does not exist on type 'AITopSignal'.
+src/components/dashboard/AITopSignalsWidget.tsx(281,86): error TS2339: Property 'riskRewardRatio' does not exist on type 'AITopSignal'.
+src/components/dashboard/MarketBreadthWidget.tsx(83,29): error TS2339: Property 'ceilings' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(85,27): error TS2339: Property 'floors' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(88,17): error TS2339: Property 'exchangeBreakdown' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(111,73): error TS2339: Property 'isDemo' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(134,16): error TS2339: Property 'coverage' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(137,26): error TS2339: Property 'coverage' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(139,29): error TS2339: Property 'coverage' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(140,20): error TS2339: Property 'coverage' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(140,56): error TS2339: Property 'coverage' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(208,91): error TS2339: Property 'breadthStatus' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(232,18): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(239,49): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(246,44): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(248,50): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(251,44): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(253,57): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(256,44): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(258,50): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(265,45): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(267,76): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(271,45): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(273,76): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(277,45): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketBreadthWidget.tsx(279,76): error TS2339: Property 'volumeBreadth' does not exist on type 'MarketBreadth'.
+src/components/dashboard/MarketHeatmap.tsx(82,56): error TS2551: Property 'stocksCount' does not exist on type 'SectorHeatmapItem'. Did you mean 'stockCount'?
+src/components/dashboard/MarketHeatmap.tsx(84,53): error TS2339: Property 'leaderSymbol' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/MarketHeatmap.tsx(87,44): error TS2339: Property 'leaderSymbol' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/MarketHeatmap.tsx(90,59): error TS2339: Property 'leaderSymbol' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/MarketHeatmap.tsx(92,29): error TS2339: Property 'leaderSymbol' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/MarketHeatmap.tsx(106,81): error TS2339: Property 'marketCap' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/MarketHeatmap.tsx(108,66): error TS2339: Property 'leaderSymbol' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/MarketSentimentWidget.tsx(107,75): error TS2339: Property 'isDemo' does not exist on type 'MarketSentiment'.
+src/components/dashboard/MarketSentimentWidget.tsx(110,38): error TS2339: Property 'updatedAt' does not exist on type 'MarketSentiment'.
+src/components/dashboard/MarketSentimentWidget.tsx(133,28): error TS2339: Property 'momentum' does not exist on type 'MarketSentiment'.
+src/components/dashboard/MarketSentimentWidget.tsx(164,24): error TS2339: Property 'description' does not exist on type 'MarketSentiment'.
+src/components/dashboard/MarketSentimentWidget.tsx(172,40): error TS2339: Property 'foreignFlow' does not exist on type 'MarketSentiment'.
+src/components/dashboard/MarketSentimentWidget.tsx(173,38): error TS2339: Property 'proprietaryFlow' does not exist on type 'MarketSentiment'.
+src/components/dashboard/MarketSentimentWidget.tsx(174,48): error TS2339: Property 'retailFlow' does not exist on type 'MarketSentiment'.
+src/components/dashboard/MarketSentimentWidget.tsx(216,20): error TS2339: Property 'keyFactors' does not exist on type 'MarketSentiment'.
+src/components/dashboard/MarketSentimentWidget.tsx(216,44): error TS2339: Property 'keyFactors' does not exist on type 'MarketSentiment'.
+src/components/dashboard/MarketSentimentWidget.tsx(222,26): error TS2339: Property 'keyFactors' does not exist on type 'MarketSentiment'.
+src/components/dashboard/MarketSentimentWidget.tsx(222,42): error TS7006: Parameter 'factor' implicitly has an 'any' type.
+src/components/dashboard/MarketSentimentWidget.tsx(222,50): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/dashboard/MostActiveWidget.tsx(95,92): error TS2339: Property 'isDemo' does not exist on type 'TopMover'.
+src/components/dashboard/SectorHeatmapWidget.tsx(88,43): error TS2339: Property 'marketCap' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/SectorHeatmapWidget.tsx(88,65): error TS2339: Property 'marketCap' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/SectorHeatmapWidget.tsx(89,39): error TS2339: Property 'volume' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/SectorHeatmapWidget.tsx(89,50): error TS2339: Property 'volume' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/SectorHeatmapWidget.tsx(117,93): error TS2339: Property 'isDemo' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/SectorHeatmapWidget.tsx(198,46): error TS2339: Property 'leaderSymbol' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/SectorHeatmapWidget.tsx(202,56): error TS2339: Property 'leaderSymbol' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/SectorHeatmapWidget.tsx(204,31): error TS2339: Property 'leaderSymbol' does not exist on type 'SectorHeatmapItem'.
+src/components/dashboard/SectorHeatmapWidget.tsx(206,33): error TS2551: Property 'stocksCount' does not exist on type 'SectorHeatmapItem'. Did you mean 'stockCount'?
+src/components/dashboard/TopGainersWidget.tsx(95,93): error TS2339: Property 'isDemo' does not exist on type 'TopMover'.
+src/components/dashboard/TopLosersWidget.tsx(95,92): error TS2339: Property 'isDemo' does not exist on type 'TopMover'.
+src/components/dashboard/TopMoversSection.tsx(92,101): error TS2339: Property 'isDemo' does not exist on type 'TopMover'.
+src/components/dashboard/TopMoversSection.tsx(92,141): error TS2339: Property 'isDemo' does not exist on type 'TopMover'.
+src/components/dashboard/TopMoversSection.tsx(92,181): error TS2339: Property 'isDemo' does not exist on type 'TopMover'.
+src/components/dashboard/WatchlistPreviewWidget.tsx(100,99): error TS2339: Property 'isDemo' does not exist on type 'StockSummary'.
+src/components/stock/__tests__/StockHardenedComponents.test.tsx(9,31): error TS2305: Module '"../../../types/stockDetail"' has no exported member 'FundamentalMetrics'.
+src/components/stock/__tests__/StockHardenedComponents.test.tsx(111,7): error TS2322: Type 'string' is not assignable to type 'number'.
+src/components/stock/__tests__/StockHardenedComponents.test.tsx(174,9): error TS2353: Object literal may only specify known properties, and 'r3' does not exist in type 'SupportResistanceLevels'.
+src/components/stock/__tests__/StockHardenedComponents.test.tsx(195,9): error TS2353: Object literal may only specify known properties, and 'signalLabel' does not exist in type 'StockAISignalData'.
+src/components/stock/__tests__/StockMoneyFlow.test.tsx(14,3): error TS2353: Object literal may only specify known properties, and 'largeOrderPercent' does not exist in type 'MoneyFlowData'.
+src/components/stock/StockAIExplanation.tsx(2,10): error TS2305: Module '"../../types/stockDetail"' has no exported member 'StockAIExplanationData'.
+src/components/stock/StockAIExplanation.tsx(88,38): error TS7006: Parameter 'risk' implicitly has an 'any' type.
+src/components/stock/StockAIExplanation.tsx(88,44): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/stock/StockAISignalCard.tsx(47,23): error TS2339: Property 'updatedAt' does not exist on type 'StockAISignalData'.
+src/components/stock/StockAISignalCard.tsx(49,27): error TS2339: Property 'updatedAt' does not exist on type 'StockAISignalData'.
+src/components/stock/StockAISignalCard.tsx(55,101): error TS2339: Property 'timeframe' does not exist on type 'StockAISignalData'.
+src/components/stock/StockAISignalCard.tsx(62,21): error TS2339: Property 'signalLabel' does not exist on type 'StockAISignalData'.
+src/components/stock/StockAISignalCard.tsx(120,78): error TS2339: Property 'riskRewardRatio' does not exist on type 'StockAISignalData'.
+src/components/stock/StockAISignalCard.tsx(134,35): error TS2339: Property 'catalysts' does not exist on type 'StockAISignalData'.
+src/components/stock/StockAISignalCard.tsx(134,56): error TS2339: Property 'catalysts' does not exist on type 'StockAISignalData'.
+src/components/stock/StockAISignalCard.tsx(135,22): error TS2339: Property 'catalysts' does not exist on type 'StockAISignalData'.
+src/components/stock/StockAISignalCard.tsx(135,37): error TS7006: Parameter 'cat' implicitly has an 'any' type.
+src/components/stock/StockAISignalCard.tsx(135,42): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/stock/StockAISignalCard.tsx(154,35): error TS2551: Property 'riskWarnings' does not exist on type 'StockAISignalData'. Did you mean 'warnings'?
+src/components/stock/StockAISignalCard.tsx(154,59): error TS2551: Property 'riskWarnings' does not exist on type 'StockAISignalData'. Did you mean 'warnings'?
+src/components/stock/StockAISignalCard.tsx(155,22): error TS2551: Property 'riskWarnings' does not exist on type 'StockAISignalData'. Did you mean 'warnings'?
+src/components/stock/StockAISignalCard.tsx(155,40): error TS7006: Parameter 'risk' implicitly has an 'any' type.
+src/components/stock/StockAISignalCard.tsx(155,46): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/stock/StockAnalysisCard.tsx(75,9): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/stock/StockCandlestickChart.tsx(52,5): error TS2353: Object literal may only specify known properties, and 'Bollinger' does not exist in type 'Record<IndicatorKey, boolean> | (() => Record<IndicatorKey, boolean>)'.
+src/components/stock/StockCandlestickChart.tsx(103,36): error TS2339: Property 'Volume' does not exist on type 'Record<IndicatorKey, boolean>'.
+src/components/stock/StockCandlestickChart.tsx(126,26): error TS2339: Property 'Volume' does not exist on type 'Record<IndicatorKey, boolean>'.
+src/components/stock/StockCandlestickChart.tsx(142,19): error TS2339: Property 'time' does not exist on type 'number'.
+src/components/stock/StockCandlestickChart.tsx(143,20): error TS2551: Property 'value' does not exist on type 'number'. Did you mean 'valueOf'?
+src/components/stock/StockCandlestickChart.tsx(144,20): error TS2339: Property 'color' does not exist on type 'number'.
+src/components/stock/StockCandlestickChart.tsx(150,34): error TS18048: 'chartData.sma20' is possibly 'undefined'.
+src/components/stock/StockCandlestickChart.tsx(160,34): error TS18048: 'chartData.sma50' is possibly 'undefined'.
+src/components/stock/StockCandlestickChart.tsx(170,35): error TS18048: 'chartData.sma200' is possibly 'undefined'.
+src/components/stock/StockCandlestickChart.tsx(180,26): error TS2551: Property 'Bollinger' does not exist on type 'Record<IndicatorKey, boolean>'. Did you mean 'BOLLINGER'?
+src/components/stock/StockCandlestickChart.tsx(180,49): error TS2339: Property 'bollinger' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(199,33): error TS2339: Property 'bollinger' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(199,48): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/components/stock/StockCandlestickChart.tsx(200,34): error TS2339: Property 'bollinger' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(200,49): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/components/stock/StockCandlestickChart.tsx(201,33): error TS2339: Property 'bollinger' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(201,48): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/components/stock/StockCandlestickChart.tsx(246,105): error TS2551: Property 'Bollinger' does not exist on type 'Record<IndicatorKey, boolean>'. Did you mean 'BOLLINGER'?
+src/components/stock/StockCandlestickChart.tsx(246,133): error TS2339: Property 'Volume' does not exist on type 'Record<IndicatorKey, boolean>'.
+src/components/stock/StockCandlestickChart.tsx(250,86): error TS2339: Property 'rsi' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(285,33): error TS2339: Property 'rsi' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(324,88): error TS2339: Property 'macd' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(359,17): error TS2339: Property 'macd' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(359,27): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/components/stock/StockCandlestickChart.tsx(372,32): error TS2339: Property 'macd' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(372,42): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/components/stock/StockCandlestickChart.tsx(380,34): error TS2339: Property 'macd' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(380,44): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/components/stock/StockCandlestickChart.tsx(470,44): error TS2345: Argument of type '"Bollinger"' is not assignable to parameter of type 'IndicatorKey'.
+src/components/stock/StockCandlestickChart.tsx(472,32): error TS2551: Property 'Bollinger' does not exist on type 'Record<IndicatorKey, boolean>'. Did you mean 'BOLLINGER'?
+src/components/stock/StockCandlestickChart.tsx(481,44): error TS2345: Argument of type '"Volume"' is not assignable to parameter of type 'IndicatorKey'.
+src/components/stock/StockCandlestickChart.tsx(483,32): error TS2339: Property 'Volume' does not exist on type 'Record<IndicatorKey, boolean>'.
+src/components/stock/StockCandlestickChart.tsx(565,25): error TS2339: Property 'snapshot' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(567,85): error TS2339: Property 'snapshot' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(567,126): error TS2339: Property 'snapshot' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(582,25): error TS2339: Property 'snapshot' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(584,80): error TS2339: Property 'snapshot' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(585,67): error TS2339: Property 'snapshot' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockCandlestickChart.tsx(585,110): error TS2339: Property 'snapshot' does not exist on type 'StockChartDataBundle'.
+src/components/stock/StockFundamentals.tsx(2,10): error TS2305: Module '"../../types/stockDetail"' has no exported member 'FundamentalMetrics'.
+src/components/stock/StockQuickViewModal.tsx(172,91): error TS2339: Property 'refPrice' does not exist on type 'StockSummary'.
+src/components/stock/StockRealFundamentals.tsx(39,37): error TS2339: Property 'dataStatus' does not exist on type 'VpsNormalizedFundamentals'.
+src/components/stock/StockRealFundamentals.tsx(52,26): error TS2339: Property 'quarterly' does not exist on type 'VpsNormalizedFundamentals'.
+src/components/stock/StockRealFundamentals.tsx(53,26): error TS2339: Property 'annual' does not exist on type 'VpsNormalizedFundamentals'.
+src/components/stock/StockRealFundamentals.tsx(54,47): error TS2339: Property 'quarterlyPeriods' does not exist on type 'VpsNormalizedFundamentals'.
+src/components/stock/StockRealFundamentals.tsx(55,47): error TS2339: Property 'annualPeriods' does not exist on type 'VpsNormalizedFundamentals'.
+src/components/stock/StockRecommendationsView.tsx(136,37): error TS2339: Property 'split' does not exist on type '{ vi: string; en: string; holding: string; }'.
+src/components/stock/StockRecommendationsView.tsx(161,63): error TS2322: Type '{ vi: string; en: string; holding: string; }' is not assignable to type 'ReactNode'.
+src/components/stock/StockRecommendationsView.tsx(236,53): error TS18048: 'currentRec.scoreBreakdown' is possibly 'undefined'.
+src/components/stock/StockRecommendationsView.tsx(237,53): error TS18048: 'currentRec.scoreBreakdown' is possibly 'undefined'.
+src/components/stock/StockRecommendationsView.tsx(238,54): error TS18048: 'currentRec.scoreBreakdown' is possibly 'undefined'.
+src/components/stock/StockRecommendationsView.tsx(239,55): error TS18048: 'currentRec.scoreBreakdown' is possibly 'undefined'.
+src/components/stock/StockRecommendationsView.tsx(240,53): error TS18048: 'currentRec.scoreBreakdown' is possibly 'undefined'.
+src/components/stock/StockRecommendationsView.tsx(241,52): error TS18048: 'currentRec.scoreBreakdown' is possibly 'undefined'.
+src/components/stock/StockRecommendationsView.tsx(269,14): error TS18048: 'currentRec.reasons' is possibly 'undefined'.
+src/components/stock/StockRecommendationsView.tsx(285,14): error TS18048: 'currentRec.warnings' is possibly 'undefined'.
+src/components/stock/StockRecommendationsView.tsx(296,51): error TS2339: Property 'length' does not exist on type 'any[] | AnalysisEvidence'.
+  Property 'length' does not exist on type 'AnalysisEvidence'.
+src/components/stock/StockRecommendationsView.tsx(319,38): error TS2339: Property 'map' does not exist on type 'any[] | AnalysisEvidence'.
+  Property 'map' does not exist on type 'AnalysisEvidence'.
+src/components/stock/StockRecommendationsView.tsx(319,43): error TS7006: Parameter 'ev' implicitly has an 'any' type.
+src/components/stock/StockRecommendationsView.tsx(319,47): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/stock/StockRiskReward.tsx(43,11): error TS18048: 'riskReward.targetPrice2' is possibly 'undefined'.
+src/components/stock/StockSupportResistance.tsx(22,47): error TS2339: Property 'r3' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(23,47): error TS2339: Property 'r2' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(24,47): error TS2339: Property 'r1' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(25,50): error TS2339: Property 'pivot' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(26,47): error TS2339: Property 's1' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(27,47): error TS2339: Property 's2' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(28,47): error TS2339: Property 's3' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(30,49): error TS2339: Property 'ma20Level' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(31,49): error TS2339: Property 'ma50Level' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(32,50): error TS2339: Property 'ma200Level' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(98,67): error TS2339: Property 'r3' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(102,67): error TS2339: Property 'r2' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(106,67): error TS2339: Property 'r1' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(125,70): error TS2339: Property 'pivot' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(131,67): error TS2339: Property 's1' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(135,67): error TS2339: Property 's2' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(139,67): error TS2339: Property 's3' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(147,91): error TS2339: Property 'ma20Level' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(151,99): error TS2339: Property 'ma50Level' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockSupportResistance.tsx(155,96): error TS2339: Property 'ma200Level' does not exist on type 'SupportResistanceLevels'.
+src/components/stock/StockValuation.tsx(26,61): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/stock/StockValuation.tsx(29,61): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/stock/StockValuation.tsx(100,21): error TS18048: 'valuation.marginOfSafety' is possibly 'undefined'.
+src/components/stock/StockValuation.tsx(107,19): error TS18048: 'valuation.marginOfSafety' is possibly 'undefined'.
+src/components/stock/StockValuation.tsx(150,23): error TS2339: Property 'valuationNote' does not exist on type 'ValuationData'.
+src/components/watchlist/__tests__/WatchlistHardening.test.tsx(43,3): error TS2353: Object literal may only specify known properties, and 'refPrice' does not exist in type 'StockSummary'.
+src/components/watchlist/__tests__/WatchlistSuite.test.tsx(26,5): error TS2353: Object literal may only specify known properties, and 'refPrice' does not exist in type 'StockSummary'.
+src/components/watchlist/__tests__/WatchlistSuite.test.tsx(53,5): error TS2353: Object literal may only specify known properties, and 'refPrice' does not exist in type 'StockSummary'.
+src/components/watchlist/__tests__/WatchlistSuite.test.tsx(80,5): error TS2353: Object literal may only specify known properties, and 'refPrice' does not exist in type 'StockSummary'.
+src/components/watchlist/metrics.ts(92,53): error TS2339: Property 'ceilingPrice' does not exist on type 'StockSummary'.
+src/components/watchlist/metrics.ts(92,86): error TS2339: Property 'ceilingPrice' does not exist on type 'StockSummary'.
+src/components/watchlist/metrics.ts(93,53): error TS2339: Property 'floorPrice' does not exist on type 'StockSummary'.
+src/components/watchlist/metrics.ts(93,84): error TS2339: Property 'floorPrice' does not exist on type 'StockSummary'.
+src/components/watchlist/WatchlistCardGrid.tsx(116,45): error TS18048: 'stock.sparkline' is possibly 'undefined'.
+src/components/watchlist/WatchlistTable.tsx(89,30): error TS2339: Property 'ceilingPrice' does not exist on type 'StockSummary'.
+src/components/watchlist/WatchlistTable.tsx(89,52): error TS2339: Property 'ceilingPrice' does not exist on type 'StockSummary'.
+src/components/watchlist/WatchlistTable.tsx(92,30): error TS2339: Property 'floorPrice' does not exist on type 'StockSummary'.
+src/components/watchlist/WatchlistTable.tsx(92,50): error TS2339: Property 'floorPrice' does not exist on type 'StockSummary'.
+src/components/watchlist/WatchlistTable.tsx(106,34): error TS18049: 'rsi' is possibly 'null' or 'undefined'.
+src/components/watchlist/WatchlistTable.tsx(113,35): error TS18049: 'rsi' is possibly 'null' or 'undefined'.
+src/components/watchlist/WatchlistTable.tsx(120,36): error TS18049: 'rsi' is possibly 'null' or 'undefined'.
+src/components/watchlist/WatchlistTable.tsx(232,40): error TS18048: 'stock.low' is possibly 'undefined'.
+src/components/watchlist/WatchlistTable.tsx(233,40): error TS18048: 'stock.high' is possibly 'undefined'.
+src/components/watchlist/WatchlistTable.tsx(337,55): error TS2488: Type 'number[] | undefined' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/components/watchlist/WatchlistTable.tsx(340,49): error TS18048: 'stock.sparkline' is possibly 'undefined'.
+src/hooks/useMarketQueries.ts(69,40): error TS2339: Property 'getMarketIndices' does not exist on type '{ getIndices: () => Promise<IndexData[]>; getHeatmap: () => Promise<SectorHeatmapItem[]>; getTopMovers: () => Promise<{ gainers: TopMover[]; losers: TopMover[]; active: TopMover[]; }>; getQuote: (symbol: string) => Promise<...>; searchStocks: (query: string) => Promise<...>; }'.
+src/hooks/useMarketQueries.ts(85,34): error TS2339: Property 'getMarketStatus' does not exist on type '{ getIndices: () => Promise<IndexData[]>; getHeatmap: () => Promise<SectorHeatmapItem[]>; getTopMovers: () => Promise<{ gainers: TopMover[]; losers: TopMover[]; active: TopMover[]; }>; getQuote: (symbol: string) => Promise<...>; searchStocks: (query: string) => Promise<...>; }'.
+src/hooks/useMarketQueries.ts(95,34): error TS2339: Property 'getMarketSentiment' does not exist on type '{ getIndices: () => Promise<IndexData[]>; getHeatmap: () => Promise<SectorHeatmapItem[]>; getTopMovers: () => Promise<{ gainers: TopMover[]; losers: TopMover[]; active: TopMover[]; }>; getQuote: (symbol: string) => Promise<...>; searchStocks: (query: string) => Promise<...>; }'.
+src/hooks/useMarketQueries.ts(105,34): error TS2339: Property 'getMarketBreadth' does not exist on type '{ getIndices: () => Promise<IndexData[]>; getHeatmap: () => Promise<SectorHeatmapItem[]>; getTopMovers: () => Promise<{ gainers: TopMover[]; losers: TopMover[]; active: TopMover[]; }>; getQuote: (symbol: string) => Promise<...>; searchStocks: (query: string) => Promise<...>; }'.
+src/hooks/useMarketQueries.ts(115,34): error TS2339: Property 'getAITopSignals' does not exist on type '{ getIndices: () => Promise<IndexData[]>; getHeatmap: () => Promise<SectorHeatmapItem[]>; getTopMovers: () => Promise<{ gainers: TopMover[]; losers: TopMover[]; active: TopMover[]; }>; getQuote: (symbol: string) => Promise<...>; searchStocks: (query: string) => Promise<...>; }'.
+src/hooks/useMarketQueries.ts(126,40): error TS2339: Property 'getSectorHeatmap' does not exist on type '{ getIndices: () => Promise<IndexData[]>; getHeatmap: () => Promise<SectorHeatmapItem[]>; getTopMovers: () => Promise<{ gainers: TopMover[]; losers: TopMover[]; active: TopMover[]; }>; getQuote: (symbol: string) => Promise<...>; searchStocks: (query: string) => Promise<...>; }'.
+src/hooks/useMarketQueries.ts(155,40): error TS2339: Property 'getAllStocks' does not exist on type '{ getIndices: () => Promise<IndexData[]>; getHeatmap: () => Promise<SectorHeatmapItem[]>; getTopMovers: () => Promise<{ gainers: TopMover[]; losers: TopMover[]; active: TopMover[]; }>; getQuote: (symbol: string) => Promise<...>; searchStocks: (query: string) => Promise<...>; }'.
+src/hooks/useMarketQueries.ts(172,40): error TS2339: Property 'getStockDetail' does not exist on type '{ getIndices: () => Promise<IndexData[]>; getHeatmap: () => Promise<SectorHeatmapItem[]>; getTopMovers: () => Promise<{ gainers: TopMover[]; losers: TopMover[]; active: TopMover[]; }>; getQuote: (symbol: string) => Promise<...>; searchStocks: (query: string) => Promise<...>; }'.
+src/hooks/useMarketQueries.ts(320,34): error TS2339: Property 'getWatchlist' does not exist on type '{ getIndices: () => Promise<IndexData[]>; getHeatmap: () => Promise<SectorHeatmapItem[]>; getTopMovers: () => Promise<{ gainers: TopMover[]; losers: TopMover[]; active: TopMover[]; }>; getQuote: (symbol: string) => Promise<...>; searchStocks: (query: string) => Promise<...>; }'.
+src/hooks/useMarketQueries.ts(333,34): error TS2339: Property 'getAIMarketSummary' does not exist on type '{ getIndices: () => Promise<IndexData[]>; getHeatmap: () => Promise<SectorHeatmapItem[]>; getTopMovers: () => Promise<{ gainers: TopMover[]; losers: TopMover[]; active: TopMover[]; }>; getQuote: (symbol: string) => Promise<...>; searchStocks: (query: string) => Promise<...>; }'.
+src/lib/analysis/__tests__/QuantPropertyBasedHardening.test.ts(23,27): error TS2307: Cannot find module '../../trading/replay/__tests__/harness/index.ts' or its corresponding type declarations.
+src/lib/analysis/__tests__/QuantPropertyBasedHardening.test.ts(31,31): error TS2307: Cannot find module '../../trading/risk/PositionSizer.ts' or its corresponding type declarations.
+src/lib/analysis/backtest/__tests__/QuantGovernanceAudit.test.ts(19,34): error TS2307: Cannot find module '../../../trading/paper/PaperTradeLedger.ts' or its corresponding type declarations.
+src/lib/analysis/backtest/__tests__/QuantGovernanceAudit.test.ts(300,38): error TS2554: Expected 0 arguments, but got 1.
+src/lib/analysis/backtest/__tests__/QuantGovernanceAudit.test.ts(301,47): error TS2339: Property 'cash' does not exist on type '{ balance: number; equity: number; positions: any[]; }'.
+src/lib/analysis/backtest/__tests__/QuantGovernanceAudit.test.ts(302,42): error TS2339: Property 'getAllOrders' does not exist on type 'PaperBroker'.
+src/lib/analysis/backtest/__tests__/QuantGovernanceAudit.test.ts(321,34): error TS2339: Property 'cash' does not exist on type '{ balance: number; equity: number; positions: any[]; }'.
+src/lib/analysis/backtest/__tests__/QuantGovernanceAudit.test.ts(322,42): error TS2339: Property 'getAllOrders' does not exist on type 'PaperBroker'.
+src/lib/analysis/backtest/__tests__/StrategyAcceptanceGate.test.ts(28,34): error TS2307: Cannot find module '../../../trading/paper/PaperTradeLedger.ts' or its corresponding type declarations.
+src/lib/analysis/backtest/__tests__/StrategyAcceptanceGate.test.ts(941,38): error TS2554: Expected 0 arguments, but got 1.
+src/lib/analysis/backtest/__tests__/StrategyAcceptanceGate.test.ts(942,47): error TS2339: Property 'cash' does not exist on type '{ balance: number; equity: number; positions: any[]; }'.
+src/lib/analysis/backtest/__tests__/StrategyAcceptanceGate.test.ts(943,42): error TS2339: Property 'getAllOrders' does not exist on type 'PaperBroker'.
+src/lib/analysis/backtest/__tests__/StrategyAcceptanceGate.test.ts(954,34): error TS2339: Property 'cash' does not exist on type '{ balance: number; equity: number; positions: any[]; }'.
+src/lib/analysis/backtest/__tests__/StrategyAcceptanceGate.test.ts(955,42): error TS2339: Property 'getAllOrders' does not exist on type 'PaperBroker'.
+src/lib/analysis/backtest/BacktestDataAdapter.ts(15,39): error TS2724: '"../../../services/market/realMarketDataService.ts"' has no exported member named 'HistoricalStockData'. Did you mean 'getHistoricalStockData'?
+src/lib/analysis/backtest/BacktestDataAdapter.ts(178,45): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/lib/analysis/enterprise/__tests__/enterprise.test.ts(183,40): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/lib/analysis/enterprise/DataCompletenessEngine.ts(8,15): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'DataQualitySummary'.
+src/lib/analysis/enterprise/DuPontEngine.ts(7,15): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'DupontResult'.
+src/lib/analysis/enterprise/EarningsQualityEngine.ts(8,15): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'EarningsQualityResult'.
+src/lib/analysis/enterprise/EarningsQualityEngine.ts(8,38): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'EarningsQualityClassification'.
+src/lib/analysis/enterprise/EarningsQualityEngine.ts(62,66): error TS18048: 'prevProfit' is possibly 'undefined'.
+src/lib/analysis/enterprise/EarningsQualityEngine.ts(62,122): error TS18048: 'prevCfo' is possibly 'undefined'.
+src/lib/analysis/enterprise/EarningsQualityEngine.ts(65,66): error TS18048: 'prevProfit' is possibly 'undefined'.
+src/lib/analysis/enterprise/EarningsQualityEngine.ts(78,52): error TS18047: 'previous' is possibly 'null'.
+src/lib/analysis/enterprise/EarningsQualityEngine.ts(84,52): error TS18047: 'previous' is possibly 'null'.
+src/lib/analysis/enterprise/EnterpriseScoreEngine.ts(15,15): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'EnterpriseScoreResult'.
+src/lib/analysis/enterprise/EnterpriseScoreEngine.ts(15,38): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'ScoreClassification'.
+src/lib/analysis/enterprise/EnterpriseScoreEngine.ts(15,59): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'RiskLevel'.
+src/lib/analysis/enterprise/financialFacts.ts(91,31): error TS2339: Property 'annual' does not exist on type 'VpsNormalizedFundamentals'.
+src/lib/analysis/enterprise/financialFacts.ts(92,30): error TS2339: Property 'annualPeriods' does not exist on type 'VpsNormalizedFundamentals'.
+src/lib/analysis/enterprise/FinancialHealthEngine.ts(7,15): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'FinancialHealthResult'.
+src/lib/analysis/enterprise/FinancialHealthEngine.ts(7,38): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'RiskLevel'.
+src/lib/analysis/enterprise/GrowthEngine.ts(7,15): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'GrowthResult'.
+src/lib/analysis/enterprise/GrowthEngine.ts(7,29): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'GrowthClassification'.
+src/lib/analysis/enterprise/PiotroskiEngine.ts(8,15): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'PiotroskiCriterion'.
+src/lib/analysis/enterprise/PiotroskiEngine.ts(8,35): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'PiotroskiResult'.
+src/lib/analysis/enterprise/ProfitabilityEngine.ts(7,15): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'ProfitabilityResult'.
+src/lib/analysis/enterprise/ScenarioEngine.ts(15,15): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'ScenarioSetResult'.
+src/lib/analysis/enterprise/ValuationIntelligenceEngine.ts(8,15): error TS2305: Module '"../../../types/enterpriseIntelligence.ts"' has no exported member 'ValuationIntelligenceResult'.
+src/lib/analysis/market/__tests__/MarketIntelligencePBT.test.ts(15,27): error TS2307: Cannot find module '../../../trading/replay/__tests__/harness/deterministicRng.ts' or its corresponding type declarations.
+src/lib/analysis/market/SectorIntelligenceEngine.ts(49,25): error TS2551: Property 'sectorId' does not exist on type 'StockMetadata'. Did you mean 'sector'?
+src/lib/analysis/market/SectorIntelligenceEngine.ts(62,25): error TS2551: Property 'sectorId' does not exist on type 'StockMetadata'. Did you mean 'sector'?
+src/lib/analysis/strategy/__tests__/recommendation.test.ts(80,12): error TS18048: 'rec.reasons' is possibly 'undefined'.
+src/lib/analysis/strategy/__tests__/recommendation.test.ts(81,12): error TS18048: 'rec.evidence' is possibly 'undefined'.
+src/lib/analysis/strategy/__tests__/recommendation.test.ts(81,25): error TS2339: Property 'length' does not exist on type 'any[] | AnalysisEvidence'.
+  Property 'length' does not exist on type 'AnalysisEvidence'.
+src/lib/analysis/strategy/__tests__/recommendation.test.ts(121,9): error TS2353: Object literal may only specify known properties, and 'strategy' does not exist in type 'RankingRequest'.
+src/lib/analysis/strategy/__tests__/recommendation.test.ts(128,20): error TS2339: Property 'universeSize' does not exist on type 'RankingResult'.
+src/lib/analysis/strategy/__tests__/recommendation.test.ts(197,12): error TS18048: 'rec.evidence' is possibly 'undefined'.
+src/lib/analysis/strategy/__tests__/recommendation.test.ts(197,25): error TS2339: Property 'length' does not exist on type 'any[] | AnalysisEvidence'.
+  Property 'length' does not exist on type 'AnalysisEvidence'.
+src/lib/analysis/strategy/__tests__/recommendation.test.ts(198,12): error TS18048: 'rec.evidence' is possibly 'undefined'.
+src/lib/analysis/strategy/__tests__/recommendation.test.ts(198,12): error TS7053: Element implicitly has an 'any' type because expression of type '0' can't be used to index type 'any[] | AnalysisEvidence'.
+  Property '0' does not exist on type 'any[] | AnalysisEvidence'.
+src/lib/analysis/strategy/RecommendationEngine.ts(209,9): error TS2561: Object literal may only specify known properties, but 'metric' does not exist in type 'AnalysisEvidence'. Did you mean to write 'metrics'?
+src/lib/analysis/strategy/RecommendationEngine.ts(219,9): error TS2561: Object literal may only specify known properties, but 'metric' does not exist in type 'AnalysisEvidence'. Did you mean to write 'metrics'?
+src/lib/analysis/strategy/RecommendationEngine.ts(231,9): error TS2561: Object literal may only specify known properties, but 'metric' does not exist in type 'AnalysisEvidence'. Did you mean to write 'metrics'?
+src/lib/analysis/strategy/RecommendationEngine.ts(243,9): error TS2561: Object literal may only specify known properties, but 'metric' does not exist in type 'AnalysisEvidence'. Did you mean to write 'metrics'?
+src/lib/analysis/strategy/RecommendationEngine.ts(258,7): error TS2322: Type 'number | null' is not assignable to type 'number'.
+  Type 'null' is not assignable to type 'number'.
+src/lib/analysis/strategy/RecommendationEngine.ts(300,13): error TS2339: Property 'strategy' does not exist on type 'RankingRequest'.
+src/lib/analysis/strategy/RecommendationEngine.ts(300,23): error TS2339: Property 'symbols' does not exist on type 'RankingRequest'.
+src/lib/analysis/strategy/RecommendationEngine.ts(300,32): error TS2339: Property 'minScore' does not exist on type 'RankingRequest'.
+src/lib/analysis/strategy/RecommendationEngine.ts(300,46): error TS2339: Property 'minConfidence' does not exist on type 'RankingRequest'.
+src/lib/analysis/strategy/RecommendationEngine.ts(300,61): error TS2339: Property 'signalFilter' does not exist on type 'RankingRequest'.
+src/lib/analysis/strategy/RecommendationEngine.ts(335,22): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<ConfidenceLevel, number>'.
+src/lib/analysis/strategy/RecommendationEngine.ts(336,41): error TS7053: Element implicitly has an 'any' type because expression of type 'number | "LOW" | "HIGH" | "MEDIUM"' can't be used to index type 'Record<ConfidenceLevel, number>'.
+  No index signature with a parameter of type 'number' was found on type 'Record<ConfidenceLevel, number>'.
+src/lib/analysis/strategy/RecommendationEngine.ts(378,11): error TS2322: Type '{ strategy: any; rank: number; symbol: string; companyName: string | undefined; score: number; signal: RecommendationSignal; confidence: number | "LOW" | "HIGH" | "MEDIUM"; ... 4 more ...; source: string; }[]' is not assignable to type 'RecommendationRanking[]'.
+  Type '{ strategy: any; rank: number; symbol: string; companyName: string | undefined; score: number; signal: RecommendationSignal; confidence: number | "LOW" | "HIGH" | "MEDIUM"; ... 4 more ...; source: string; }' is missing the following properties from type 'RecommendationRanking': horizon, targetReturn
+src/lib/analysis/strategy/RecommendationEngine.ts(398,7): error TS2353: Object literal may only specify known properties, and 'strategy' does not exist in type 'RankingResult'.
+src/lib/analysis/strategy/StrategyScorer.ts(89,11): error TS2741: Property 'composite' is missing in type '{ technical: number | null; fundamental: number | null; momentum: number | null; moneyFlow: number | null; valuation: number | null; risk: number | null; }' but required in type 'RecommendationScoreBreakdown'.
+src/lib/business/__tests__/Business01Plans.test.ts(143,62): error TS2345: Argument of type 'number | null' is not assignable to parameter of type 'number | bigint'.
+  Type 'null' is not assignable to type 'number | bigint'.
+src/lib/earnings/__tests__/EarningsRemediation.test.ts(66,40): error TS2339: Property 'toCanonicalFacts' does not exist on type 'EarningsDataProvider'.
+src/lib/earnings/__tests__/EarningsRemediation.test.ts(85,55): error TS2339: Property 'toCanonicalFacts' does not exist on type 'EarningsDataProvider'.
+src/lib/earnings/__tests__/EarningsRemediation.test.ts(88,25): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/lib/earnings/__tests__/EarningsRemediation.test.ts(104,40): error TS2339: Property 'toCanonicalFacts' does not exist on type 'EarningsDataProvider'.
+src/lib/earnings/__tests__/EarningsRemediation.test.ts(114,55): error TS2339: Property 'toCanonicalFacts' does not exist on type 'EarningsDataProvider'.
+src/lib/earnings/__tests__/EarningsRemediation.test.ts(117,23): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/lib/earnings/__tests__/EarningsRemediation.test.ts(119,25): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/lib/firebase.ts(27,27): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+src/lib/macro/__tests__/MacroFoundation.test.ts(148,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'MacroSource'.
+  Type 'string' is not assignable to type 'MacroSource'.
+src/lib/macro/__tests__/MacroFoundation.test.ts(150,24): error TS2339: Property 'provider' does not exist on type 'string'.
+src/lib/macro/__tests__/MacroFoundation.test.ts(151,24): error TS2339: Property 'baseUrl' does not exist on type 'string'.
+src/lib/macro/__tests__/MacroFoundation.test.ts(152,24): error TS2339: Property 'reliabilityScore' does not exist on type 'string'.
+src/lib/macro/__tests__/MacroFoundation.test.ts(153,32): error TS2345: Argument of type 'string' is not assignable to parameter of type 'MacroSource'.
+  Type 'string' is not assignable to type 'MacroSource'.
+src/lib/macro/__tests__/MacroFoundation.test.ts(161,27): error TS2339: Property 'priority' does not exist on type 'string'.
+src/lib/macro/__tests__/MacroFoundation.test.ts(161,75): error TS2339: Property 'priority' does not exist on type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(14,3): error TS2322: Type '{ readonly id: "fed-official"; readonly provider: "FED"; readonly name: "Board of Governors of the Federal Reserve System"; readonly baseUrl: "https://www.federalreserve.gov/data"; ... 4 more ...; readonly notes: "Official US central bank monetary policy, FOMC statements, and policy rates."; }' is not assignable to type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(25,3): error TS2322: Type '{ readonly id: "fred-stlouis"; readonly provider: "FRED"; readonly name: "Federal Reserve Bank of St. Louis Economic Data (FRED)"; readonly baseUrl: "https://api.stlouisfed.org/fred"; ... 4 more ...; readonly notes: "Primary time-series data repository for US and international macroeconomic statistics."; }' is not assignable to type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(36,3): error TS2322: Type '{ readonly id: "us-treasury"; readonly provider: "US_TREASURY"; readonly name: "United States Department of the Treasury"; readonly baseUrl: "https://home.treasury.gov/resource-center/data-chart-center"; ... 4 more ...; readonly notes: "US Treasury yield curve, daily treasury par yield curve rates."; }' is not assignable to type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(47,3): error TS2322: Type '{ readonly id: "sbv-vietnam"; readonly provider: "SBV"; readonly name: "State Bank of Vietnam (Ngân hàng Nhà nước Việt Nam)"; readonly baseUrl: "https://www.sbv.gov.vn"; readonly priority: 1; readonly requiresApiKey: false; readonly enabled: true; readonly reliabilityScore: 0.95; readonly notes: "Official Vietnam mo...' is not assignable to type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(58,3): error TS2322: Type '{ readonly id: "gso-vietnam"; readonly provider: "GSO_VIETNAM"; readonly name: "General Statistics Office of Vietnam (Tổng cục Thống kê)"; readonly baseUrl: "https://www.gso.gov.vn"; ... 4 more ...; readonly notes: "National inflation (CPI), quarterly GDP, retail sales, and socio-economic statistical releases."; }' is not assignable to type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(69,3): error TS2322: Type '{ readonly id: "mof-vietnam"; readonly provider: "MOF_VIETNAM"; readonly name: "Ministry of Finance Vietnam (Bộ Tài chính)"; readonly baseUrl: "https://mof.gov.vn"; readonly priority: 2; readonly requiresApiKey: false; readonly enabled: true; readonly reliabilityScore: 0.92; readonly notes: "Fiscal policy, public de...' is not assignable to type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(86,43): error TS2339: Property 'provider' does not exist on type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(109,26): error TS2339: Property 'enabled' does not exist on type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(110,23): error TS2339: Property 'priority' does not exist on type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(110,36): error TS2339: Property 'priority' does not exist on type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(119,23): error TS2339: Property 'enabled' does not exist on type 'string'.
+src/lib/macro/registry/sourceRegistry.ts(119,38): error TS2339: Property 'reliabilityScore' does not exist on type 'string'.
+src/lib/macro/validation/MacroDataValidator.ts(53,7): error TS2741: Property 'isValid' is missing in type '{ valid: false; status: "INVALID"; errors: string[]; warnings: never[]; checkedAt: string; sourceTrusted: false; timestampValid: false; valueValid: false; }' but required in type 'MacroDataValidationResult'.
+src/lib/macro/validation/MacroDataValidator.ts(112,39): error TS2345: Argument of type 'string' is not assignable to parameter of type 'MacroSource'.
+src/lib/macro/validation/MacroDataValidator.ts(232,5): error TS2741: Property 'isValid' is missing in type '{ valid: boolean; status: MacroDataStatus; errors: string[]; warnings: string[]; checkedAt: string; sourceTrusted: boolean; timestampValid: boolean; valueValid: boolean; }' but required in type 'MacroDataValidationResult'.
+src/lib/portfolio/CovarianceEngine.ts(169,5): error TS2322: Type 'number | null' is not assignable to type 'number'.
+  Type 'null' is not assignable to type 'number'.
+src/lib/portfolio/PortfolioIntelligenceSnapshotBuilder.ts(239,13): error TS18047: 'f.coverage' is possibly 'null'.
+src/lib/portfolio/PortfolioIntelligenceSnapshotBuilder.ts(244,26): error TS18047: 'f.coverage' is possibly 'null'.
+src/lib/portfolio/PortfolioIntelligenceSnapshotBuilder.ts(246,13): error TS18047: 'f.coverage' is possibly 'null'.
+src/lib/portfolio/PortfolioIntelligenceSnapshotBuilder.ts(246,31): error TS18047: 'f.coverage' is possibly 'null'.
+src/lib/portfolio/PortfolioIntelligenceSnapshotBuilder.ts(247,54): error TS18047: 'f.coverage' is possibly 'null'.
+src/lib/product/alerts/AlertEngine.ts(183,9): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(...items: ConcatArray<{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: boolean; suppressionReason: null; }>[]): { ...; }[]', gave the following error.
+    Argument of type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: true; suppressionReason: string; }[]' is not assignable to parameter of type 'ConcatArray<{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: boolean; suppressionReason: null; }>'.
+      The types returned by 'slice(...)' are incompatible between these types.
+        Type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: true; suppressionReason: string; }[]' is not assignable to type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: boolean; suppressionReason: null; }[]'.
+          Type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: true; suppressionReason: string; }' is not assignable to type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: boolean; suppressionReason: null; }'.
+            Types of property 'suppressionReason' are incompatible.
+              Type 'string' is not assignable to type 'null'.
+  Overload 2 of 2, '(...items: ({ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: boolean; suppressionReason: null; } | ConcatArray<...>)[]): { ...; }[]', gave the following error.
+    Argument of type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: true; suppressionReason: string; }[]' is not assignable to parameter of type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: boolean; suppressionReason: null; } | ConcatArray<{ ...; }>'.
+      Type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: true; suppressionReason: string; }[]' is not assignable to type 'ConcatArray<{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: boolean; suppressionReason: null; }>'.
+        The types returned by 'slice(...)' are incompatible between these types.
+          Type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: true; suppressionReason: string; }[]' is not assignable to type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: boolean; suppressionReason: null; }[]'.
+            Type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: true; suppressionReason: string; }' is not assignable to type '{ id: string; ruleId: string; instrumentId: string; severity: AlertSeverity; message: string; observationAsOf: string; suppressed: boolean; suppressionReason: null; }'.
+              Types of property 'suppressionReason' are incompatible.
+                Type 'string' is not assignable to type 'null'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(1,38): error TS2307: Cannot find module '../index' or its corresponding type declarations.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(2,43): error TS2307: Cannot find module '../index' or its corresponding type declarations.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(4,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(5,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(14,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(18,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(24,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(25,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(26,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(27,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(28,64): error TS18046: 'a' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(28,68): error TS18046: 'b' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(29,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(29,21): error TS18046: 'sum' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(32,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(38,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(39,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(40,64): error TS18046: 'a' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(40,68): error TS18046: 'b' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(41,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(41,21): error TS18046: 'sum' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(44,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(50,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(51,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(52,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(55,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(61,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(62,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(65,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(72,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(73,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(76,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(81,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(82,64): error TS18046: 'a' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(82,68): error TS18046: 'b' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(83,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/ConstrainedAllocator.test.ts(83,21): error TS18046: 'sum' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/ConstraintEngine.test.ts(2,58): error TS2307: Cannot find module '../index' or its corresponding type declarations.
+src/lib/rebalancing-decision/__tests__/ConstraintEngine.test.ts(3,43): error TS2307: Cannot find module '../index' or its corresponding type declarations.
+src/lib/rebalancing-decision/__tests__/ConstraintEngine.test.ts(96,9): error TS1117: An object literal cannot have multiple properties with the same name.
+src/lib/rebalancing-decision/__tests__/RebalancingDecisionFailClosed.test.ts(3,66): error TS2307: Cannot find module '../index' or its corresponding type declarations.
+src/lib/rebalancing-decision/__tests__/RebalancingDecisionFailClosed.test.ts(4,71): error TS2307: Cannot find module '../index' or its corresponding type declarations.
+src/lib/rebalancing-decision/__tests__/RebalancingDecisionFailClosed.test.ts(79,38): error TS7006: Parameter 'v' implicitly has an 'any' type.
+src/lib/rebalancing-decision/__tests__/RebalancingDecisionFailClosed.test.ts(103,68): error TS18046: 'a' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/RebalancingDecisionFailClosed.test.ts(103,72): error TS18046: 'b' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/RebalancingDecisionFailClosed.test.ts(104,23): error TS18046: 'sum' is of type 'unknown'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(1,36): error TS2307: Cannot find module '../index' or its corresponding type declarations.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(2,45): error TS2307: Cannot find module '../index' or its corresponding type declarations.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(3,32): error TS2307: Cannot find module '../../trading/risk/VietnamLotRule.ts' or its corresponding type declarations.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(5,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(6,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(10,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(13,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(20,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(24,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(25,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(26,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(27,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(28,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(31,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(38,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(39,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(42,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(49,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(50,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(53,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(61,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(63,7): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(64,7): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(66,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(69,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(77,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(80,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(84,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(91,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/__tests__/TurnoverCost.test.ts(92,5): error TS2304: Cannot find name 'expect'.
+src/lib/rebalancing-decision/ConstrainedAllocator.ts(15,45): error TS2307: Cannot find module './types.ts' or its corresponding type declarations.
+src/lib/rebalancing-decision/ConstraintEngine.ts(20,8): error TS2307: Cannot find module './types.ts' or its corresponding type declarations.
+src/lib/rebalancing-decision/ConstraintEngine.ts(73,31): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(74,31): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(94,77): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ readonly min?: number | undefined; readonly max?: number | undefined; }'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(95,77): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ readonly min?: number | undefined; readonly max?: number | undefined; }'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(100,64): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ readonly min?: number | undefined; readonly max?: number | undefined; }'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(101,64): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ readonly min?: number | undefined; readonly max?: number | undefined; }'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(106,69): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ readonly min?: number | undefined; readonly max?: number | undefined; }'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(107,69): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ readonly min?: number | undefined; readonly max?: number | undefined; }'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(112,67): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ readonly min?: number | undefined; readonly max?: number | undefined; }'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(113,67): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ readonly min?: number | undefined; readonly max?: number | undefined; }'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(282,13): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(282,49): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(283,103): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(285,13): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(285,49): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(286,101): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(317,13): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(317,56): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(318,118): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(320,13): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(320,56): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/ConstraintEngine.ts(321,116): error TS18046: 'band' is of type 'unknown'.
+src/lib/rebalancing-decision/RebalancingDecisionBuilder.ts(30,8): error TS2307: Cannot find module './types.ts' or its corresponding type declarations.
+src/lib/rebalancing-decision/RebalancingDecisionBuilder.ts(31,42): error TS2307: Cannot find module './types.ts' or its corresponding type declarations.
+src/lib/rebalancing-decision/TurnoverCostEngine.ts(14,32): error TS2307: Cannot find module '../trading/risk/VietnamLotRule.ts' or its corresponding type declarations.
+src/lib/rebalancing-decision/TurnoverCostEngine.ts(15,59): error TS2307: Cannot find module './types.ts' or its corresponding type declarations.
+src/pages/BacktestPage.tsx(209,19): error TS2322: Type '{ vi: string; en: string; holding: string; }' is not assignable to type 'ReactNode'.
+src/pages/DashboardPage.tsx(101,29): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/pages/DashboardPage.tsx(102,37): error TS2339: Property 'isDemo' does not exist on type 'TopMover'.
+src/pages/DashboardPage.tsx(103,36): error TS2339: Property 'isDemo' does not exist on type 'TopMover'.
+src/pages/DashboardPage.tsx(104,36): error TS2339: Property 'isDemo' does not exist on type 'TopMover'.
+src/pages/DashboardPage.tsx(105,29): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/pages/DashboardPage.tsx(106,29): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/pages/DashboardPage.tsx(107,31): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/pages/fundamentals/metrics.ts(13,3): error TS2305: Module '"../../services/market/providers/vps/types"' has no exported member 'VpsFinancialSeries'.
+src/pages/fundamentals/metrics.ts(15,3): error TS2305: Module '"../../services/market/providers/vps/types"' has no exported member 'VpsPeriodLabel'.
+src/pages/FundamentalsPage.tsx(140,18): error TS7053: Element implicitly has an 'any' type because expression of type '"quarterly" | "annual"' can't be used to index type 'VpsNormalizedFundamentals'.
+  Property 'quarterly' does not exist on type 'VpsNormalizedFundamentals'.
+src/pages/FundamentalsPage.tsx(145,43): error TS2339: Property 'annualPeriods' does not exist on type 'VpsNormalizedFundamentals'.
+src/pages/FundamentalsPage.tsx(146,43): error TS2339: Property 'quarterlyPeriods' does not exist on type 'VpsNormalizedFundamentals'.
+src/pages/FundamentalsPage.tsx(153,42): error TS2339: Property 'lastPrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(345,91): error TS2339: Property 'referencePrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(398,71): error TS2339: Property 'periodMetadata' does not exist on type 'VpsNormalizedFundamentals'.
+src/pages/FundamentalsPage.tsx(405,45): error TS2339: Property 'periodMetadata' does not exist on type 'VpsNormalizedFundamentals'.
+src/pages/FundamentalsPage.tsx(405,71): error TS7006: Parameter 'note' implicitly has an 'any' type.
+src/pages/FundamentalsPage.tsx(417,45): error TS2339: Property 'statementUnit' does not exist on type 'VpsNormalizedFundamentals'.
+src/pages/FundamentalsPage.tsx(459,27): error TS2322: Type 'string | number | symbol' is not assignable to type 'Key | null | undefined'.
+  Type 'symbol' is not assignable to type 'Key | null | undefined'.
+src/pages/FundamentalsPage.tsx(586,56): error TS2339: Property 'annual' does not exist on type 'VpsNormalizedFundamentals'.
+src/pages/FundamentalsPage.tsx(587,48): error TS2339: Property 'lastPrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(635,51): error TS2339: Property 'ceilingPrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(636,46): error TS2339: Property 'referencePrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(637,46): error TS2339: Property 'floorPrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(644,52): error TS2339: Property 'openPrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(648,52): error TS2339: Property 'highPrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(652,52): error TS2339: Property 'lowPrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(656,52): error TS2339: Property 'matchedVolumeShares' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(661,21): error TS2339: Property 'floorPrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(661,33): error TS2339: Property 'ceilingPrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(661,47): error TS2339: Property 'lastPrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/FundamentalsPage.tsx(661,58): error TS2339: Property 'referencePrice' does not exist on type 'VpsNormalizedQuote'.
+src/pages/MacroNewsPage.tsx(514,12): error TS2531: Object is possibly 'null'.
+src/pages/MacroNewsPage.tsx(525,12): error TS2531: Object is possibly 'null'.
+src/pages/MacroNewsPage.tsx(538,20): error TS2531: Object is possibly 'null'.
+src/pages/MacroNewsPage.tsx(538,20): error TS2532: Object is possibly 'undefined'.
+src/pages/PaperTradingPage.tsx(28,37): error TS2307: Cannot find module '../lib/trading/execution/BrokerAdapter' or its corresponding type declarations.
+src/pages/PortfolioPage.tsx(44,37): error TS2307: Cannot find module '../lib/trading/execution/BrokerAdapter' or its corresponding type declarations.
+src/pages/RecommendationsPage.tsx(17,40): error TS2339: Property 'rank' does not exist on type 'typeof RecommendationEngine'.
+src/pages/StockDetailPage.tsx(71,48): error TS2551: Property 'generateAllHorizons' does not exist on type 'typeof RecommendationEngine'. Did you mean 'generateMultiHorizon'?
+src/pages/StrategyLabPage.tsx(235,13): error TS2322: Type '{ vi: string; en: string; holding: string; }' is not assignable to type 'ReactNode'.
+src/pages/StrategyLabPage.tsx(452,26): error TS2339: Property 'companyName' does not exist on type 'RecommendationRanking'.
+src/pages/StrategyLabPage.tsx(462,81): error TS2339: Property 'confidence' does not exist on type 'RecommendationRanking'.
+src/pages/StrategyLabPage.tsx(464,40): error TS2339: Property 'expectedReturn' does not exist on type 'RecommendationRanking'.
+src/pages/StrategyLabPage.tsx(467,39): error TS2339: Property 'riskReward' does not exist on type 'RecommendationRanking'.
+src/pages/StrategyLabPage.tsx(469,77): error TS2339: Property 'dataStatus' does not exist on type 'RecommendationRanking'.
+src/services/capital-cycle/PolicyIntelligenceService.ts(72,43): error TS2339: Property 'evaluate' does not exist on type 'typeof CapitalCycleEngine'.
+src/services/strategy/StrategyIntelligenceService.ts(3,43): error TS2307: Cannot find module '../../lib/strategy/StrategyContextAggregator.ts' or its corresponding type declarations.
+src/services/trading/PaperOrderRiskBoundary.ts(5,27): error TS2307: Cannot find module '../../lib/trading/risk/RiskGuard.ts' or its corresponding type declarations.
+src/services/trading/PaperOrderRiskBoundary.ts(6,31): error TS2307: Cannot find module '../../lib/trading/risk/PositionSizer.ts' or its corresponding type declarations.
+src/services/trading/PaperOrderRiskBoundary.ts(62,32): error TS2551: Property 'getBroker' does not exist on type 'TradingEngine'. Did you mean 'broker'?
+src/services/trading/PaperOrderRiskBoundary.ts(123,39): error TS2339: Property 'getAccount' does not exist on type 'TradingEngine'.
+src/services/trading/PaperOrderRiskBoundary.ts(124,41): error TS2339: Property 'getPositions' does not exist on type 'TradingEngine'.
+src/services/trading/PaperOrderRiskBoundary.ts(126,8): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+src/services/trading/PaperOrderRiskBoundary.ts(126,13): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/services/trading/PaperOrderRiskBoundary.ts(141,34): error TS2339: Property 'isEmergencyStopActive' does not exist on type 'TradingEngine'.
+src/services/trading/PaperOrderRiskBoundary.ts(142,35): error TS2339: Property 'isTradingEnabled' does not exist on type 'TradingEngine'.
+src/services/trading/PaperOrderRiskBoundary.ts(180,45): error TS2339: Property 'getOrderManager' does not exist on type 'TradingEngine'.

@@ -1,0 +1,129 @@
+# Claude audit — partial (2026-10-15, HEAD 55d3ff8 + uncommitted)
+
+Read-only multi-agent audit. **4 of 11 areas completed** (frontend-shell, frontend-pages, server-api, market-data); the other 7 areas and **all verification** failed on the account session limit. Every finding below is an UNVERIFIED LEAD from a single auditor: re-read the cited code before acting. Raw data: 2026-10-15-claude-areas.json.
+
+Totals: 87 findings — critical 4, high 32, medium 32, low 19
+
+## frontend-shell
+
+**Health:** PARTIALLY BROKEN. tsc: 563 errors repo-wide, 10 of them in this area, all TS2339 in src/hooks/useMarketQueries.ts (lines 69, 85, 95, 105, 115, 126, 155, 172, 320, 333) calling marketService methods that no longer exist. route-qa (vite preview, no backend): 16/25 routes render. The 4 market routes (/, /dashboard, /market, /sector-intelligence) show the shell error state 'getMarketIndices is not a function' because of this area's hooks. 5 more (/recommendations, /stock/hpg, /strategy-lab, /backtest, /news-macro) crash inside pages, and the single top-level GlobalErrorBoundary replaces the whole shell. Some routes marked 'OK' are degraded: /ai-analyst renders an empty <main> (App.tsx:284 needs aiSummary, whose query always fails), /watchlist shows the empty state although the store holds 8 symbols, and /screener shows fabricated fallback rows (StockScreenerPage.tsx:25-37). Routing and back/forward work (route-qa plus 11/11 store tests). The committed tree (HEAD 55d3ff8) cannot build: src/main.tsx, src/lib/utils.ts and 7 pages imported by App.tsx exist only as untracked files.
+
+| Sev | Category | Location | Finding | Protected |
+|---|---|---|---|---|
+| critical | a277613-regression | `src/main.tsx:1` | Committed HEAD cannot build or boot: entry point, cn() util and 7 routed pages exist only as untracked files |  |
+| high | a277613-regression | `src/hooks/useMarketQueries.ts:69` | useMarketQueries calls 10 marketService methods that a277613 removed; dashboard/market/sector routes error out | yes |
+| high | financial-safety | `src/services/market/index.ts:24` | Header and CommandPalette search show fabricated quotes (28,500 VND, +1.24%, BUY) for every ticker |  |
+| high | fail-open | `src/components/common/SourceBadge.tsx:62` | SourceBadge fails open to 'REAL DATA'; Footer on every view certifies fixture data as real VPS/KBS data |  |
+| high | runtime-crash | `src/main.tsx:10` | Single top-level error boundary: any page crash takes down the whole shell and 'reset' loops back into the crash |  |
+| high | a277613-regression | `src/hooks/useMarketQueries.ts:447` | Trading hooks target 5 /api/trading routes that no longer exist and read a {data} envelope the stub router does not send | yes |
+| medium | fail-open | `src/App.tsx:137` | Unknown market status is rendered as 'ĐANG GIAO DỊCH' (TRADING) with a live-ticking timestamp |  |
+| medium | fail-open | `src/App.tsx:121` | Shell drops query errors outside the 3 market views: blank /ai-analyst, empty watchlist, quick view silently does nothing |  |
+| medium | logic | `src/App.tsx:290` | Quick view and stock detail share selectedStockSymbol: detail page silently switches stock while URL keeps the old one |  |
+| medium | a277613-regression | `src/store/useAppStore.ts:116` | Watchlist persistence regressed in a277613: storage key renamed and an emptied list resurrects 8 defaults |  |
+| medium | fail-open | `src/components/ui/ScoreRing.tsx:22` | ScoreRing renders a missing score as 0 with grade 'D' / 'AVOID' styling |  |
+| medium | data-integrity | `src/components/ui/Signal.tsx:41` | Signal turns a qualitative confidence label into a fabricated model percentage (high -> 88%) |  |
+| low | config | `vite.config.ts:5` | vitest.config.ts deleted by a277613; vite.config.ts has no test block, so globals-based tests cannot run | yes |
+| low | logic | `src/hooks/useMarketQueries.ts:35` | MARKET_KEYS.watchlist sorts the caller's array in place, mutating zustand state outside set() |  |
+| low | logic | `src/components/common/Sidebar.tsx:53` | 'recommendations' view is reachable only by typing the URL; nav lists are inconsistent |  |
+| low | security | `src/components/ui/ErrorBoundary.tsx:125` | Error boundary shows full stack traces to end users in production |  |
+| low | logic | `src/components/layout/CommandPalette.tsx:245` | CommandPalette advertises arrow/enter keyboard navigation that does not exist; backdrop click does not close |  |
+| low | fail-open | `src/components/ui/Metric.tsx:41` | Metric/MetricCard fabricate a direction for null change and print 'NaN%' |  |
+| low | dead-code | `src/hooks/useMarketQueries.ts:245` | Dead branch in useStockChartData |  |
+
+_Also noted (lower priority):_ Also found, lower priority: App.tsx:290 silently falls back to symbol 'HPG' when stock-detail has no symbol. Footer.tsx:12 says 'v1.0.0 (Phase 1 Foundation)' while Sidebar.tsx:157 says 'v2.5'. Header.tsx:52-69 search has no debounce or stale-response guard, so out-of-order async results can overwrite newer ones (harmless today because searchStocks is synchronous). QueryProvider.tsx: a277613 lowered retry from 2 to 1 and dropped the explicit gcTime (cosmetic). useTradingRiskMetrics (useMarketQueries.ts:520) has no consumer. DemoBadge.tsx (added by a277613) hard-codes 'DEMO DATA' regardless of what the data actually is. CommandPalette.tsx uses raw hex colours (#111827/#263244) instead of the terminal tokens from index.css.
+
+## frontend-pages
+
+**Health:** PARTIALLY BROKEN. 279 of the 563 tsc errors are in scope (pages 47, components 232). They come from 8 root causes: reverted dashboard/watchlist types 130, reverted stock-detail types 90, reverted VPS types 30, recommendation types 17, HORIZON_LABELS 4, MacroNews null 4, RecommendationEngine API 2, missing BrokerAdapter 2. route-qa.md: 9 of 25 routes broken at runtime (/, /dashboard, /market, /sector-intelligence show the getMarketIndices error state; /recommendations, /stock/hpg, /strategy-lab, /backtest, /news-macro crash the whole shell). Most of the 16 'OK' routes are degraded, judging from the code: /screener and /stocks render a fabricated universe; /watchlist is always empty; /ai-analyst renders nothing (App.tsx:284 needs aiSummary); /fundamentals stays on LOADING; /paper-trading is blocked and its positions/orders/order/cancel endpoints 404; /portfolio errors (no data envelope); /risk-center is static; /data-status reports LIVE without checking the payload; /practice-lab is a placeholder. Only /settings, /learn, /learn-path, /learn-lesson and /journal work as designed.
+
+| Sev | Category | Location | Finding | Protected |
+|---|---|---|---|---|
+| high | a277613-regression | `src/hooks/useMarketQueries.ts:69` | marketService lost 10 methods the hooks call: landing/market/sector routes error, watchlist always empty, AI analyst blank, quick-view never opens | yes |
+| high | a277613-regression | `src/pages/StockDetailPage.tsx:71` | StockDetailPage crashes on generateAllHorizons; behind the crash, every number on the page is fabricated |  |
+| high | a277613-regression | `src/pages/StockScreenerPage.tsx:26` | Screener shows a fabricated universe: every stock at 28,500 VND, +1.24%, BUY, AI score 82/74 |  |
+| high | financial-safety | `src/pages/PaperTradingPage.tsx:130` | Paper-trading BUY no longer collects or sends stopLoss/targetPrice (P0-01 envelope removed) |  |
+| high | a277613-regression | `src/pages/RiskCenterPage.tsx:27` | RiskCenterPage hardcodes 'Risk Guard ENFORCED / LIVE / SAFE' while RiskGuard.ts is deleted; its limits contradict DEFAULT_RISK_CONFIG |  |
+| high | fail-open | `src/pages/DataStatusPage.tsx:90` | DataStatusPage starts every feed as LIVE and calls any HTTP 200 LIVE (payload check removed) |  |
+| high | a277613-regression | `src/pages/RecommendationsPage.tsx:17` | RecommendationsPage crashes on nonexistent RecommendationEngine.rank |  |
+| high | a277613-regression | `src/types/recommendation.ts:52` | HORIZON_LABELS became an object: React #31 crash on /strategy-lab and /backtest, latent .split crash in StockRecommendationsView |  |
+| high | a277613-regression | `src/lib/trading/api/TradingApiRouter.ts:7` | Paper trading, portfolio and backtest pages call API contracts the d365ccd stub routers do not serve | yes |
+| medium | a277613-regression | `src/components/dashboard/MarketBreadthWidget.tsx:88` | Component and page type contracts broken by a277613's rewrite of the type files (250 tsc errors, with latent runtime crashes) | yes |
+| medium | fail-open | `src/components/stock/StockHeader.tsx:94` | 'REAL DATA' / 'Đang giao dịch' / LIVE labels are hardcoded on panels showing fabricated or unknown data |  |
+| medium | logic | `src/components/dashboard/AIMarketSummaryCard.tsx:68` | AIMarketSummaryCard prints a fixed bullish narrative and a 'Hấp thụ tốt' badge regardless of data, labelled CALCULATED |  |
+| medium | runtime-crash | `src/pages/MacroNewsPage.tsx:514` | MacroNewsPage crashes on a 200 response with a null or non-JSON body (fetchJson returns null as success) |  |
+| medium | logic | `src/pages/FundamentalsPage.tsx:90` | FundamentalsPage shows 'LOADING' forever when the server's 200 payload lacks `annual` |  |
+| medium | a277613-regression | `src/pages/WatchlistPage.tsx:48` | WatchlistPage rewrite dropped loading/error states, the group filter, sorting and export |  |
+| medium | logic | `src/pages/SectorIntelligencePage.tsx:85` | SectorIntelligencePage shows trading value as '0.0 tỷ ₫' (divides values already in tỷ by 1e9) and ignores the intelligence snapshot |  |
+| medium | a277613-regression | `src/pages/portfolio/metrics.ts:9` | portfolio/metrics formatAmount appends ' ₫' to share quantities ('1.000 ₫ CP') |  |
+| medium | fail-open | `src/pages/PaperTradingPage.tsx:67` | PaperTradingPage trading gate fails open when the status payload lacks the flags |  |
+| low | a277613-regression | `src/pages/PracticeLabPage.tsx:1` | PracticeLabPage lab replaced by a placeholder that links to paper trading |  |
+| low | test | `src/pages/__tests__/PhaseFiveViews.test.tsx:1` | All 10 page test files were deleted by a277613; no page has test coverage |  |
+| low | dead-code | `src/pages/PhasePlaceholderPage.tsx:1` | Orphaned components and an unused page |  |
+| low | config | `src/components/stock/StockRecommendationsView.tsx:112` | Undefined Tailwind tokens and an invisible badge after the 55d3ff8 colour migration |  |
+| low | logic | `src/pages/LearningPathPage.tsx:11` | LearningPathPage calls useState after a conditional early return |  |
+
+_Also noted (lower priority):_ Minor, or outside frontend-pages: (1) RecommendationsPage.tsx:68 and StockDetailPage.tsx:67,172 default the exchange to 'HOSE', which silently applies HOSE price-band rules; it goes away when both pages are restored. (2) RecommendationsPage.tsx:92 prints '+' before a negative targetReturn. (3) BacktestPage.tsx:104-108 hides the server's `message` and shows only the generic fallback. (4) App.tsx:137-143 header fallback shows state 'TRADING' when the status query fails, and App.tsx:290 defaults stock-detail to HPG (App.tsx is out of scope). (5) services/market/index.ts:15-32 searchStocks returns a fixed price 28500 / aiScore 80 / BUY for every search hit in the Header and CommandPalette (services area). (6) useMarketQueries.ts:35 MARKET_KEYS.watchlist calls symbols.sort(), which mutates the store array (hooks area). (7) WatchlistTable.tsx:337 and WatchlistCardGrid.tsx:116 spread an optional sparkline; this is guarded at runtime, so it is type-only.
+
+## server-api
+
+**Health:** PARTIALLY BROKEN. tsc-current.txt has 42 errors in server.ts (of 563 repo-wide), in 4 root-cause clusters: 32 because getHistoricalStockData now returns HistoricalCandle[] (lines 664-965, counting the cascading implicit-any errors), 7 because VpsNormalizedFundamentals has no `quarterly` (843-846, 947-949), 1 RankingRequest/`strategy` type mismatch (993), and 2 from the EodIngestionScheduler stub (1147-1148). Routers, middleware and schemas show 0 tsc errors only because d365ccd replaced 20 server-reachable files with compiling stubs: TradingApiRouter, BacktestApiRouter, TradingEngine, PaperBroker, StrategyApiRouter, AlertApiRouter, EodIngestionScheduler, IngestionStatusApiRouter, dailyIngestionRuntime, DailyBarIngestionJob, DailyPriceService, DailyPriceApiRouter, MacroIntelligenceService, providerMatrix, requestCoalescer, providerHealth, ReplayRepository, ResearchRepository, AuditEngine, NewsMacroListService. All 45 server.ts import targets exist on disk (checked), so the bundle resolves. Broken at runtime by code reading: /api/market-data/history, /api/analysis/:symbol and /api/stocks/:symbol/recommendations throw TypeError -> 500; /api/recommendations/rankings is always EMPTY; /api/trading/{positions,orders,risk-metrics,order,cancel} -> 404; /api/backtest/run -> NOT_CONFIGURED; the AI copilot always shows 'no response'; /api/billing/* (except /plans) is always 401; boot crashes when EOD_INGEST_ENABLED=true. Fabricated data served: /api/market-data/quote and /fundamentals (hard-coded values, fundamentals stamped dataStatus OK), /api/macro/radar (test fixtures), /api/replay/run (fixed +5% NAV), /api/research/certify (CERTIFIED by default), /api/canonical-data/cross-source-check (VERIFIED). route-qa.md was static-only (no backend), so none of these were exercised there.
+
+| Sev | Category | Location | Finding | Protected |
+|---|---|---|---|---|
+| critical | data-integrity | `src/services/market/realMarketDataService.ts:31` | Market-data routes serve hard-coded quotes/fundamentals as real, and getHistoricalStockData contract break crashes 3 routes (a277613 mock of realMarketDataService.ts) | yes |
+| critical | data-integrity | `src/services/macro-regime/MacroRegimeService.ts:2` | GET /api/macro/radar builds the production macro regime from test fixtures and returns a shape the page cannot render |  |
+| high | a277613-regression | `src/lib/trading/api/TradingApiRouter.ts:4` | Paper-trading API replaced by a 2-route stub; order/positions/orders/risk routes 404 and the order pipeline is gone | yes |
+| high | logic | `src/services/data/DailyPriceService.ts:62` | Daily-price read path returns the OLDEST N bars, so valuation/fundamental analysis prices off a stale close |  |
+| high | runtime-crash | `server.ts:1147` | EOD ingestion stub crashes the server at boot when EOD_INGEST_ENABLED=true (start() returns void, .then() is called on it) |  |
+| high | fail-open | `src/services/replay/PaperReplayApiRouter.ts:17` | POST /api/replay/run fabricates a COMPLETED paper replay (+5% NAV, 12 trades, RECONCILED) with no bars, anonymously |  |
+| high | fail-open | `src/services/research/ResearchApiRouter.ts:15` | POST /api/research/certify defaults all 8 governance gates to true, so an empty body is CERTIFIED |  |
+| high | data-integrity | `src/services/data/CanonicalDataApiRouter.ts:11` | Canonical-data router claims ingestion/verification it never performs (no persistence, quality pre-set VALID, cross-check always VERIFIED, fabricated HOSE identity) |  |
+| high | a277613-regression | `src/services/assistant/aiChatService.ts:61` | AI copilot always shows 'no response': service returns {response} but the client reads reply/content/analysis; Gemini path removed and canned text is tagged [VERIFIED] |  |
+| high | a277613-regression | `src/lib/trading/api/BacktestApiRouter.ts:10` | Backtest API stubbed: POST /api/backtest/run always answers NOT_CONFIGURED; BacktestEngine/DataProvider deleted | yes |
+| medium | security | `server.ts:181` | No server-side authorization on any write route; requirePermission/requireResource are wired nowhere | yes |
+| medium | security | `src/lib/platform/api/AuthApiRouter.ts:55` | Login/password rate limit uses one global key: 10 bad logins per minute lock every user out; rate limiting also keys on the proxy IP (no trust proxy) | yes |
+| medium | a277613-regression | `src/services/business-api/BusinessApiRouterComposition.ts:24` | /api/billing uses an isolated empty IdentityService, so every authenticated route is 401 forever, and accountStatus is hard-coded 'ACTIVE' |  |
+| medium | security | `src/middleware/platform/security.ts:35` | Security headers weakened by a277613 (clickjacking framing allowed, object/base/form CSP and COOP/CORP/Permissions-Policy dropped) |  |
+| medium | a277613-regression | `src/schemas/learningSchema.ts:15` | learningSchema rename breaks project submission: SubmitProjectSchema requires selectedEvidenceIds but the page sends ticked, so safeParse always fails silently |  |
+| medium | logic | `src/services/newsMacro/NewsMacroListService.ts:47` | News/macro list service stub: limit floored at 20, nextCursor always null (no pagination), status filter dropped, missing timestamps become now |  |
+| medium | fail-open | `src/services/market/MarketIntelligenceService.ts:12` | GET /api/market-intelligence builds from empty inputs but labels the snapshot dataFreshness 'CURRENT' |  |
+| medium | fail-open | `src/services/scenario/ScenarioApiRouter.ts:53` | ScenarioApiRouter (uncommitted) coerces malformed input instead of failing closed: bad quantity -> 0, unknown kind -> PRICE_SHOCK, bad value -> 0 |  |
+| medium | a277613-regression | `src/lib/business/features.ts:180` | Strategy/alerts/ingestion-status routers reduced to /status stubs while /api/billing/plans still advertises their deleted routes as reachable evidence |  |
+| low | a277613-regression | `src/schemas/stockSchema.ts:8` | stockSchema loosened by a277613: accepts price 0 or negative and forbids null for change/volume/index value (forces 0 placeholders) |  |
+| low | security | `src/services/data/DailyPriceApiRouter.ts:32` | Routers leak internal error messages in production, bypassing sendSafeError |  |
+| low | logic | `server.ts:398` | Unvalidated limit query params on inline DB routes (NaN, negative or huge values go to SQL) | yes |
+| low | config | `server.ts:97` | d365ccd made non-production ignore process.env.PORT (only --port or NODE_ENV=production honour a port) | yes |
+| low | test | `src/middleware/__tests__/rateLimit.test.ts:1` | Server-api regression tests deleted by a277613; the stubs that replaced the routers have no tests | yes |
+
+_Also noted (lower priority):_ (1) Type mismatch at server.ts:993: RecommendationEngine.rankUniverse takes {strategy, symbols, minScore} and emits {strategy, dataStatus, rankings,...}, while types/recommendation.ts:118-128 (the user's dirty file) declares RankingRequest {horizon} and RankingResult {horizon, rankings}, so a client reading `.horizon` gets undefined. It works at runtime and is owned by the analysis area. (2) createPlatformRouter.ts:120-121 runs correlationMiddleware and securityHeaders a second time, so /api/platform responses get a different x-request-id than the app-level one; /healthz (L124-127) runs the DB probe although the comment says liveness never touches a dependency. (3) rateLimit.ts:14 lets callers pass bucket 'critical', which bypasses limiting (the pre-damage type excluded it), and defaults to 'auth'. (4) Every health probe is optional (createPlatformRouter.ts:70-83), so /readyz and /api/health never return 503 with the DB down. This is documented design, but the Docker HEALTHCHECK can never fail over on a DB outage. (5) /api/analysis/:symbol accepts only /^[A-Z]{2,4}$/ while every other route accepts /^[A-Z0-9_.]{1,20}$/ (server.ts:753). (6) reachabilityRegistry.ts (732 lines, no consumers) claims POST /api/trading/order, /api/replay/runs and /api/research/certifications exist. (7) The ResearchApiRouter `if (!db)` guards (L74, L86, L102) are dead code: db is always a drizzle instance (src/db/index.ts:32).
+
+## market-data
+
+**Health:** BROKEN. Only 1 of the 563 tsc errors sits inside scope files: scripts/reconcile-daily-prices.ts(11) cannot find src/services/data/dailyPriceReconciliation.ts. That is because a277613 replaced the real implementations with self-consistent stubs. About 100 caller errors come from this area's contract regressions: 10 in useMarketQueries.ts (marketService methods missing), 15 'on type HistoricalCandle[]' + 16 TS7006 + 1 TS2554 in server.ts plus BacktestDataAdapter.ts(15) (history contract), about 37 mentioning VpsNormalizedFundamentals/VpsNormalizedQuote/VpsFinancialSeries/VpsPeriodLabel, 17 StockChartDataBundle in StockCandlestickChart.tsx, 2 sectorId in SectorIntelligenceEngine.ts, and 2 EodIngestionScheduler in server.ts(1147-1148). Runtime: route-qa.md shows /, /dashboard, /market and /sector-intelligence failing with 'getMarketIndices is not a function'. Every quote, fundamental, index, heatmap, mover, sentiment and breadth value from this layer is a literal constant. The 4 KBS-history server routes throw TypeError and return 500 (found by reading the code; `new Date('3M').getTime()` -> NaN confirmed with node). lib/data and lib/indicators are healthy: unchanged since a277613~1, tsc-clean, indicators test 17/17.
+
+| Sev | Category | Location | Finding | Protected |
+|---|---|---|---|---|
+| critical | financial-safety | `src/services/market/realMarketDataService.ts:31` | getRealtimeQuote fabricates a fixed 28,500 VND quote for any symbol, including on the order/risk path | yes |
+| high | a277613-regression | `src/services/market/realMarketDataService.ts:54` | getStockFundamentals returns hard-coded ratios labelled dataStatus OK; VPS type contract shrunk (~37 tsc errors) | yes |
+| high | a277613-regression | `src/services/market/realMarketDataService.ts:69` | getHistoricalStockData contract regressed: callers pass a timeframe as startDate, 4 KBS-history routes return 500 (~33 tsc errors) | yes |
+| high | a277613-regression | `src/services/market/index.ts:10` | marketService lost the MarketDataProvider contract; 10 methods the UI calls do not exist (dashboard/market routes crash) | yes |
+| high | fail-open | `src/services/market/realMarketDataService.ts:94` | Dashboard aggregates and stock search are hard-coded synthetic data, mostly without a demo marker | yes |
+| high | fail-open | `src/services/market/providers/kbs/KbsHistoricalProvider.ts:52` | KbsHistoricalProvider rewritten: unverified endpoint, swallows every error into [], no bar validation | yes |
+| high | logic | `src/services/data/DailyPriceService.ts:25` | DailyPriceService reads legacy stock_daily oldest-first: 'latest' price is the oldest bar, close is a string |  |
+| high | data-integrity | `src/services/data/CanonicalDataApiRouter.ts:11` | CanonicalDataApiRouter rewritten: ingest returns success without persisting, fabricates trading value, hard-codes HOSE identity |  |
+| high | data-integrity | `src/services/data/DailyBarIngestionJob.ts:21` | EOD ingestion job is a no-op that reports COMPLETE; the backfill script exits 0 |  |
+| high | runtime-crash | `src/services/data/EodIngestionScheduler.ts:18` | EodIngestionScheduler stub: server crashes at startup when EOD_INGEST_ENABLED=true |  |
+| high | fail-open | `src/services/market/MarketIntelligenceService.ts:9` | MarketIntelligenceService forces dataFreshness CURRENT on an empty snapshot |  |
+| medium | fail-open | `src/services/market/providers/providerHealth.ts:12` | Provider health, fallback and in-flight stats are fabricated on /api/health | yes |
+| medium | a277613-regression | `src/services/market/stockUniverse.ts:1` | stockUniverse regressed: sectorId removed (all sectors become 'other'), 17 symbols dropped incl. VN30 names |  |
+| medium | a277613-regression | `src/services/market/stockHistory.ts:3` | StockChartDataBundle shrunk; chart bundle lacks rsi/macd/bollinger/snapshot and typed volume (17 tsc errors) |  |
+| medium | fail-open | `src/services/market/stockDetailService.ts:15` | getFullStockDetail returns a hard-coded BUY summary for any symbol | yes |
+| medium | fail-open | `src/lib/indicators/snapshot.ts:25` | computeIndicatorSnapshot substitutes placeholder values when there is not enough history |  |
+| medium | runtime-crash | `src/services/data/dailyPriceReconciliation.ts:1` | scripts/reconcile-daily-prices.ts imports a deleted module; npm run data:reconcile-daily crashes at load |  |
+| medium | logic | `src/services/data/DailyPriceApiRouter.ts:10` | GET /api/stocks/:symbol/daily: limit is not validated and every error is reported as DATABASE_UNAVAILABLE |  |
+| medium | logic | `src/lib/indicators/rsi.ts:53` | RSI returns 100 (OVERBOUGHT) for a flat or suspended price series |  |
+| low | a277613-regression | `src/services/market/freshness/dataFreshness.ts:20` | resolveDataFreshness API weakened (TTL optional, invalid TTL no longer UNAVAILABLE, referenceTimeMs renamed) |  |
+| low | test | `src/services/market/realMarketDataService.ts:1` | All 15 market-data / ingestion test files were deleted; the provider and quote layers have zero tests |  |
+
+_Also noted (lower priority):_ Outside this area, seen while tracing consumers: (1) src/pages/StockDetailPage.tsx:52-83 builds its own fallback quote (28500/350/1.24/...) and hard-coded scores, valuation and money-flow constants (pages area). (2) src/App.tsx:135-141 falls back to marketStatus state 'TRADING' when the status query fails (app area). (3) src/lib/platform/observability/reachabilityRegistry.ts:154-280 claims canonical-data routes and a persistence chain that no longer exist (platform area). (4) src/components/stock/StockCandlestickChart.tsx uses IndicatorKey 'Bollinger'/'Volume' while src/types/stockDetail.ts:5 defines 'BOLLINGER' and has no Volume (types area, about 8 of its 39 tsc errors). (5) src/components/dashboard/__tests__/MarketIntelligenceWidget.test.tsx(170,188) uses IndexData.levelSource, which was removed from src/types/market.ts (types area). (6) src/lib/trading/api/TradingApiRouter.ts is a stub with no /order route, so PaperOrderRiskBoundary is unmounted; also TradingDataValidator and MarketDataIntegrityGuard are GONE (trading area, protected).
+

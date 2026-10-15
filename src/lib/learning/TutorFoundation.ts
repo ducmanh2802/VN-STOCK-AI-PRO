@@ -16,6 +16,7 @@ export type TutorAction = 'ANSWER_FROM_CATALOG' | 'HINT' | 'REDIRECT_TO_LESSON' 
 const TRADE_PATTERNS = [
   'should i buy', 'should i sell', 'nên mua', 'nên bán', 'mua hay bán', 'buy or sell',
   'give me a trade', 'place an order', 'đặt lệnh',
+  'recommend a stock', 'which stock to buy', 'tell me to buy',
 ];
 const MARKET_FACT_PATTERNS = [
   'current price', 'giá hiện tại', 'price of ', 'giá của ', 'how much is ', 'bao nhiêu',
@@ -114,7 +115,7 @@ export function decideTutorAction(question: string, fallbackLessonId: string): T
   if (kind === 'MARKET_FACT') {
     return {
       action: 'REFUSE',
-      reason: 'The tutor has no market-data access and never fabricates prices or metrics. Check Data Health / StockDetail for real values with provenance.',
+      reason: 'The tutor has no market-data access and never fabricates prices or metrics. Check Data Health / StockDetail for real values with provenance and as-of timestamp.',
       provenance: 'UNKNOWN',
       lessonRef: 'les-price-volume-102',
     };

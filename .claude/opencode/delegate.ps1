@@ -81,6 +81,28 @@ function Test-Protected([string]$rel) {
   return $false
 }
 
+# OpenCode processes descending from these external queue runners work in OTHER repositories and do
+# not count for the one-at-a-time guard (user decision 2026-10-15: VN-STOCK tasks may run alongside
+# the Kho Bau queue). Every other OpenCode process blocks, including an orphan whose runner died.
+# Matches every Kho Bau stream: D:\trithuc\kho_bau_tri_thuc\... and D:\trithuc\kho_bau_luong_b\....
+$script:IgnoredRunnerPatterns = @('\\trithuc\\kho_bau[^\\]*\\.*docs\\opencode\\run-all\.ps1')
+function Get-BlockingOpencode([string]$NameLike = 'opencode*') {   # NameLike exists for the self-test only
+  $all = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
+  $byId = @{}
+  foreach ($p in $all) { $byId[[int]$p.ProcessId] = $p }
+  foreach ($p in $all) {
+    if ($p.Name -notlike $NameLike) { continue }
+    $ignored = $false; $cur = $p
+    for ($i = 0; $i -lt 8 -and -not $ignored; $i++) {
+      $par = $byId[[int]$cur.ParentProcessId]
+      if (-not $par -or $par.CreationDate -gt $cur.CreationDate) { break }   # parent gone, or its PID was reused
+      foreach ($pat in $script:IgnoredRunnerPatterns) { if ([string]$par.CommandLine -match $pat) { $ignored = $true } }
+      $cur = $par
+    }
+    if (-not $ignored) { [int]$p.ProcessId }
+  }
+}
+
 function Get-GitStatusMap([string]$repo) {
   $raw = & git -C $repo -c core.quotepath=false status --porcelain=v1 -uall -z
   if ($LASTEXITCODE -ne 0) { throw "git status failed in $repo" }
@@ -215,7 +237,8 @@ if (-not $Repo) { $Repo = Join-Path $PSScriptRoot '..\..' }
 $Repo = [IO.Path]::GetFullPath($Repo).TrimEnd('\')
 if (-not (Test-Path -LiteralPath (Join-Path $Repo '.git'))) { Stop-Blocked "not a git repository: $Repo" }
 if (-not $OutRoot) { $OutRoot = Join-Path $env:TEMP 'opencode-runs' }
-if (Get-Process -Name 'opencode*' -ErrorAction SilentlyContinue) { Stop-Blocked 'another OpenCode process is running; never run two at once' }
+$blocking = @(Get-BlockingOpencode)
+if ($blocking.Count -gt 0) { Stop-Blocked ('another OpenCode process is running (PID ' + ($blocking -join ', ') + '); never run two at once') }
 if (-not (Get-Command opencode.cmd -ErrorAction SilentlyContinue)) { Stop-Blocked 'opencode.cmd is not on PATH' }
 
 $allowedList = @(Split-List $Allowed | ForEach-Object { ConvertTo-RelPath $_ } | Where-Object { $_ })
@@ -249,6 +272,15 @@ $briefCopy = Join-Path $run 'brief.md'
 Copy-Item -LiteralPath $Brief -Destination $briefCopy -Force
 Write-Output "RUN DIR: $run"
 
+# Marks the run as active until the post snapshot, so the STATUS.md Stop hook defers instead of asking
+# Claude to edit a file mid-run (that edit would show up here as an out-of-scope change). Written before
+# the slow pre-snapshot so a stop right after launch already sees it. A lock left by a killed runner is
+# harmless: the hook also checks that the PID is alive.
+$lockDir = Join-Path $env:TEMP 'opencode-runs'
+New-Item -ItemType Directory -Force -Path $lockDir | Out-Null
+$activeLock = Join-Path $lockDir 'ACTIVE-VN-STOCK.json'
+Write-Utf8 $activeLock ((@{ pid = $PID; repo = $Repo; task = $TaskId; run = $run } | ConvertTo-Json -Compress))
+
 $branch = (& git -C $Repo rev-parse --abbrev-ref HEAD) | Select-Object -First 1
 $head = (& git -C $Repo rev-parse HEAD) | Select-Object -First 1
 $ocVersion = (& opencode.cmd --version) | Select-Object -First 1
@@ -275,7 +307,7 @@ try {
   $exitCode = $proc.ExitCode
 } catch { $startError = $_.Exception.Message }
 $finishedUtc = [DateTime]::UtcNow
-$leftover = @(Get-Process -Name 'opencode*' -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
+$leftover = @(Get-BlockingOpencode)
 
 # ---------------------------------------------------------------- post snapshot + scope
 $post = New-Snapshot $Repo $allowedList $watch
@@ -418,4 +450,6 @@ Write-Utf8 (Join-Path $run 'summary.md') ($md -join "`r`n")
 
 Write-Output ($md -join "`r`n")
 Write-Output "VERDICT: $verdict"
+# Held until here: the verification phase also snapshots the repo, so edits must wait for the very end.
+Remove-Item -LiteralPath $activeLock -Force -ErrorAction SilentlyContinue
 if ($verdict -eq 'BLOCKED') { exit 2 } elseif ($verdict -eq 'FAIL') { exit 1 } else { exit 0 }

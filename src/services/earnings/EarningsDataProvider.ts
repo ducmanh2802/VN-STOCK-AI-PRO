@@ -1,109 +1,233 @@
-import type { CanonicalFinancialFact, FinancialPeriod } from '../../lib/earnings/types.ts';
-import type { DataFreshnessStatus } from '../../types/stock.ts';
+/**
+ * PHASE 24 — EARNINGS DATA PROVIDER
+ * =================================
+ * Bridges the authoritative Phase 19.6 financial-document pipeline into Phase 24
+ * canonical facts. This is a REAL consumer of the existing pipeline (it does not
+ * introduce a second parser).
+ *
+ * Fail-closed: when no authoritative document / raw payload is available the
+ * provider returns an empty fact set with a UNAVAILABLE reason — it never
+ * fabricates facts or falls back to mock data.
+ */
+
+import {
+  AuthoritativeDocumentPipeline,
+  type DocumentPipelineResult,
+  type RawDocumentPayload,
+  type SecondarySourceMetric,
+  type FinancialReportType,
+  type FinancialStatementType,
+} from '../financialDocuments/index.ts';
+import type {
+  CanonicalFinancialFact,
+  DataFreshnessStatus,
+  EarningsReportType,
+  EarningsStatementType,
+  FinancialPeriod,
+  SourceTier,
+} from '../../lib/earnings/types.ts';
 import { FinancialPeriodEngine } from '../../lib/earnings/FinancialPeriodEngine.ts';
+import { EARNINGS_ENGINE_NAME, EARNINGS_CALCULATION_VERSION } from '../../lib/earnings/helpers.ts';
 
 export interface EarningsFactRequest {
-  symbol: string;
-  period: string; // e.g. 'FY_2023', 'Q1_2024'
-  fiscalYear: number;
-  reportType: 'CONSOLIDATED' | 'SEPARATE';
-  rawPayload: {
-    document: {
-      documentId: string;
-      symbol: string;
-      title: string;
-      source: string;
-      format: string;
-      url?: string;
-      publishedAt: string;
-      period: string;
-      fiscalYear: number;
-      periodEnd: string;
-      reportType: 'CONSOLIDATED' | 'SEPARATE';
-      auditStatus: 'AUDITED' | 'UNAUDITED' | 'REVIEWED';
-      checksum?: string;
-      declaredUnit?: string;
-      declaredCurrency?: string;
-    };
-    statementType: 'INCOME_STATEMENT' | 'BALANCE_SHEET' | 'CASH_FLOW';
-    declaredUnit?: string;
-    lines: Array<{
-      code: string;
-      nameVi: string;
-      valueRaw: string | number;
-      confidence?: number;
-    }>;
-  };
+  readonly symbol: string;
+  /** Raw authoritative period string (e.g. `FY_2024`, `Q3_2024`). */
+  readonly period: string;
+  readonly fiscalYear: number;
+  readonly reportType?: FinancialReportType;
+  readonly rawPayload?: RawDocumentPayload;
+  readonly secondarySources?: Record<string, SecondarySourceMetric[]>;
 }
 
-export function combineFreshness(statuses: (DataFreshnessStatus | null | undefined)[]): DataFreshnessStatus {
-  const valid = statuses.filter(Boolean) as DataFreshnessStatus[];
-  if (valid.length === 0) return 'UNAVAILABLE';
-  if (valid.some((s) => s === 'INVALID')) return 'INVALID';
-  if (valid.some((s) => s === 'UNAVAILABLE')) return 'UNAVAILABLE';
-  if (valid.some((s) => s === 'STALE')) return 'STALE';
-  return 'CURRENT';
+export interface EarningsFactResult {
+  readonly symbol: string;
+  readonly facts: readonly CanonicalFinancialFact[];
+  readonly freshness: DataFreshnessStatus;
+  readonly reportType: EarningsReportType;
+  readonly period: FinancialPeriod | null;
+  readonly presentation: 'DIRECT' | 'INDIRECT' | 'UNKNOWN';
+  readonly issues: readonly string[];
+  readonly pipelineResult: DocumentPipelineResult | null;
+}
+
+/** Deterministic source → tier mapping (authoritative hierarchy). */
+export function sourceTierOf(source: string): SourceTier {
+  switch (source) {
+    case 'SSC':
+      return 'TIER_1_PRIMARY';
+    case 'HOSE':
+    case 'HNX':
+      return 'TIER_2_EXCHANGE';
+    case 'ISSUER_IR':
+      return 'TIER_3_ISSUER';
+    default:
+      return 'TIER_4_BROKER_CROSS_CHECK';
+  }
+}
+
+function statementTypeOf(source: FinancialStatementType): EarningsStatementType | null {
+  switch (source) {
+    case 'INCOME_STATEMENT':
+      return 'INCOME_STATEMENT';
+    case 'BALANCE_SHEET':
+      return 'BALANCE_SHEET';
+    case 'CASH_FLOW_DIRECT':
+    case 'CASH_FLOW_INDIRECT':
+      return 'CASH_FLOW';
+    default:
+      return null;
+  }
+}
+
+/** Combines freshnesses with INVALID > STALE > CURRENT > UNAVAILABLE hierarchy. */
+export function combineFreshness(statuses: readonly DataFreshnessStatus[]): DataFreshnessStatus {
+  if (statuses.length === 0) return 'UNAVAILABLE';
+  if (statuses.some((s) => s === 'INVALID')) return 'INVALID';
+  // Fail-closed (P24-D14): STALE must never be masked by CURRENT. A snapshot
+  // containing any stale input is reported STALE, never CURRENT.
+  if (statuses.some((s) => s === 'STALE')) return 'STALE';
+  if (statuses.some((s) => s === 'CURRENT')) return 'CURRENT';
+  return 'UNAVAILABLE';
 }
 
 export class EarningsDataProvider {
-  public static parseDocument(req: EarningsFactRequest): CanonicalFinancialFact[] {
-    const doc = req.rawPayload.document;
-    const cleanSymbol = req.symbol.trim().toUpperCase();
-    const periodObj: FinancialPeriod = req.period.startsWith('FY_')
-      ? FinancialPeriodEngine.cumulative(req.fiscalYear, 'FY')
-      : FinancialPeriodEngine.quarter(req.fiscalYear, 1);
+  private readonly pipeline: AuthoritativeDocumentPipeline;
 
-    const unitMultiplier = req.rawPayload.declaredUnit === 'TRIEU_DONG' ? 1_000_000 : 1;
+  constructor(pipeline?: AuthoritativeDocumentPipeline) {
+    this.pipeline = pipeline ?? new AuthoritativeDocumentPipeline();
+  }
+
+  /**
+   * Maps a Phase 19.6 pipeline result into Phase 24 canonical, versioned facts.
+   */
+  public toCanonicalFacts(
+    symbol: string,
+    results: readonly DocumentPipelineResult[]
+  ): { facts: CanonicalFinancialFact[]; issues: string[]; presentation: 'DIRECT' | 'INDIRECT' | 'UNKNOWN' } {
+    const sym = symbol.trim().toUpperCase();
     const facts: CanonicalFinancialFact[] = [];
+    const issues: string[] = [];
+    let presentation: 'DIRECT' | 'INDIRECT' | 'UNKNOWN' = 'UNKNOWN';
 
-    for (const line of req.rawPayload.lines) {
-      let numVal: number | null = null;
-      if (typeof line.valueRaw === 'number') {
-        numVal = line.valueRaw * unitMultiplier;
-      } else if (typeof line.valueRaw === 'string') {
-        const cleaned = line.valueRaw.replace(/\./g, '').replace(/,/g, '.');
-        const parsed = parseFloat(cleaned);
-        if (Number.isFinite(parsed)) {
-          numVal = parsed * unitMultiplier;
-        }
+    for (const res of results) {
+      // Fail-closed (P24-D2): an unparseable document period is never replaced
+      // with a synthesized FY guess. The result is skipped with an explicit issue.
+      const parsedPeriod = FinancialPeriodEngine.parse(res.period);
+      if (!parsedPeriod) {
+        issues.push(
+          `Unparseable document period "${res.period}" for ${sym} — result skipped (fail-closed, no FY synthesis).`
+        );
+        continue;
       }
+      const period = parsedPeriod;
+      const reportType: EarningsReportType = res.reportType;
 
-      let lineItem = line.code;
-      if (line.code === '10' || line.nameVi.includes('Doanh thu')) lineItem = 'NET_REVENUE';
-      else if (line.code === '60' || line.nameVi.includes('Lợi nhuận sau thuế')) lineItem = 'NET_PROFIT';
+      for (const [metricKey, metric] of Object.entries(res.metrics)) {
+        const statementType = statementTypeOf(metric.statementType);
+        if (!statementType) continue;
 
-      facts.push({
-        symbol: cleanSymbol,
-        metric: lineItem,
-        statementType: req.rawPayload.statementType,
-        reportType: req.reportType,
-        period: periodObj,
-        value: numVal,
-        currency: 'VND',
-        unit: 'VND',
-        audited: doc.auditStatus === 'AUDITED',
-        auditStatus: doc.auditStatus,
-        restatementStatus: 'ORIGINAL',
-        restatementVersion: 0,
-        reportId: doc.documentId,
-        statementId: doc.documentId,
-        publicationDate: doc.publishedAt.slice(0, 10),
-        source: doc.source,
-        sourceTier: 'TIER_2_EXCHANGE',
-        freshness: 'CURRENT',
-        validationStatus: 'VALID',
-        lineage: {
-          sources: [doc.source],
-          engine: 'EarningsDataProvider',
-          calculationVersion: 'v1.0.0',
-          statementId: doc.documentId,
-          reportId: doc.documentId,
-          publicationDate: doc.publishedAt.slice(0, 10),
-          auditStatus: doc.auditStatus,
-        },
-      });
+        if (metric.statementType === 'CASH_FLOW_DIRECT') presentation = 'DIRECT';
+        else if (metric.statementType === 'CASH_FLOW_INDIRECT') presentation = 'INDIRECT';
+
+        // Fail-closed (P24-D2): a present-but-malformed metric period is skipped
+        // with an issue; only an ABSENT metric period inherits the document period.
+        let periodForMetric = period;
+        const rawMetricPeriod = metric.period?.trim() ?? '';
+        if (rawMetricPeriod !== '') {
+          const parsedMetricPeriod = FinancialPeriodEngine.parse(metric.period);
+          if (!parsedMetricPeriod) {
+            issues.push(
+              `Unparseable metric period "${metric.period}" for ${sym}/${metricKey} — metric skipped (fail-closed).`
+            );
+            continue;
+          }
+          periodForMetric = parsedMetricPeriod;
+        }
+
+        const freshness: DataFreshnessStatus =
+          metric.value === null
+            ? 'UNAVAILABLE'
+            : metric.validationStatus === 'REJECTED'
+            ? 'INVALID'
+            : 'CURRENT';
+
+        const fact: CanonicalFinancialFact = {
+          symbol: sym,
+          metric: metricKey,
+          statementType,
+          reportType,
+          period: periodForMetric,
+          value: metric.value,
+          currency: metric.currency,
+          unit: metric.unit,
+          audited: metric.audited,
+          auditStatus: metric.audited ? 'AUDITED' : 'UNAUDITED',
+          restatementStatus: 'ORIGINAL',
+          restatementVersion: 0,
+          reportId: metric.sourceDocumentId || `REPORT_${sym}_${res.period}`,
+          statementId: metric.sourceDocumentId || `STMT_${sym}_${res.period}`,
+          publicationDate: metric.sourcePublishedAt || null,
+          source: res.document.source,
+          sourceTier: sourceTierOf(res.document.source),
+          freshness,
+          validationStatus: metric.validationStatus,
+          unavailableReason: metric.unavailableReason,
+          notes: metric.notes,
+          lineage: {
+            sources: [res.document.source],
+            engine: EARNINGS_ENGINE_NAME,
+            calculationVersion: EARNINGS_CALCULATION_VERSION,
+            reportId: metric.sourceDocumentId || null,
+            periodStart: periodForMetric.periodStart,
+            periodEnd: periodForMetric.periodEnd,
+            publicationDate: metric.sourcePublishedAt || null,
+            auditStatus: metric.audited ? 'AUDITED' : 'UNAUDITED',
+            restatementVersion: 0,
+          },
+        };
+        facts.push(Object.freeze(fact));
+      }
     }
 
-    return facts;
+    return { facts, issues, presentation };
+  }
+
+  /**
+   * Retrieves canonical facts for one authoritative period. Requires a real
+   * document payload / discovered document; otherwise fails closed.
+   */
+  public async getFacts(request: EarningsFactRequest): Promise<EarningsFactResult> {
+    const sym = request.symbol.trim().toUpperCase();
+    const pipelineResult = this.pipeline.execute({
+      discoveryQuery: {
+        symbol: sym,
+        period: request.period,
+        fiscalYear: request.fiscalYear,
+        reportType: request.reportType,
+      },
+      rawPayload: request.rawPayload,
+      secondarySources: request.secondarySources,
+    });
+
+    const { facts, issues, presentation } = this.toCanonicalFacts(sym, [pipelineResult]);
+    const period = FinancialPeriodEngine.parse(pipelineResult.period) ?? null;
+
+    if (facts.length === 0) {
+      issues.push(
+        pipelineResult.errors[0] ??
+          `No canonical facts available for ${sym} ${request.period} (fail-closed).`
+      );
+    }
+
+    return {
+      symbol: sym,
+      facts: Object.freeze(facts),
+      freshness: combineFreshness(facts.map((f) => f.freshness)),
+      reportType: pipelineResult.reportType,
+      period,
+      presentation,
+      issues: Object.freeze(issues),
+      pipelineResult,
+    };
   }
 }

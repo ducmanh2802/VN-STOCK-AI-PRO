@@ -103,8 +103,14 @@ export interface PositionSizingInput {
    */
   capitalCeiling?: number;
   /**
-   * Optional desired quantity from client/order intent.
-   * If provided, position sizer bounds it by risk instead of computing unconstrained max.
+   * Optional quantity the caller actually intends to trade. When supplied, the risk-budget
+   * size is capped to it (rounded down to a whole board lot) BEFORE the cash and exposure
+   * gates run.
+   *
+   * Without this, `PositionSizer` prices the maximum size the risk budget could fund rather
+   * than the size being traded, so a tight stop (small risk/share) makes every order look
+   * unaffordable and an order can be sized far above any concentration limit. Omitting it
+   * preserves the legacy "size to the risk budget" behaviour.
    */
   requestedQuantity?: number;
 }
