@@ -20,9 +20,22 @@ interface EndpointHealth {
   name: string;
   endpoint: string;
   provider: string;
-  status: 'LIVE' | 'DEGRADED' | 'UNAVAILABLE';
+  status: 'LIVE' | 'DEGRADED' | 'UNAVAILABLE' | 'LOADING';
   latencyMs: number | null;
   description: string;
+}
+
+/**
+ * P27 §9 — HTTP 200 is transport success, not data availability.
+ * Several market-data endpoints deliberately answer 200 with
+ * `dataStatus: 'DATA_UNAVAILABLE'` (fail-closed, never a fake payload), so the
+ * body has to be inspected before a feed can be called LIVE.
+ */
+export function payloadDeclaresUnavailable(body: unknown): boolean {
+  if (!body || typeof body !== 'object') return false;
+  const record = body as Record<string, unknown>;
+  const status = typeof record.dataStatus === 'string' ? record.dataStatus : null;
+  return status === 'DATA_UNAVAILABLE' || status === 'INSUFFICIENT_DATA' || status === 'UNAVAILABLE';
 }
 
 export const DataStatusPage: React.FC = () => {
@@ -32,7 +45,7 @@ export const DataStatusPage: React.FC = () => {
       name: 'VPS Realtime Quote Stream',
       endpoint: '/api/market-data/quote/HPG',
       provider: 'VPS Securities API',
-      status: 'LIVE',
+      status: 'LOADING',
       latencyMs: null,
       description: 'Dữ liệu báo giá thời gian thực khớp lệnh, bước giá và khối lượng (VND/share)',
     },
@@ -40,7 +53,7 @@ export const DataStatusPage: React.FC = () => {
       name: 'KBS Historical Candlestick Service',
       endpoint: '/api/market-data/history/HPG?timeframe=1M',
       provider: 'KB Securities Vietnam (KBS)',
-      status: 'LIVE',
+      status: 'LOADING',
       latencyMs: null,
       description: 'Dữ liệu lịch sử nến ngày OHLCV, chỉ báo kỹ thuật SMA/EMA/RSI/MACD',
     },
@@ -48,7 +61,7 @@ export const DataStatusPage: React.FC = () => {
       name: 'VPS Fundamentals & Financial Statements',
       endpoint: '/api/market-data/fundamentals/HPG',
       provider: 'VPS Corporate Disclosures',
-      status: 'LIVE',
+      status: 'LOADING',
       latencyMs: null,
       description: 'Báo cáo tài chính chuẩn hóa theo quý (Doanh thu, LNST, Tài sản, Nợ)',
     },
@@ -56,7 +69,7 @@ export const DataStatusPage: React.FC = () => {
       name: 'Quantitative Signal & Recommendation Engine',
       endpoint: '/api/recommendations/rankings?strategy=SHORT_TERM',
       provider: 'Internal Quant Pipeline',
-      status: 'LIVE',
+      status: 'LOADING',
       latencyMs: null,
       description: 'Bảng xếp hạng chiến lược đa khung thời gian (Ngắn, Trung, Dài hạn)',
     },
@@ -64,7 +77,7 @@ export const DataStatusPage: React.FC = () => {
       name: 'TradingEngine & PaperBroker Engine',
       endpoint: '/api/trading/status',
       provider: 'Process-Local Trading Engine',
-      status: 'LIVE',
+      status: 'LOADING',
       latencyMs: null,
       description: 'Cơ chế khớp lệnh giả lập, kiểm soát rủi ro RiskGuard và bảo toàn danh mục',
     },
@@ -72,7 +85,7 @@ export const DataStatusPage: React.FC = () => {
       name: 'Macroeconomic Intelligence Registry',
       endpoint: '/api/macro/indicators',
       provider: 'Macro Intelligence Layer',
-      status: 'LIVE',
+      status: 'LOADING',
       latencyMs: null,
       description: 'Chỉ số vĩ mô Việt Nam (Lãi suất điều hành NHNN, CPI, Tỷ giá USD/VND)',
     },
@@ -87,11 +100,25 @@ export const DataStatusPage: React.FC = () => {
           const res = await fetch(feed.endpoint, { cache: 'no-store' });
           const end = performance.now();
           const latency = Math.round(end - start);
-          if (res.ok) {
-            return { ...feed, latencyMs: latency, status: (latency > 1500 ? 'DEGRADED' : 'LIVE') as 'LIVE' | 'DEGRADED' };
-          } else {
+          if (!res.ok) {
             return { ...feed, latencyMs: latency, status: 'UNAVAILABLE' as const };
           }
+          // Inspect the body: a 200 carrying DATA_UNAVAILABLE is an honest
+          // "no data" answer, not a live feed.
+          let body: unknown = null;
+          try {
+            body = await res.json();
+          } catch {
+            body = null;
+          }
+          if (payloadDeclaresUnavailable(body)) {
+            return { ...feed, latencyMs: latency, status: 'UNAVAILABLE' as const };
+          }
+          return {
+            ...feed,
+            latencyMs: latency,
+            status: (latency > 1500 ? 'DEGRADED' : 'LIVE') as 'LIVE' | 'DEGRADED',
+          };
         } catch {
           const end = performance.now();
           return { ...feed, latencyMs: Math.round(end - start), status: 'UNAVAILABLE' as const };
@@ -123,7 +150,15 @@ export const DataStatusPage: React.FC = () => {
               Data Quality & Live Feed Health Monitor
             </h1>
             <DataStatusBadge
-              status={liveFeeds === feeds.length ? 'LIVE' : liveFeeds > 0 ? 'PARTIAL' : 'UNAVAILABLE'}
+              status={
+                feeds.some((f) => f.status === 'LOADING')
+                  ? 'LOADING'
+                  : liveFeeds === feeds.length
+                    ? 'LIVE'
+                    : liveFeeds > 0
+                      ? 'PARTIAL'
+                      : 'UNAVAILABLE'
+              }
               compact
             />
           </div>
@@ -155,7 +190,7 @@ export const DataStatusPage: React.FC = () => {
           badge={avgLatency && avgLatency < 200 ? 'FAST' : 'NORMAL'}
           badgeVariant="success"
           icon={Zap}
-          status="LIVE"
+          status={avgLatency !== null ? 'LIVE' : 'LOADING'}
         />
 
         <MetricCard
@@ -164,7 +199,7 @@ export const DataStatusPage: React.FC = () => {
           subValue="Các dịch vụ dữ liệu chính đang kết nối"
           badge={liveFeeds === feeds.length ? 'ALL HEALTHY' : 'PARTIAL'}
           badgeVariant={liveFeeds === feeds.length ? 'success' : 'warning'}
-          status="LIVE"
+          status={feeds.some((f) => f.status === 'LOADING') ? 'LOADING' : liveFeeds === feeds.length ? 'LIVE' : 'PARTIAL'}
         />
 
         <MetricCard
@@ -174,7 +209,6 @@ export const DataStatusPage: React.FC = () => {
           badge="ZERO MOCK"
           badgeVariant="indigo"
           icon={ShieldCheck}
-          status="LIVE"
         />
 
         <MetricCard
@@ -184,7 +218,6 @@ export const DataStatusPage: React.FC = () => {
           badge="CROSS-CHECK"
           badgeVariant="neutral"
           icon={Server}
-          status="LIVE"
         />
       </div>
 

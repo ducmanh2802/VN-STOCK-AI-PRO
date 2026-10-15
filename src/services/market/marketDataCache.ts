@@ -1,55 +1,59 @@
-interface CacheEntry<T> {
-  value: T;
+/**
+ * Lightweight in-memory TTL cache for market-data responses (STEP 14).
+ *
+ * Rules:
+ *   - Map<string, { value, expiresAt }> — no persistence, no database.
+ *   - ONLY successful results are ever cached (the service layer calls cacheSet
+ *     exclusively after a provider succeeded); errors must stay visible and are
+ *     never turned into stale-but-permanent data.
+ *   - Short TTLs: quotes 15s, history 60s, fundamentals 5min.
+ *   - Server-process-lifetime only: a restart empties the cache.
+ */
+
+interface CacheEntry {
+  value: unknown;
   expiresAt: number;
 }
 
-const cacheMap = new Map<string, CacheEntry<unknown>>();
-let hitCount = 0;
-let missCount = 0;
+const store = new Map<string, CacheEntry>();
 
-export function cacheGet<T>(key: string): T | null {
-  const entry = cacheMap.get(key);
-  if (!entry) {
-    missCount++;
-    return null;
+/**
+ * P27 §27 — cache hit rate is MEASURED, not assumed. Counters are monotonic for
+ * the process lifetime (a restart zeroes them, like every other stat here).
+ * An expired entry counts as a miss: it was requested but could not be served.
+ */
+let hits = 0;
+let misses = 0;
+
+export function cacheGet<T>(key: string): T | undefined {
+  const hit = store.get(key);
+  if (!hit) {
+    misses += 1;
+    return undefined;
   }
-  if (Date.now() > entry.expiresAt) {
-    cacheMap.delete(key);
-    missCount++;
-    return null;
+  if (Date.now() >= hit.expiresAt) {
+    store.delete(key);
+    misses += 1;
+    return undefined;
   }
-  hitCount++;
-  return entry.value as T;
+  hits += 1;
+  return hit.value as T;
 }
 
-export function cacheSet<T>(key: string, value: T, ttlMs: number = 60000): void {
-  cacheMap.set(key, {
-    value,
-    expiresAt: Date.now() + ttlMs,
-  });
+export function cacheSet(key: string, value: unknown, ttlMs: number): void {
+  if (!Number.isFinite(ttlMs) || ttlMs <= 0) return;
+  store.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
+export function cacheDelete(key: string): void {
+  store.delete(key);
 }
 
 export function cacheClear(): void {
-  cacheMap.clear();
-  hitCount = 0;
-  missCount = 0;
+  store.clear();
 }
 
-export function cacheStats(): { hits: number; misses: number; size: number; keys: string[] } {
-  return {
-    hits: hitCount,
-    misses: missCount,
-    size: cacheMap.size,
-    keys: Array.from(cacheMap.keys()),
-  };
-}
-
-export async function cached<T>(key: string, fn: () => Promise<T>, ttlMs: number = 60000): Promise<T> {
-  const existing = cacheGet<T>(key);
-  if (existing !== null) {
-    return existing;
-  }
-  const fresh = await fn();
-  cacheSet(key, fresh, ttlMs);
-  return fresh;
+/** Introspection for diagnostics (exposed via /api/health). */
+export function cacheStats(): { size: number; hits: number; misses: number; keys: string[] } {
+  return { size: store.size, hits, misses, keys: Array.from(store.keys()) };
 }
