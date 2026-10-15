@@ -42,10 +42,10 @@ export interface IndicatorSnapshot {
     label: string;
   };
   macd: {
-    macd: number;
-    signal: number;
-    histogram: number;
-    trend: 'BULLISH_CROSS' | 'BEARISH_CROSS' | 'BULLISH' | 'BEARISH';
+    macd: number | null;
+    signal: number | null;
+    histogram: number | null;
+    trend: 'BULLISH_CROSS' | 'BEARISH_CROSS' | 'BULLISH' | 'BEARISH' | null;
     label: string;
   };
   sma20: {
@@ -54,15 +54,15 @@ export interface IndicatorSnapshot {
     diffPercent: number;
   };
   sma50: {
-    value: number;
-    priceRelation: 'ABOVE' | 'BELOW';
-    diffPercent: number;
+    value: number | null;
+    priceRelation: 'ABOVE' | 'BELOW' | null;
+    diffPercent: number | null;
   };
   sma200: {
-    value: number;
-    priceRelation: 'ABOVE' | 'BELOW';
-    diffPercent: number;
-    goldenCross: boolean;
+    value: number | null;
+    priceRelation: 'ABOVE' | 'BELOW' | null;
+    diffPercent: number | null;
+    goldenCross: boolean | null;
   };
   bollinger: {
     upper: number;
@@ -75,8 +75,8 @@ export interface IndicatorSnapshot {
   };
   volume: {
     current: number;
-    ma20: number;
-    ratioToMA: number; // e.g. 1.45x
-    trend: 'SURGE' | 'NORMAL' | 'DRY';
+    ma20: number | null;
+    ratioToMA: number | null;
+    trend: 'SURGE' | 'NORMAL' | 'DRY' | null;
   };
 }

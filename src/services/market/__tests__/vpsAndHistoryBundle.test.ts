@@ -46,7 +46,8 @@ describe('Phase 8.5 VPS Provider and Real Candle History Processing', () => {
     expect(bundle.snapshot?.rsi.value).toBeGreaterThan(0);
     expect(bundle.snapshot?.rsi.value).toBeLessThan(100);
     expect(bundle.snapshot?.sma20.value).toBeGreaterThan(0);
-    expect(bundle.snapshot?.sma50.value).toBeGreaterThan(0);
+    // 40 candles < 50: SMA50 is unavailable and must not be filled with the current price.
+    expect(bundle.snapshot?.sma50.value).toBeNull();
     expect(bundle.snapshot?.macd).toBeDefined();
     expect(bundle.snapshot?.bollinger).toBeDefined();
   });

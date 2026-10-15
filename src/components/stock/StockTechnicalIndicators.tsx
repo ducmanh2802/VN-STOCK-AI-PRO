@@ -40,7 +40,8 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
   const hasSma200Val = isPositiveFiniteNumber(sma200?.value);
   const hasSma200Diff = isFiniteNumber(sma200?.diffPercent);
 
-  const hasVolumeRatio = isPositiveFiniteNumber(volume?.ratioToMA);
+  // A ratio of 0 is real (no volume in the latest session against a valid MA20), not missing data.
+  const hasVolumeRatio = isFiniteNumber(volume?.ratioToMA);
   const hasVolumeMa20 = isPositiveFiniteNumber(volume?.ma20);
 
   return (
@@ -100,9 +101,13 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
             <span className="text-xs font-mono font-bold text-terminal-accent-text">MACD (12, 26, 9)</span>
             <span
               className={`px-1.5 py-0.5 rounded text-2xs font-mono font-semibold ${
-                macd.trend === 'BULLISH' || macd.trend === 'BULLISH_CROSS'
+                macd.trend === 'BULLISH_CROSS'
                   ? 'bg-terminal-up/15 text-terminal-up border border-terminal-up/30'
-                  : 'bg-terminal-down/15 text-terminal-down border border-terminal-down/30'
+                  : macd.trend === 'BULLISH'
+                    ? 'bg-terminal-up/15 text-terminal-up border border-terminal-up/30'
+                    : macd.trend === null || macd.trend === undefined
+                      ? 'bg-terminal-bg text-terminal-text-muted border border-terminal-border'
+                      : 'bg-terminal-down/15 text-terminal-down border border-terminal-down/30'
               }`}
             >
               {macd.trend === 'BULLISH_CROSS' ? 'CROSS UP' : (macd.trend || '--')}
@@ -190,7 +195,7 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
         <div className="p-3 rounded-lg bg-terminal-bg border border-terminal-border/80 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold text-terminal-ceiling">MA50 & MA200</span>
-            {sma200.goldenCross && (
+            {sma200.goldenCross === true && (
               <span className="px-1.5 py-0.5 rounded text-2xs font-mono font-bold bg-terminal-ref/20 text-terminal-ref border border-terminal-ref/40">
                 GOLDEN CROSS
               </span>
@@ -213,9 +218,11 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
             </div>
           </div>
           <div className="text-[11px] text-terminal-text-secondary">
-            {sma200.goldenCross
+            {sma200.goldenCross === true
               ? 'MA50 nằm trên MA200 - Trạng thái xu hướng Uptrend dài hạn lý tưởng'
-              : 'Đang theo dõi kiểm định ngưỡng hỗ trợ dài hạn MA200'}
+              : sma200.goldenCross === false
+                ? 'Đang theo dõi kiểm định ngưỡng hỗ trợ dài hạn MA200'
+                : 'Chưa đủ dữ liệu MA200 (cần tối thiểu 200 phiên)'}
           </div>
         </div>
 
@@ -229,10 +236,14 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
                   ? 'bg-terminal-up/15 text-terminal-up border border-terminal-up/30'
                   : volume.trend === 'DRY'
                   ? 'bg-terminal-down/15 text-terminal-down border border-terminal-down/30'
-                  : 'bg-terminal-ref/15 text-terminal-ref border border-terminal-ref/30'
+                  : volume.trend === 'NORMAL'
+                  ? 'bg-terminal-ref/15 text-terminal-ref border border-terminal-ref/30'
+                  : volume.trend === null || volume.trend === undefined
+                    ? 'bg-terminal-bg text-terminal-text-muted border border-terminal-border'
+                    : 'bg-terminal-ref/15 text-terminal-ref border border-terminal-ref/30'
               }`}
             >
-              {volume.trend === 'SURGE' ? 'BÙNG NỔ VOL' : volume.trend === 'DRY' ? 'CẠN KIỆT' : 'BÌNH THƯỜNG'}
+              {volume.trend === 'SURGE' ? 'BÙNG NỔ VOL' : volume.trend === 'DRY' ? 'CẠN KIỆT' : volume.trend === 'NORMAL' ? 'BÌNH THƯỜNG' : '--'}
             </span>
           </div>
           <div className="flex items-baseline justify-between font-mono">
@@ -246,7 +257,11 @@ export const StockTechnicalIndicators: React.FC<StockTechnicalIndicatorsProps> =
           <div className="text-[11px] text-terminal-text-secondary">
             {hasVolumeRatio && volume.ratioToMA >= 1.3
               ? 'Thanh khoản bùng nổ vượt trội so với trung bình 20 phiên, dòng tiền tham gia quyết liệt'
-              : 'Thanh khoản duy trì ở mức cân bằng tích lũy'}
+              : hasVolumeRatio && volume.trend === 'DRY'
+                ? 'Thanh khoản suy giảm rõ rệt so với trung bình 20 phiên'
+                : hasVolumeRatio
+                ? 'Thanh khoản duy trì ở mức cân bằng tích lũy'
+                : 'Chưa đủ dữ liệu khối lượng trung bình 20 phiên'}
           </div>
         </div>
       </div>

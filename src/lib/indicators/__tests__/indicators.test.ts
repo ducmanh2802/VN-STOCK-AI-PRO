@@ -203,4 +203,111 @@ describe('Technical Indicators Library (Deterministic calculations)', () => {
       expect(snapshot.volume.ratioToMA).toBeGreaterThan(0);
     });
   });
+
+  describe('Indicator Snapshot — insufficient history', () => {
+    it('95 candles: SMA50 exists, SMA200 and goldenCross are null (no golden cross without 200 sessions)', () => {
+      const candles: CandlePoint[] = Array.from({ length: 95 }, (_, i) => ({
+        time: `2025-01-${String(i + 1).padStart(2, '0')}`,
+        open: 25000 + i * 10 - 50,
+        high: 25100 + i * 10,
+        low: 24900 + i * 10,
+        close: 25000 + i * 10,
+        volume: 1000000,
+      }));
+      const snapshot = computeIndicatorSnapshot(candles);
+      expect(snapshot).not.toBeNull();
+      if (!snapshot) return;
+
+      expect(typeof snapshot.sma50.value).toBe('number');
+      expect(snapshot.sma50.priceRelation).toBe('ABOVE');
+      expect(snapshot.sma200.value).toBeNull();
+      expect(snapshot.sma200.priceRelation).toBeNull();
+      expect(snapshot.sma200.diffPercent).toBeNull();
+      expect(snapshot.sma200.goldenCross).toBeNull();
+    });
+
+    it('30 candles: SMA50 and MACD are null', () => {
+      const thirtyCandles: CandlePoint[] = Array.from({ length: 30 }, (_, i) => {
+        const base = 25000 + i * 150 + (i % 3 === 0 ? 200 : -100);
+        const dateStr = `2025-01-${String(i + 1).padStart(2, '0')}`;
+        return {
+          time: dateStr,
+          open: base - 50,
+          high: base + 250,
+          low: base - 150,
+          close: base + 50,
+          volume: 1000000 + (i % 5) * 200000,
+        };
+      });
+      const snapshot = computeIndicatorSnapshot(thirtyCandles);
+      expect(snapshot).not.toBeNull();
+      if (!snapshot) return;
+
+      expect(snapshot.sma50.value).toBeNull();
+      expect(snapshot.macd.macd).toBeNull();
+      expect(snapshot.macd.signal).toBeNull();
+      expect(snapshot.macd.histogram).toBeNull();
+      expect(snapshot.macd.trend).toBeNull();
+      expect(snapshot.macd.label).toContain('Chưa đủ dữ liệu');
+    });
+
+    it('30 candles with every volume 0: volume ratio/MA/trend are null', () => {
+      const zeroVolumeCandles: CandlePoint[] = Array.from({ length: 30 }, (_, i) => ({
+        time: `2025-01-${String(i + 1).padStart(2, '0')}`,
+        open: 25000 + i * 150,
+        high: 25250 + i * 150,
+        low: 24750 + i * 150,
+        close: 25100 + i * 150,
+        volume: 0,
+      }));
+      const snapshot = computeIndicatorSnapshot(zeroVolumeCandles);
+      expect(snapshot).not.toBeNull();
+      if (!snapshot) return;
+
+      expect(snapshot.volume.ratioToMA).toBeNull();
+      expect(snapshot.volume.ma20).toBeNull();
+      expect(snapshot.volume.trend).toBeNull();
+    });
+
+    it('30 candles with volume 1000000 except last candle volume 0: ratioToMA is 0, trend is DRY, ma20 is positive', () => {
+      const mixedVolumeCandles: CandlePoint[] = Array.from({ length: 30 }, (_, i) => ({
+        time: `2025-01-${String(i + 1).padStart(2, '0')}`,
+        open: 25000 + i * 150,
+        high: 25250 + i * 150,
+        low: 24750 + i * 150,
+        close: 25100 + i * 150,
+        volume: i === 29 ? 0 : 1000000,
+      }));
+      const snapshot = computeIndicatorSnapshot(mixedVolumeCandles);
+      expect(snapshot).not.toBeNull();
+      if (!snapshot) return;
+
+      expect(snapshot.volume.ratioToMA).toBe(0);
+      expect(snapshot.volume.trend).toBe('DRY');
+      expect(snapshot.volume.ma20).toBeGreaterThan(0);
+    });
+
+    it('220 rising candles: sma200.value is number, goldenCross is boolean, MACD fields are numbers', () => {
+      const twenty20Candles: CandlePoint[] = Array.from({ length: 220 }, (_, i) => ({
+        time: `2025-01-${String(i + 1).padStart(2, '0')}`,
+        close: 25000 + i * 10,
+        volume: 1000000,
+        open: 25000 + i * 10 - 50,
+        high: 25100 + i * 10,
+        low: 24900 + i * 10,
+      }));
+      const snapshot = computeIndicatorSnapshot(twenty20Candles);
+      expect(snapshot).not.toBeNull();
+      if (!snapshot) return;
+
+      expect(snapshot.sma200.value).toBeDefined();
+      expect(typeof snapshot.sma200.value).toBe('number');
+      expect(typeof snapshot.sma200.goldenCross).toBe('boolean');
+      expect(snapshot.sma200.goldenCross).toBe(true);
+      expect(typeof snapshot.macd.macd).toBe('number');
+      expect(typeof snapshot.macd.signal).toBe('number');
+      expect(typeof snapshot.macd.histogram).toBe('number');
+      expect(snapshot.macd.label).not.toContain('Chưa đủ dữ liệu');
+    });
+  });
 });

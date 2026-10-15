@@ -581,8 +581,8 @@ export const StockCandlestickChart: React.FC<StockCandlestickChartProps> = ({
             <span className="text-terminal-accent-text font-semibold">MACD (12, 26, 9) · Signal & Histogram</span>
             {chartData?.snapshot && (
               <span>
-                MACD: <strong className="text-terminal-accent-text">{chartData.snapshot.macd.macd}</strong> · Signal:{' '}
-                <strong className="text-terminal-down">{chartData.snapshot.macd.signal}</strong> ({chartData.snapshot.macd.label})
+                MACD: <strong className="text-terminal-accent-text">{Number.isFinite(chartData.snapshot.macd.macd) ? chartData.snapshot.macd.macd : '--'}</strong> · Signal:{' '}
+                <strong className="text-terminal-down">{Number.isFinite(chartData.snapshot.macd.signal) ? chartData.snapshot.macd.signal : '--'}</strong> ({chartData.snapshot.macd.label})
               </span>
             )}
           </div>

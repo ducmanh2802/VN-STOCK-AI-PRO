@@ -8,6 +8,7 @@ import { StockSupportResistance } from '../StockSupportResistance.tsx';
 import { StockAISignalCard } from '../StockAISignalCard.tsx';
 import type { RiskRewardData, FundamentalMetrics, SupportResistanceLevels, StockAISignalData } from '../../../types/stockDetail';
 import type { IndicatorSnapshot } from '../../../lib/indicators/types';
+import { computeIndicatorSnapshot } from '../../../lib/indicators';
 
 describe('Stock Component Hardening & Fail-Closed Integrity', () => {
   describe('StockPriceSummary', () => {
@@ -99,6 +100,80 @@ describe('Stock Component Hardening & Fail-Closed Integrity', () => {
       );
       expect(html).not.toContain('NaN');
       expect(html).toContain('--');
+    });
+
+    it('handles null goldenCross - shows "Chưa đủ dữ liệu MA200" when history short', () => {
+      const candles = Array.from({ length: 95 }, (_, i) => ({
+        close: 25000 - i * 10,
+        open: 25000 - i * 10 + 50,
+        high: 25000 - i * 10 + 100,
+        low: 25000 - i * 10 - 100,
+        volume: 1000000,
+        time: `t${i}`,
+      }));
+      const snap = computeIndicatorSnapshot(candles);
+      const html = renderToStaticMarkup(
+        <StockTechnicalIndicators snapshot={snap} currentPrice={24060} />
+      );
+      expect(html).not.toContain('GOLDEN CROSS');
+      expect(html).not.toContain('Uptrend dài hạn lý tưởng');
+      expect(html).not.toContain('NaN');
+      expect(html).toContain('Chưa đủ dữ liệu MA200');
+    });
+
+    it('shows "Chưa đủ dữ liệu khối lượng trung bình 20 phiên" when all volumes are 0', () => {
+      const candles = Array.from({ length: 95 }, (_, i) => ({
+        close: 25000 - i * 10,
+        open: 25000 - i * 10 + 50,
+        high: 25000 - i * 10 + 100,
+        low: 25000 - i * 10 - 100,
+        volume: 0,
+        time: `t${i}`,
+      }));
+      const snap = computeIndicatorSnapshot(candles);
+      const html = renderToStaticMarkup(
+        <StockTechnicalIndicators snapshot={snap} currentPrice={24060} />
+      );
+      expect(html).toContain('Chưa đủ dữ liệu khối lượng trung bình 20 phiên');
+      expect(html).not.toContain('Thanh khoản duy trì ở mức cân bằng tích lũy');
+    });
+
+    it('shows BÌNH THƯỜNG for NORMAL volume trend with 95 candles', () => {
+      const candles = Array.from({ length: 95 }, (_, i) => ({
+        close: 25000 - i * 10,
+        open: 25000 - i * 10 + 50,
+        high: 25000 - i * 10 + 100,
+        low: 25000 - i * 10 - 100,
+        volume: 1000000,
+        time: `t${i}`,
+      }));
+      const snap = computeIndicatorSnapshot(candles);
+      const html = renderToStaticMarkup(
+        <StockTechnicalIndicators snapshot={snap} currentPrice={24060} />
+      );
+      expect(html).toContain('BÌNH THƯỜNG');
+      expect(html).toContain('Thanh khoản duy trì ở mức cân bằng tích lũy');
+    });
+
+    it('treats a 0 ratio (no volume in the latest session, valid MA20) as real dry volume, not missing data', () => {
+      const candles = Array.from({ length: 95 }, (_, i) => ({
+        close: 25000 - i * 10,
+        open: 25000 - i * 10 + 50,
+        high: 25000 - i * 10 + 100,
+        low: 25000 - i * 10 - 100,
+        volume: i === 94 ? 0 : 1000000,
+        time: `t${i}`,
+      }));
+      const snap = computeIndicatorSnapshot(candles);
+      expect(snap?.volume.ratioToMA).toBe(0);
+      const html = renderToStaticMarkup(
+        <StockTechnicalIndicators snapshot={snap} currentPrice={24060} />
+      );
+      expect(html).toContain('CẠN KIỆT');
+      expect(html).toContain('0x');
+      expect(html).toContain('Thanh khoản suy giảm rõ rệt so với trung bình 20 phiên');
+      expect(html).not.toContain('Chưa đủ dữ liệu khối lượng trung bình 20 phiên');
+      expect(html).not.toContain('Thanh khoản duy trì ở mức cân bằng tích lũy');
     });
   });
 
