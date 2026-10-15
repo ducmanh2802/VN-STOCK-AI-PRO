@@ -176,6 +176,94 @@ describe('PHASE 17 — RecommendationEngine', () => {
     expect(rec.score).toBeLessThan(40);
   });
 
+  it('sets expectedReturn to null when score is null', () => {
+    const rec = RecommendationEngine.generate({
+      symbol: 'TEST',
+      strategy: 'SHORT_TERM',
+      currentPrice: 100_000,
+      scores: {
+        technicalScore: null,
+        fundamentalScore: null,
+        momentumScore: null,
+        moneyFlowScore: null,
+        valuationScore: null,
+        riskScore: null,
+      },
+      supportPrice: 95_000,
+      resistancePrice: 110_000,
+    });
+
+    expect(rec.score).toBeNull();
+    expect(rec.potentialUpside).not.toBeNull();
+    expect(rec.potentialDownside).not.toBeNull();
+    expect(rec.expectedReturn).toBeNull();
+  });
+
+  it('passes asOfDate through and uses null when omitted', () => {
+    const rec1 = RecommendationEngine.generate({
+      symbol: 'FPT',
+      strategy: 'SHORT_TERM',
+      currentPrice: 130_000,
+      scores: baseScores,
+      asOfDate: '2024-01-15',
+    });
+
+    expect(rec1.asOfDate).toBe('2024-01-15');
+
+    const rec2 = RecommendationEngine.generate({
+      symbol: 'FPT',
+      strategy: 'SHORT_TERM',
+      currentPrice: 130_000,
+      scores: baseScores,
+    });
+
+    expect(rec2.asOfDate).toBeNull();
+  });
+
+  it('passes generatedAt through and uses current time when omitted', () => {
+    // A fixed past instant: a wall-clock default could never produce it, so this proves the pass-through.
+    const now = '2020-01-02T03:04:05.000Z';
+    const rec1 = RecommendationEngine.generate({
+      symbol: 'FPT',
+      strategy: 'SHORT_TERM',
+      currentPrice: 130_000,
+      scores: baseScores,
+      generatedAt: now,
+    });
+
+    expect(rec1.generatedAt).toBe(now);
+
+    const rec2 = RecommendationEngine.generate({
+      symbol: 'FPT',
+      strategy: 'SHORT_TERM',
+      currentPrice: 130_000,
+      scores: baseScores,
+    });
+
+    expect(typeof rec2.generatedAt).toBe('string');
+    expect(rec2.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('generates same expectedReturn when score is present', () => {
+    const rec = RecommendationEngine.generate({
+      symbol: 'FPT',
+      strategy: 'SHORT_TERM',
+      currentPrice: 130_000,
+      scores: baseScores,
+      supportPrice: 125_000,
+      resistancePrice: 142_000,
+    });
+
+    const w = Math.min(0.85, Math.max(0.35, rec.score! / 100));
+    const expectedReturn = Number(
+      (w * rec.potentialUpside! - (1 - w) * rec.potentialDownside!).toFixed(2)
+    );
+
+    expect(rec.score).not.toBeNull();
+    expect(rec.expectedReturn).not.toBeNull();
+    expect(rec.expectedReturn).toBe(expectedReturn);
+  });
+
   it('handles partial scores gracefully and assigns LOW confidence when data is sparse', () => {
     const rec = RecommendationEngine.generate({
       symbol: 'VIC',

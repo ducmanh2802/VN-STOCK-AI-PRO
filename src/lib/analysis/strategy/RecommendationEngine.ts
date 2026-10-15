@@ -39,6 +39,8 @@ export interface RecommendationGenerateParams {
   profitGrowth?: number | null;
   rsi?: number | null;
   customConfidence?: ConfidenceLevel;
+  asOfDate?: string | null;
+  generatedAt?: string;
 }
 
 export class RecommendationEngine {
@@ -138,10 +140,10 @@ export class RecommendationEngine {
     const rewardAmount = rrResult ? rrResult.rewardAmount : null;
     const riskReward = rrResult ? rrResult.ratio : null;
 
-    // Expected return is only defined when an envelope exists.
-    const estimatedWinRate = score !== null ? Math.min(0.85, Math.max(0.35, score / 100)) : 0.5;
+    // Expected return is only defined when an envelope exists AND a win rate is available.
+    const estimatedWinRate = score !== null ? Math.min(0.85, Math.max(0.35, score / 100)) : null;
     const expectedReturn =
-      potentialUpside !== null && potentialDownside !== null
+      estimatedWinRate !== null && potentialUpside !== null && potentialDownside !== null
         ? Number(
             ((estimatedWinRate * potentialUpside - (1 - estimatedWinRate) * potentialDownside)).toFixed(2)
           )
@@ -271,8 +273,8 @@ export class RecommendationEngine {
       warnings,
       scoreBreakdown: scoreResult.breakdown,
       evidence,
-      generatedAt: new Date().toISOString(),
-      asOfDate: new Date().toISOString().split('T')[0],
+      generatedAt: params.generatedAt ?? new Date().toISOString(),
+      asOfDate: params.asOfDate ?? null,
       currency: 'VND',
     };
   }
