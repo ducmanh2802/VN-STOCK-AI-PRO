@@ -7,6 +7,70 @@ import {
 } from '../MoneyFlowEngine.ts';
 import { CandleInput } from '../../common/types.ts';
 
+describe('Volume Signal Edge Cases', () => {
+    it('volumeRatio null and status UNAVAILABLE when rounded 20-session average is 0 while latest volume > 0', () => {
+      // 21 candles: first 20 have volume 0, last (latest) has volume 9 so that 9/20 rounds to 0
+      const candles: CandleInput[] = [];
+      for (let i = 0; i < 21; i++) {
+        const price = 100000 + (i * 100);
+        const volume = i === 20 ? 9 : 0;
+        candles.push({
+          time: `2025-01-${String(i + 1).padStart(2, '0')}`,
+          open: price,
+          high: Math.max(price, price) + 500,
+          low: Math.min(price, price) - 500,
+          close: price,
+          volume,
+        });
+      }
+
+      const result = MoneyFlowEngine.evaluate({
+        candles,
+        foreignTrading: { foreignBuyVolume: 0, foreignSellVolume: 0, foreignNetVolume: 0, foreignBuyValue: 0, foreignSellValue: 0, foreignNetValue: 0 },
+      });
+
+      expect(result.volumeSignal.volumeRatio).toBeNull();
+      expect(result.volumeSignal.status).toBe('UNAVAILABLE');
+      expect(result.volumeSignal.currentVolume).toBe(9);
+      expect(result.volumeSignal.volumeSMA20).toBe(0);
+
+      // Verify reasons include neutral volume component message
+      const hasNeutralReason = result.reasons.some((r) => r.includes('trung tính'));
+      expect(hasNeutralReason).toBe(true);
+    });
+
+    it('volumeRatio null and status UNAVAILABLE when all 20-session volumes are 0', () => {
+      // 21 candles with all volumes = 0
+      const candles: CandleInput[] = [];
+      for (let i = 0; i < 21; i++) {
+        const price = 100000 + (i * 100);
+        candles.push({
+          time: `2025-01-${String(i + 1).padStart(2, '0')}`,
+          open: price,
+          high: Math.max(price, price) + 500,
+          low: Math.min(price, price) - 500,
+          close: price,
+          volume: 0,
+        });
+      }
+
+      const result = MoneyFlowEngine.evaluate({
+        candles,
+        foreignTrading: { foreignBuyVolume: 0, foreignSellVolume: 0, foreignNetVolume: 0, foreignBuyValue: 0, foreignSellValue: 0, foreignNetValue: 0 },
+      });
+
+      expect(result.volumeSignal.volumeRatio).toBeNull();
+      expect(result.volumeSignal.status).toBe('UNAVAILABLE');
+      expect(result.volumeSignal.currentVolume).toBe(0);
+      expect(result.volumeSignal.volumeSMA20).toBe(0);
+
+      // The volume component is neutral (and says so) when the baseline is unavailable.
+      expect(result.reasons.some((r) => r.includes('trung tính'))).toBe(true);
+      expect(result.score).toBeGreaterThanOrEqual(0);
+      expect(result.score).toBeLessThanOrEqual(100);
+    });
+  });
+
 describe('Money Flow Analysis Suite', () => {
   // Helper to generate synthetic candlestick series
   const generateCandles = (
