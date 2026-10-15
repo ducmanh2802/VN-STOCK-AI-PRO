@@ -51,7 +51,8 @@ export type VolumeSignalStatus =
   | 'ABOVE_AVERAGE'
   | 'NORMAL'
   | 'LOW'
-  | 'DRY_UP';
+  | 'DRY_UP'
+  | 'UNAVAILABLE';
 
 export interface VolumeSignalResult {
   currentVolume: number;
@@ -292,7 +293,7 @@ export class MoneyFlowEngine {
     const lookback = Math.min(20, candles.length);
     let volumeSMA20: number | null = null;
     let volumeRatio: number | null = null;
-    let volumeStatus: VolumeSignalStatus = 'NORMAL';
+    let volumeStatus: VolumeSignalStatus = 'UNAVAILABLE';
     let volInterpretation = '';
 
     if (lookback > 0) {
@@ -318,9 +319,9 @@ export class MoneyFlowEngine {
           volInterpretation = 'Thanh khoản cạn kiệt đáng kể so với mức bình quân.';
         }
       } else {
-        volumeRatio = latest.volume > 0 ? 999 : 0;
-        volumeStatus = latest.volume > 0 ? 'SURGE' : 'DRY_UP';
-        volInterpretation = 'Khối lượng trung bình các phiên trước bằng 0.';
+        volumeRatio = null;
+        volumeStatus = 'UNAVAILABLE';
+        volInterpretation = 'Không đủ dữ liệu khối lượng nền 20 phiên (trung bình bằng 0) — không đánh giá khối lượng.';
       }
     }
 
@@ -535,6 +536,9 @@ export class MoneyFlowEngine {
       volScore = latest.close >= (prev?.close ?? latest.open) ? 75 : 35;
     } else if (volumeStatus === 'LOW' || volumeStatus === 'DRY_UP') {
       volScore = 45;
+    } else if (volumeStatus === 'UNAVAILABLE') {
+      volScore = 50;
+      reasons.push('Khối lượng trung bình 20 phiên không khả dụng — thành phần khối lượng trung tính.');
     } else {
       volScore = 55;
     }

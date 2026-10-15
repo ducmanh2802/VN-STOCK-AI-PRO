@@ -37,9 +37,7 @@ export interface BuildStrategyContextOptions {
 }
 
 /**
- * Resolves the derivatives underlying index from a futures symbol.
- * Fail-closed routing (P25-P2-1): VN100 index futures are evaluated on the
- * VN100 underlying, never silently on VN30. Exported for unit testing.
+ * End of the asOfDate trading day in Vietnam time (UTC+07:00) as an ISO instant.
  */
 export function endOfVnTradingDayIso(asOfDate: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) {
@@ -47,7 +45,11 @@ export function endOfVnTradingDayIso(asOfDate: string): string {
   }
   return `${asOfDate}T16:59:59.999Z`;
 }
-
+/**
+ * Resolves the derivatives underlying index from a futures symbol.
+ * Fail-closed routing (P25-P2-1): VN100 index futures are evaluated on the
+ * VN100 underlying, never silently on VN30. Exported for unit testing.
+ */
 export function resolveDerivativesUnderlying(symbol: string): 'VN30' | 'VN100' {
   return symbol.trim().toUpperCase().startsWith('VN100F') ? 'VN100' : 'VN30';
 }

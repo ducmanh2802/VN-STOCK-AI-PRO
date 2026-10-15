@@ -1,4 +1,4 @@
-<!-- status-fingerprint: bc31c0fce839f2c0 -->
+<!-- status-fingerprint: 923484d08522a439 -->
 # VN-STOCK-AI-PRO — Status
 
 Living status file, maintained by Claude (orchestrator). Every repository change gets a Changelog
@@ -53,7 +53,20 @@ which `src/services/trading/PaperOrderRiskBoundary.ts` still imports.
 | C10 | Recommendation engine: win rate defaults to 0.5 when the score is null; `new Date()` inside the engine (determinism rule) | `src/lib/analysis/strategy/RecommendationEngine.ts:142,274-275` | recommendations | no |
 | C11 | ETF intelligence service returns hard-coded NAV 24,500 / price 24,550 labelled `CURRENT` (no importer today) | `src/services/etf/EtfIntelligenceService.ts:14-21` | unreachable | no |
 | C12 | Dashboard widgets read fields the reverted types no longer have (`trend`, `signalType`, `ceilings`, …; ~130 tsc errors) | `src/components/dashboard/*` | `/dashboard` | no |
-| C13 | `StrategyContextAggregator` defaults `evaluatedAt` to the wall clock (`new Date()`, line 57) and checks market/derivatives/ETF snapshot look-ahead against it, not against `asOfDate`: a snapshot after `asOfDate` but before "now" is accepted. Its test (`StrategyContextAggregator.test.ts:52-63`, fixture 2026-10-15) became a time bomb on 2026-10-15 | `src/lib/strategy/StrategyContextAggregator.ts:57,188-202` | strategy API | no |
+| C13 | ~~FIXED 2026-10-15 by FIX-C13~~ `StrategyContextAggregator` defaulted `evaluatedAt` to the wall clock (`new Date()`, line 57) and checks market/derivatives/ETF snapshot look-ahead against it, not against `asOfDate`: a snapshot after `asOfDate` but before "now" is accepted. Its test (`StrategyContextAggregator.test.ts:52-63`, fixture 2026-10-15) became a time bomb on 2026-10-15 | `src/lib/strategy/StrategyContextAggregator.ts:57,188-202` | strategy API | no |
+
+### Post-restore re-check (2026-10-15, read-only Claude workflow)
+
+All 87 pre-restore leads re-checked against the restored tree: **56 FIXED_BY_RESTORE, 31 STILL_PRESENT**
+(the MacroNewsPage one was fixed afterwards by FIX-C8). Batch 4-5 adds: high — `computeIndicatorSnapshot` substitutes
+placeholder values with too little history; medium — dashboard aggregates and stock search are hard-coded synthetic data;
+low — RSI 100 on a flat series; low (protected) — routers leak internal error messages, unvalidated `limit` params, dev ignores `PORT`. Full list:
+[audit/2026-10-15-post-restore-recheck.md](audit/2026-10-15-post-restore-recheck.md). Highlights still present:
+high — HEAD cannot build from a clean checkout until the restored tree is committed (user's step); high —
+`RiskCenterPage` hard-codes ENFORCED/LIVE guardrails; high (protected) — no server-side authorization on write
+routes in `server.ts`; medium — `SourceBadge` defaults to REAL DATA, unknown market status shown as TRADING,
+single top-level error boundary, `Signal` invents percentages, `DataStatusPage` calls any HTTP 200 LIVE,
+`AIMarketSummaryCard` fixed bullish narrative; medium (protected) — login rate limit uses one global key.
 
 ### Unverified leads
 
@@ -98,6 +111,7 @@ audit tasks: `docs/audit/2026-10-15/inputs/`. Each report is checked by a citati
 | AUD-MACRO | audit macro-learning-business → `docs/audit/2026-10-15/opencode-macro-learning-business.md` | **FAIL** (stopped; usable as a reference) | fix 1 `AUD-MACRO-fix1-20261015-133905` (422 s, after waiting for foreign OpenCode probes): STATUS PASS, but the Findings section is malformed (finding bodies lost their headings and sit between table rows). Claude checked all 5: F2 and F4 verified; F5 right in substance but the defect site is `src/services/macro-regime/MacroRegimeService.ts:2` (production service imports `__tests__/macroFixtures.ts`, served at `GET /api/macro/radar`, `server.ts:135`); F1 not a defect (honest NO_DATA placeholder); F3 false (`src/services/newsMacro/NewsMacroListService.ts` exists). Map section usable; run 1 `AUD-MACRO-20261015-132336` (812 s): self-reported PASS, but citations 2/9; 3 Locations are files that do not exist (`src/lib/features.ts`, `src/lib/market/stockUniverse.ts`, `src/lib/portfolio/CapitalAllocationEngine.ts`); one finding duplicates the analysis area |
 | FIX-C8 | `/news-macro` fails closed on a 200 response with a null/non-JSON body | **PASS** | `FIX-C8-20261015-172953` (631 s): only the 2 allowed files; diff = `export` + a null/non-object check in `fetchJson` (`!res.ok` branch untouched); tsc 109 = baseline; Claude re-ran `MacroNewsPageFetch.test.ts` + `PhaseFiveViews.test.tsx` 20/20, `npm run build` exit 0, headless `/news-macro` renders with error states, no page error (route QA now 24/24). Minor: the invalid-JSON test checks the message prefix, not the URL |
 | FIX-C13 | look-ahead judged against asOfDate, not the wall clock | FAIL, fixing (attempt 1 of 3) | `FIX-C13-20261015-174725` (613 s): diff correct (pure `endOfVnTradingDayIso`, `evaluatedAt` derivation only), tsc 109; the old time-bomb test now passes, but Claude's test run found the new "same-day NOT rejected" test wrong: it injects no derivatives snapshot, and `DerivativesIntelligenceService` prices with LIVE quotes stamped now, so rejection is correct look-ahead. Also the helper split an existing JSDoc from its function |
+| FIX-C13 (final) | — | **PASS** on fix 2 | fix 1 `FIX-C13-fix1-20261015-195930` (578 s) corrected the test (injects a same-day derivatives snapshot; new case proves a live derivatives snapshot is rejected) and moved the JSDoc, but again had no report; fix 2 `FIX-C13-fix2-20261015-201634`: report-only, `STATUS: PASS`, no file changed. Claude verified `npx vitest run src/lib/strategy` 13/13 files, 71/71 (the old time-bomb test passes), tsc 109 |
 | DOC-MAP | synthesise all area reports into `docs/audit/2026-10-15/PROJECT_MAP_DRAFT.md` | **BLOCKED** (provider) | `DOC-MAP-20261015-134750` (1105 s): three `[504] Upstream idle timeout` stream errors while the model generated the whole draft at once; OpenCode exit 1; no file written. Not retried (BLOCKED = stop and report) |
 
 Note (2026-10-15 09:53): another Claude Code session in VS Code (`claude.exe` PID 16656, not this one)
@@ -228,3 +242,22 @@ Claude's uncommitted work from 2026-10-15: see the Changelog.
 - **FIX-C8 (OpenCode) = PASS** — see Delegations. **Runner fix (Claude):** `delegate.ps1` now removes the active-run lock
   only right before its final exit (line 454), not after the post snapshot, because the verification phase also
   snapshots the repo; a Stop hook fired during FIX-C8's verification. Parse check 0 errors.
+- **Concurrent work noticed (19:54):** an interactive OpenCode session (PID 27616, started 18:02 from Git Bash, not
+  launched by Claude) is working in `D:StockVN-STOCK-AI-PROdocs`; it changed `index.html` (script src
+  `./src/main.tsx` → `/src/main.tsx`), `docs/abcd.md` and `src/services/scenario/ScenarioApiRouter.ts` (comment
+  mojibake fixed). The runner guard blocks Claude's OpenCode tasks until it ends; Claude makes no code edits meanwhile.
+- **Post-restore re-check** of 60/87 leads saved to `.claude/project/audit/2026-10-15-post-restore-recheck.{md,json}`.
+- **Google AI Studio Preview blank (user request, fixed by Claude).** Root cause reproduced locally: the dev server
+  (`npm run dev`, the mode AI Studio runs) sent `X-Frame-Options: DENY` and CSP `frame-ancestors 'none'` on every
+  response, so any iframe-based preview stays blank while `GET /` returns 200. Evidence: Chromium embedding
+  http://localhost:3000/ from another origin logged "Framing 'http://localhost:3000/' violates the following Content
+  Security Policy directive: frame-ancestors 'none'" and the frame stayed empty. Fix in `src/middleware/platform/security.ts`:
+  new `frameAncestors()` — production and test keep `'none'` + `X-Frame-Options: DENY`; non-production allows
+  `'self' https: http://localhost:* http://127.0.0.1:*` and omits X-Frame-Options; `FRAME_ANCESTORS` overrides (values
+  that could inject a directive are ignored). New test `src/middleware/platform/__tests__/securityFraming.test.ts`.
+  Verified: after restart the app renders inside the cross-origin iframe (#root 1,213 chars, <main> present, title
+  correct, no framing violation); production bundle (`NODE_ENV=production node dist/server.cjs --port 3100`) still
+  sends DENY + 'none', asset 200, healthz 200, `/api/users/me` without token 401; middleware/platform/auth/e2e/store
+  tests 7/7 files, 63/63; tsc 109; build exit 0. Port: dev listens on 0.0.0.0:3000, which matches the AI Studio
+  template (first commit `8a5ce61`: `const PORT = 3000`); not changed. Not verified inside AI Studio itself (no
+  access from this machine) — the user must reload the Preview.

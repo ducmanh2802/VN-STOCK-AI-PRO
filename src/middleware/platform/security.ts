@@ -74,7 +74,30 @@ export function buildContentSecurityPolicy(env: string | undefined = process.env
     + "img-src 'self' data: blob:; "
     + `connect-src 'self' ${CSP_ALLOWED_CONNECT_HOSTS}; `
     + "font-src 'self' data: https://fonts.gstatic.com; "
-    + "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
+    + `object-src 'none'; base-uri 'self'; frame-ancestors ${frameAncestors(env)}; form-action 'self'`;
+}
+
+/** Dev-server embedders: the Google AI Studio Preview (an https origin) and local preview hosts. */
+const DEV_FRAME_ANCESTORS = "'self' https: http://localhost:* http://127.0.0.1:*";
+
+/**
+ * Who may embed the app in a frame.
+ *
+ * Production and test stay non-frameable ('none', plus X-Frame-Options: DENY). The dev
+ * server must be frameable: Google AI Studio runs `npm run dev` and shows it inside an
+ * iframe on its own origin, and `frame-ancestors 'none'` made that Preview blank while
+ * `GET /` still answered 200 ("Framing ... violates the following Content Security Policy
+ * directive: frame-ancestors 'none'", reproduced 2026-10-15). `FRAME_ANCESTORS` overrides
+ * the source list in any environment; a value that could break out of the directive is
+ * ignored.
+ */
+export function frameAncestors(
+  env: string | undefined = process.env.NODE_ENV,
+  override: string | undefined = process.env.FRAME_ANCESTORS
+): string {
+  const custom = override?.trim();
+  if (custom && /^[\w\s'*:./-]+$/.test(custom)) return custom;
+  return env === 'production' || env === 'test' ? "'none'" : DEV_FRAME_ANCESTORS;
 }
 
 /**
@@ -83,7 +106,8 @@ export function buildContentSecurityPolicy(env: string | undefined = process.env
  */
 export function securityHeaders(_req: Request, res: Response, next: NextFunction): void {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
+  // X-Frame-Options cannot express an allow-list, so it is only sent when nothing may frame the app.
+  if (frameAncestors() === "'none'") res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');

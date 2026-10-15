@@ -1,5 +1,5 @@
 /**
- * PHASE 31 â€” SCENARIO API ROUTER
+ * PHASE 31 — SCENARIO API ROUTER
  * ===============================
  * Production entrypoint for the Scenario Engine (Product-02).
  * The Scenario Engine is a pure, deterministic what-if engine that explores
@@ -7,8 +7,8 @@
  * macro notes. It never mutates real state and all outputs carry provenance.
  *
  * Routes:
- *   GET  /api/scenario/list    â€” scenario discovery (empty until UI populated)
- *   POST /api/scenario/evaluateâ€” evaluate a what-if scenario against a
+ *   GET  /api/scenario/list    — scenario discovery (empty until UI populated)
+ *   POST /api/scenario/evaluate— evaluate a what-if scenario against a
  *                              baseline portfolio position set.
  */
 import { Router, type Request, type Response } from 'express';
@@ -19,14 +19,14 @@ import type { ScenarioAssumption, ScenarioAssumptionKind } from '../../lib/produ
 const router = Router();
 
 /**
- * GET /api/scenario/list â€” discovery surface for the Scenario UI.
+ * GET /api/scenario/list — discovery surface for the Scenario UI.
  */
 router.get('/list', (_req: Request, res: Response) => {
   res.json({ scenarios: [], count: 0 });
 });
 
 /**
- * POST /api/scenario/evaluate â€” evaluate a what-if scenario.
+ * POST /api/scenario/evaluate — evaluate a what-if scenario.
  *
  * The payload contains a baseline portfolio (positions) and a set of assumptions
  * (price shocks, allocation deltas, cash moves, macro notes). The engine returns

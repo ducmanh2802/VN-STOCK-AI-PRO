@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { endOfVnTradingDayIso, StrategyContextAggregator } from '../StrategyContextAggregator.ts';
-import { makeMarketSnapshot } from './fixtures.ts';
+import { makeMarketSnapshot, makeDerivativesSnapshot } from './fixtures.ts';
 
 describe('StrategyContextAggregator asOfDate', () => {
   afterEach(() => {
@@ -34,12 +34,14 @@ describe('StrategyContextAggregator asOfDate', () => {
 
   it('with asOfDate and no evaluatedAt: same-day VN trading hour snapshot is NOT rejected', async () => {
     const sameDayMarket = makeMarketSnapshot({ timestamp: '2026-10-01T08:00:00.000Z' });
+    const sameDayDerivatives = makeDerivativesSnapshot({ timestamp: '2026-10-01T08:00:00.000Z' });
 
     const context = await StrategyContextAggregator.buildContext({
       symbol: 'VN30F1M',
       assetClass: 'DERIVATIVE',
       asOfDate: '2026-10-01',
       marketSnapshotOverride: sameDayMarket,
+      derivativesSnapshotOverride: sameDayDerivatives,
     });
 
     expect(context.lookaheadRejected).toBe(false);
@@ -62,5 +64,21 @@ describe('StrategyContextAggregator asOfDate', () => {
     expect(context.evaluatedAt).toBe('2026-10-01T16:59:59.999Z');
 
     vi.useRealTimers();
+  });
+
+  it('with asOfDate and no evaluatedAt: market snapshot alone rejects via derivatives fetch', async () => {
+    const futureMarket = makeMarketSnapshot({ timestamp: '2026-10-15T00:00:00.000Z' });
+
+    const context = await StrategyContextAggregator.buildContext({
+      symbol: 'VN30F1M',
+      assetClass: 'DERIVATIVE',
+      asOfDate: '2026-10-01',
+      marketSnapshotOverride: futureMarket,
+    });
+
+    expect(context.lookaheadRejected).toBe(true);
+    expect(
+      context.lookaheadDetails!.some((d: string) => d.startsWith('Derivatives snapshot timestamp'))
+    ).toBe(true);
   });
 });

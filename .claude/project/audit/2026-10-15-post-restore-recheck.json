@@ -1,0 +1,1088 @@
+[
+ {
+  "index": 0,
+  "file": "src/main.tsx",
+  "title": "Committed HEAD cannot build or boot: entry point, cn() util and 7 routed pages exist only as untracked files",
+  "verdict": "STILL_PRESENT",
+  "evidence": "The working tree is now complete, but nothing has been committed. `git cat-file -e HEAD:<f>` fails for src/main.tsx, src/lib/utils.ts, vitest.config.ts and src/pages/{AIAnalyst,Backtest,Dashboard,Fundamentals,MacroNews,Settings,StrategyLab}Page.tsx. `git status` lists all of them as `??`. index.html:18 still has `<script type=\"module\" src=\"./src/main.tsx\">`. App.tsx:21,31,38-42 import the 7 pages, and 7 ui components (ErrorBoundary.tsx, Signal.tsx:3 and others) import `cn` from '../../lib/utils'. The restore also added 261 untracked files in all, including src/types/provider.ts and src/services/market/RealMarketDataProvider.ts, which HEAD's restored src/services/market/index.ts depends on. So committed HEAD still cannot build from a clean checkout, and the restored tree can be lost with a `git clean`.",
+  "severity": "high",
+  "fix": "With the user's explicit approval, commit the restored tree: the untracked src/main.tsx, src/lib/utils.ts, vitest.config.ts, the 7 pages and every other restored untracked or modified file, so that HEAD equals the working tree. Run `npx tsc --noEmit` and `npm run build` (with approval) before committing. No source edit is needed.",
+  "files_to_change": [
+   "src/main.tsx",
+   "src/lib/utils.ts",
+   "vitest.config.ts",
+   "src/pages/AIAnalystPage.tsx",
+   "src/pages/BacktestPage.tsx",
+   "src/pages/DashboardPage.tsx",
+   "src/pages/FundamentalsPage.tsx",
+   "src/pages/MacroNewsPage.tsx",
+   "src/pages/SettingsPage.tsx",
+   "src/pages/StrategyLabPage.tsx",
+   "src/types/provider.ts",
+   "src/services/market/RealMarketDataProvider.ts"
+  ],
+  "protected": true
+ },
+ {
+  "index": 1,
+  "file": "src/hooks/useMarketQueries.ts",
+  "title": "useMarketQueries calls 10 marketService methods that a277613 removed; dashboard/market/sector routes error out",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/services/market/index.ts has been restored byte-exact to a277613~1 (blob a1eeeaad). It contains `export const marketService: MarketDataProvider = marketDataProvider;` (= realMarketDataProvider). src/types/provider.ts (restored, untracked) declares all 14 methods. src/services/market/RealMarketDataProvider.ts (byte-exact, 22c42000) implements every method the hooks call: getMarketIndices:212, getMarketStatus:358, getSectorHeatmap:369, getTopMovers:425, getAllStocks:464, getWatchlist:468, searchStocks:546, getStockDetail:558, getMarketBreadth:619, getMarketSentiment:697, getAITopSignals:764, getAIMarketSummary:819. Caveat: these files are untracked, so this is fixed in the working tree only (see lead 0).",
+  "severity": "none",
+  "fix": "None in code. Commit the restored provider files with the user's approval (lead 0).",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 2,
+  "file": "src/services/market/index.ts",
+  "title": "Header and CommandPalette search show fabricated quotes (28,500 VND, +1.24%, BUY) for every ticker",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The synthetic searchStocks object literal is gone. App.tsx:132-134 `return marketService.searchStocks(query);` now resolves to RealMarketDataProvider.searchStocks:546-556, which filters refreshUniverseQuotes(). Those are real VPS quotes, and symbols without a quote are skipped (line 109 `if (!quote || quote.price === null) continue;`). A grep of src for 28500 / 1.24 finds only a type comment in src/types/stock.ts:14.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 3,
+  "file": "src/components/common/SourceBadge.tsx",
+  "title": "SourceBadge fails open to 'REAL DATA'; Footer on every view certifies fixture data as real VPS/KBS data",
+  "verdict": "STILL_PRESENT",
+  "evidence": "src/components/common/SourceBadge.tsx:62 `export function SourceBadge({ variant = 'real', size = 'sm', className = '' }` (the same default existed in a277613~1). It contradicts provenanceFromIsDemo's rule at lines 13-26. Nine call sites rely on the default: Footer.tsx:14 `<SourceBadge size=\"sm\" />` (with the REAL DATA legal text at Footer.tsx:20), MarketHeatmap.tsx:36, MarketOverview.tsx:20, TopMovers.tsx:35, StockHeader.tsx:94, StockQuickViewModal.tsx:62, AIAnalystPage.tsx:20, MarketPage.tsx:89 and WatchlistPage.tsx:359. The restore removed the worst fabricated inputs (search rows, screener fallback), so the exposure is smaller. The badge still reads REAL DATA without checking the record's isDemo or dataFreshness, though. On AIAnalystPage it certifies templated narrative from RealMarketDataProvider.getAIMarketSummary:836-850 (fixed riskAlerts, moneyFlow and comment text, plus trendScore constants 72/55/38) as real data.",
+  "severity": "medium",
+  "fix": "Change the default to 'unavailable', or make `variant` required. At each default call site, pass `provenanceFromIsDemo(...)` built from the rendered records, or 'calculated' for derived or AI content. Remove the badge from Footer, or replace it with neutral text, and reword the Footer legal line so it no longer asserts that all prices are REAL DATA.",
+  "files_to_change": [
+   "src/components/common/SourceBadge.tsx",
+   "src/components/common/Footer.tsx",
+   "src/components/dashboard/MarketHeatmap.tsx",
+   "src/components/dashboard/MarketOverview.tsx",
+   "src/components/dashboard/TopMovers.tsx",
+   "src/components/stock/StockHeader.tsx",
+   "src/components/stock/StockQuickViewModal.tsx",
+   "src/pages/AIAnalystPage.tsx",
+   "src/pages/MarketPage.tsx",
+   "src/pages/WatchlistPage.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 4,
+  "file": "src/main.tsx",
+  "title": "Single top-level error boundary: any page crash takes down the whole shell and 'reset' loops back into the crash",
+  "verdict": "STILL_PRESENT",
+  "evidence": "src/main.tsx:10-14 wraps the whole of `<App />` in `<GlobalErrorBoundary>`. It is the only class with getDerivedStateFromError in src (ErrorBoundary.tsx:75-156). The view switch at App.tsx:197-315 has no boundary of its own. The reset handler at ErrorBoundary.tsx:94-97 `this.setState({ hasError: false, ... }); this.props.onReset?.();` is not given an onReset in main.tsx, and the store still holds the same currentView, so a deterministic render error re-throws straight away. The code cannot show whether the 5 routes from route-qa still crash after the restore, but the structural defect remains.",
+  "severity": "medium",
+  "fix": "In App.tsx, wrap the view-router block (the `{!isLoading && !error && (<>...</>)}` region) in an error boundary keyed by `currentView` (e.g. `<GlobalErrorBoundary key={currentView} fallback={<ErrorState .../>}>`). A crash then replaces only the page area, and navigating away remounts the boundary. Optionally add a compact page-level fallback or an onReset that calls navigateToDashboard.",
+  "files_to_change": [
+   "src/App.tsx",
+   "src/components/ui/ErrorBoundary.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 5,
+  "file": "src/hooks/useMarketQueries.ts",
+  "title": "Trading hooks target 5 /api/trading routes that no longer exist and read a {data} envelope the stub router does not send",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/lib/trading/api/TradingApiRouter.ts has been restored byte-exact (546a8e63). It serves GET /status:113, /portfolio:128, /positions:137, /orders:146, POST /order:157, /cancel:189 and GET /risk-metrics:201. Each one answers `{ success: true, data: ... }` (status at lines 114-125). server.ts:114 mounts it with `app.use('/api/trading', createTradingApiRouter(tradingEngine));`. The hooks at useMarketQueries.ts:440-573 (`return json.data;`, `data.data`) match this contract. The restored router is uncommitted (` M`), so commit it with approval (lead 0).",
+  "severity": "none",
+  "fix": "None in code. Commit the restored router with the user's approval.",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 6,
+  "file": "src/App.tsx",
+  "title": "Unknown market status is rendered as 'ĐANG GIAO DỊCH' (TRADING) with a live-ticking timestamp",
+  "verdict": "STILL_PRESENT",
+  "evidence": "src/App.tsx:137-143 still reads `const marketStatus = statusQuery.data || { state: 'TRADING' as const, stateLabel: 'ĐANG GIAO DỊCH' as const, sessionName: 'Khớp lệnh liên tục' as const, timestamp: new Date().toLocaleTimeString('vi-VN'), isDemo: true as const };`. Header.tsx:77 `const isTrading = marketStatus.state === 'TRADING';` and lines 224-235 paint the green dot and label without reading isDemo. Line 302 shows marketStatus.timestamp as the ribbon 'freshness' stamp. getMarketStatus now exists (RealMarketDataProvider.ts:358-367), so the fallback only shows until the first resolve. However, that method is a pure clock function with no holiday calendar: it returns TRADING on any weekday 09:00-14:45 VN time, and its timestamp is `new Date()`, not a market observation. src/lib/data/vnTradingCalendar.ts exists but is not used. useMarketStatus (useMarketQueries.ts:82-87) has no refetchInterval and QueryProvider sets refetchOnWindowFocus:false, so a status fetched at 10:00 still says ĐANG GIAO DỊCH after the close. Related: StockHeader.tsx:89-93 hard-codes a green 'Đang giao dịch' pill for every stock.",
+  "severity": "medium",
+  "fix": "In App.tsx, replace the TRADING fallback with an explicit unknown state; for example, extend MarketState with 'UNKNOWN' and the label 'KHÔNG XÁC ĐỊNH' and render it grey. Make Header show a neutral state when `isDemo` is true or no status is available. Add refetchInterval (~30-60s) to useMarketStatus. Drop the hard-coded pill in StockHeader, or drive it from marketStatus. Using vnTradingCalendar inside getMarketStatus would also fix the holiday case.",
+  "files_to_change": [
+   "src/App.tsx",
+   "src/components/common/Header.tsx",
+   "src/types/market.ts",
+   "src/hooks/useMarketQueries.ts",
+   "src/components/stock/StockHeader.tsx",
+   "src/services/market/RealMarketDataProvider.ts"
+  ],
+  "protected": false
+ },
+ {
+  "index": 7,
+  "file": "src/App.tsx",
+  "title": "Shell drops query errors outside the 3 market views: blank /ai-analyst, empty watchlist, quick view silently does nothing",
+  "verdict": "STILL_PRESENT",
+  "evidence": "Partly fixed. The watchlist part is fixed: WatchlistPage (restored byte-exact, c2c4e9be) runs its own useWatchlistData at lines 95-103 with isLoading/isError, and shows LoadingState at line 368 and ErrorState at lines 378-385 before WatchlistEmptyState. Still present: App.tsx:112-122 computes isLoading/error only for ['dashboard','market','sector-intelligence']. App.tsx:284 `{currentView === 'ai-analyst' && aiSummary && (` renders a blank page while the AI summary is loading or after it fails. StockQuickViewModal.tsx:27 `if (!isOpen || !stock) return null;` gets `stock={stockDetailQuery.data || null}` (App.tsx:387), so a click on a stock does nothing visible while the detail query loads, fails, or returns null (e.g. an off-universe symbol where getStockDetail returns null).",
+  "severity": "medium",
+  "fix": "In App.tsx, render LoadingState or ErrorState for the 'ai-analyst' view from aiSummaryQuery.isLoading/error instead of hiding the page. Give StockQuickViewModal isLoading and error props (from stockDetailQuery), and when isOpen is true but stock is null, render a loading or error/no-data body with a close button.",
+  "files_to_change": [
+   "src/App.tsx",
+   "src/components/stock/StockQuickViewModal.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 8,
+  "file": "src/App.tsx",
+  "title": "Quick view and stock detail share selectedStockSymbol: detail page silently switches stock while URL keeps the old one",
+  "verdict": "STILL_PRESENT",
+  "evidence": "The restored store (useAppStore.ts byte-exact to a277613~1) makes this worse. useAppStore.ts:217-221 `openQuickView: (symbol) => set({ selectedStockSymbol: symbol, quickViewModalOpen: true })` and :223-227 `closeQuickView: () => set({ selectedStockSymbol: null, quickViewModalOpen: false })`. App.tsx:290 `symbol={selectedStockSymbol || 'HPG'}`. Example: on /stock/VCB, picking FPT in search switches the detail page to FPT. Closing the modal sets the symbol to null, so the detail page falls back to a hard-coded HPG while the URL still reads /stock/VCB. The watchlist toggle on the page then targets the wrong symbol or none (App.tsx:291 isWatchlisted(...) is false when the symbol is null).",
+  "severity": "medium",
+  "fix": "Add a separate `quickViewSymbol` to the store. openQuickView and closeQuickView set only that field and the modal flag. In App.tsx, use `useStockDetail(quickViewSymbol)` for the modal and its isWatchlisted. Keep `selectedStockSymbol` for the routed detail page only (set by navigateToStock or resolveRouteFromPath), and remove the `|| 'HPG'` fallback (render a not-found or empty state instead).",
+  "files_to_change": [
+   "src/store/useAppStore.ts",
+   "src/App.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 9,
+  "file": "src/store/useAppStore.ts",
+  "title": "Watchlist persistence regressed in a277613: storage key renamed and an emptied list resurrects 8 defaults",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "useAppStore.ts has been restored byte-exact (d5d595b4). Line 27 is `const STORAGE_KEY = 'vn_stock_ai_watchlist';` again (the original key). Lines 160-163 `const saved = localStorage.getItem(STORAGE_KEY); if (saved) { const parsed = JSON.parse(saved); if (Array.isArray(parsed)) return parsed; }`: any array, including an empty one, is returned, with no `length > 0` check. Defaults (6 symbols) apply only when no key exists. Minor leftover: RealMarketDataProvider.ts:28 uses a different key, 'vn_stock_watchlist_symbols', for its own add/remove helpers. The shell never reaches it, because useWatchlistData is `enabled: symbols.length > 0` and always passes symbols.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 10,
+  "file": "src/components/ui/ScoreRing.tsx",
+  "title": "ScoreRing renders a missing score as 0 with grade 'D' / 'AVOID' styling",
+  "verdict": "STILL_PRESENT",
+  "evidence": "src/components/ui/ScoreRing.tsx:22 `const safeScore = Math.min(100, Math.max(0, Math.round(score || 0)));` and :33 `return { stroke: '#EF4444', text: 'text-rose-400', grade: 'D', zone: 'AVOID' };`. The only caller, StrategyLabPage.tsx:243-247 `<ScoreRing score={scoreResult.score ?? 0} label=\"STRATEGY SCORE\" sublabel={`${scoreResult.availableComponents}/6 thành phần`} />`, shows a red 0 / D when the engine fails closed with a null score. Because a sublabel is always passed, 'AVOID' itself is not shown there. The adjacent text (line 252) does say 'Không đủ dữ liệu — tín hiệu fail-closed.', which limits how misleading this is.",
+  "severity": "low",
+  "fix": "Change ScoreRing's prop to `score: number | null`. When it is null or not finite, render a muted ring with '--' and 'NO DATA', with no grade or zone colour. In StrategyLabPage, pass `scoreResult.score` directly (drop `?? 0`).",
+  "files_to_change": [
+   "src/components/ui/ScoreRing.tsx",
+   "src/pages/StrategyLabPage.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 11,
+  "file": "src/components/ui/Signal.tsx",
+  "title": "Signal turns a qualitative confidence label into a fabricated model percentage (high -> 88%)",
+  "verdict": "STILL_PRESENT",
+  "evidence": "src/components/ui/Signal.tsx:40-42 `const confidence = typeof confidenceProp === 'string' ? confidenceProp === 'high' ? 88 : confidenceProp === 'medium' ? 65 : 40 : confidenceProp;`, rendered at :171-176 as 'Độ tin cậy mô hình: {confidence}%'. src/components/dashboard/AIMarketSummaryCard.tsx:40-45 passes the literal `confidence=\"high\"`, so the dashboard shows an 88% model confidence that no model computed. In the same widget, `score={summary.trendScore}` is one of the bucket constants 72/55/38 from RealMarketDataProvider.ts:827-834, displayed as 'Trend Score'.",
+  "severity": "medium",
+  "fix": "In Signal.tsx, stop converting string ratings to numbers: render a qualitative label (Cao / Trung bình / Thấp) without '%' for a string, and a percentage only for a computed number. In AIMarketSummaryCard.tsx, remove `confidence=\"high\"`. Consider labelling trendScore as a rule-based bucket rather than a model score.",
+  "files_to_change": [
+   "src/components/ui/Signal.tsx",
+   "src/components/dashboard/AIMarketSummaryCard.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 12,
+  "file": "vite.config.ts",
+  "title": "vitest.config.ts deleted by a277613; vite.config.ts has no test block, so globals-based tests cannot run",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "vitest.config.ts is back in the working tree, byte-exact to a277613~1 (8e730d50): `defineConfig({ test: { globals: true, environment: 'node' } })`. Vitest prefers it over vite.config.ts, so the files that use bare describe/it/expect load again. vite.config.ts is unchanged from HEAD (no '@' alias, no chunkSizeWarningLimit), but a grep finds 0 `from '@/` imports in src, so the missing alias has no effect. Caveat: vitest.config.ts is untracked, so it is still missing from committed HEAD (lead 0).",
+  "severity": "none",
+  "fix": "None in code. Commit vitest.config.ts with the user's approval (it is a protected path).",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 13,
+  "file": "src/hooks/useMarketQueries.ts",
+  "title": "MARKET_KEYS.watchlist sorts the caller's array in place, mutating zustand state outside set()",
+  "verdict": "STILL_PRESENT",
+  "evidence": "src/hooks/useMarketQueries.ts:35 `watchlist: (symbols: string[]) => ['market', 'watchlist', symbols.sort().join(',')] as const,`. useWatchlistData (lines 314-325) calls it with the caller's array, and both App.tsx:109 `useWatchlistData(watchlistSymbols)` and WatchlistPage.tsx:95 pass the store's array directly. The store's watchlistSymbols is therefore sorted in place outside set(), and the next add, remove or toggle persists the sorted order. The order-preserving sort in RealMarketDataProvider.getWatchlist (lines 506-512) also only ever sees the already-sorted array.",
+  "severity": "low",
+  "fix": "Change line 35 to `[...symbols].sort().join(',')`.",
+  "files_to_change": [
+   "src/hooks/useMarketQueries.ts"
+  ],
+  "protected": false
+ },
+ {
+  "index": 14,
+  "file": "src/components/common/Sidebar.tsx",
+  "title": "'recommendations' view is reachable only by typing the URL; nav lists are inconsistent",
+  "verdict": "STILL_PRESENT",
+  "evidence": "Sidebar.tsx:57-95 nav ids are dashboard, market, sector-intelligence, watchlist, screener, ai-analyst, fundamentals, news-macro, learn, learn-path, practice-lab, strategy-lab, backtest, paper-trading, portfolio, risk-center, journal, data-status and settings. 'recommendations' is not among them. CommandPalette.tsx:90-106 navigationCommands also lacks recommendations, sector-intelligence, learn, learn-path and practice-lab. The only reference to the 'recommendations' view is App.tsx:280, plus PATH_TO_VIEW/VIEW_TO_PATH in useAppStore.ts:49,81. The mobile bar (App.tsx:340-383) has only dashboard, screener, portfolio and watchlist.",
+  "severity": "low",
+  "fix": "Add `{ id: 'recommendations', label: 'Recommendations', icon: ... }` to the Sidebar RESEARCH section. Add recommendations, sector-intelligence, learn, learn-path and practice-lab entries to CommandPalette navigationCommands.",
+  "files_to_change": [
+   "src/components/common/Sidebar.tsx",
+   "src/components/layout/CommandPalette.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 0,
+  "file": "src/components/ui/ErrorBoundary.tsx",
+  "title": "Error boundary shows full stack traces to end users in production",
+  "verdict": "STILL_PRESENT",
+  "evidence": "src/components/ui/ErrorBoundary.tsx:122-129 renders the message and the full stack whatever the environment: `{this.state.error?.name || 'Error'}: {this.state.error?.message ...}` then `{this.state.error?.stack && (<pre ...>{this.state.error.stack}</pre>)}`. There is no import.meta.env.DEV / NODE_ENV guard. componentDidCatch (line 89-91) already console.errors the error and errorInfo. The file has the same content as a277613~1 and HEAD (only line endings differ), so the restore did not touch it.",
+  "severity": "low",
+  "fix": "Wrap the <pre>{stack}</pre> block (lines 125-129) in `import.meta.env.DEV &&`. In production show only a generic message, or error.name, plus the reload/reset buttons. Keep the stack in console/telemetry through componentDidCatch.",
+  "files_to_change": [
+   "src/components/ui/ErrorBoundary.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 1,
+  "file": "src/components/layout/CommandPalette.tsx",
+  "title": "CommandPalette advertises arrow/enter keyboard navigation that does not exist; backdrop click does not close",
+  "verdict": "STILL_PRESENT",
+  "evidence": "src/components/layout/CommandPalette.tsx:54-66: the only keydown handler covers Ctrl/Cmd+K and Escape, with no ArrowUp/ArrowDown/Enter handling and no active-index state. Lines 242-252 still show the footer hints `↑ ↓ to navigate` and `↵ to select`. Line 115: the overlay `<div className=\"fixed inset-0 z-50 ... bg-black/70 ...\">` has no onClick, so the inner `onClick={(e) => e.stopPropagation()}` at line 118 does nothing and clicking the backdrop does not close the palette. Content is the same as before the damage.",
+  "severity": "low",
+  "fix": "Add `onClick={onClose}` to the overlay div at line 115. Then either implement keyboard navigation (an activeIndex state over [...stockResults, ...filteredNav]; ArrowUp/Down change the index, Enter calls the matching onSelectStock/onNavigate and onClose; highlight and scrollIntoView the active row) or remove the ↑/↓/↵ hints from the footer.",
+  "files_to_change": [
+   "src/components/layout/CommandPalette.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 2,
+  "file": "src/components/ui/Metric.tsx",
+  "title": "Metric/MetricCard fabricate a direction for null change and print 'NaN%'",
+  "verdict": "STILL_PRESENT",
+  "evidence": "src/components/ui/Metric.tsx:41-44: `if (changePercent !== undefined) { if (changePercent > 0) trend = 'up'; else if (changePercent < 0) trend = 'down'; else trend = 'ref'; }`. A null value (StockSummary.change/changePercent are `number | null`, src/types/stock.ts:21-22) becomes 'ref'. Line 123 `(changePercent !== undefined || change !== undefined) &&` then draws the yellow ref pill with the Minus icon (line 132), which reads as 'unchanged'. The text falls back to '—' through formatPercent/formatNumber, but the direction is invented. StockQuickViewModal.tsx:108-111 passes the nullable stock.change/changePercent and an explicit `trend={isUp ? 'up' : isDown ? 'down' : 'ref'}` (isUp = stock.change > 0, line 29), so null also renders as 'ref' there. src/components/ui/MetricCard.tsx:79 `typeof change === 'number' &&` lets NaN through, and line 94 `{change.toFixed(2)}%` prints 'NaN%'.",
+  "severity": "low",
+  "fix": "Metric.tsx: replace the `!== undefined` checks with a finite test (`typeof x === 'number' && Number.isFinite(x)`) for both the trend inference and the pill condition. A non-finite change gives trend 'neutral' and either no pill or a neutral '—' pill. MetricCard.tsx: add `&& Number.isFinite(change)` to isPositive/isNegative/isZero and to the render guard at line 79. Optionally, StockQuickViewModal.tsx:111 should pass 'neutral' when stock.change is null rather than 'ref'.",
+  "files_to_change": [
+   "src/components/ui/Metric.tsx",
+   "src/components/ui/MetricCard.tsx",
+   "src/components/stock/StockQuickViewModal.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 3,
+  "file": "src/hooks/useMarketQueries.ts",
+  "title": "Dead branch in useStockChartData",
+  "verdict": "STILL_PRESENT",
+  "evidence": "src/hooks/useMarketQueries.ts:245-246: `if (json.dataStatus !== 'OK') return json;` followed by `return json;`, so both branches return the same value. The JSDoc at lines 231-232 says it 'Returns null when the real source is unavailable', which is false: it returns the DATA_UNAVAILABLE envelope. No behavior is affected, because the only consumer (StockDetailPage.tsx:107-112) checks `chartResp.dataStatus === 'OK'` itself.",
+  "severity": "low",
+  "fix": "Delete line 245, and correct the JSDoc to say that the envelope is returned unchanged and callers must check dataStatus === 'OK'.",
+  "files_to_change": [
+   "src/hooks/useMarketQueries.ts"
+  ],
+  "protected": false
+ },
+ {
+  "index": 4,
+  "file": "src/hooks/useMarketQueries.ts",
+  "title": "marketService lost 10 methods the hooks call",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/services/market/index.ts is identical to a277613~1: `export const marketService: MarketDataProvider = marketDataProvider;` with `marketDataProvider = realMarketDataProvider` imported from the restored src/services/market/RealMarketDataProvider.ts (854 lines, currently untracked). That class implements all 14 MarketDataProvider methods: getMarketIndices:212, getMarketStatus:358, getSectorHeatmap:369, getTopMovers:425, getAllStocks:464, getWatchlist:468, add/removeFromWatchlist:515/531, searchStocks:546, getStockDetail:558, getMarketBreadth:619, getMarketSentiment:697, getAITopSignals:764, getAIMarketSummary:819. The interface is in the restored src/types/provider.ts. Every hook call at useMarketQueries.ts:69-333 now resolves.",
+  "severity": "none",
+  "fix": "None. Note for a separate review (outside this lead): RealMarketDataProvider.ts:131-138 builds 'aiScore' from a heuristic (50 + changePercent*5 + a volume bonus), and App.tsx:136-143 falls back to marketStatus 'TRADING'/'ĐANG GIAO DỊCH' with isDemo:true when the status query has no data.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 5,
+  "file": "src/pages/StockDetailPage.tsx",
+  "title": "StockDetailPage crashes on generateAllHorizons; every number on the page is fabricated",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/pages/StockDetailPage.tsx is byte-identical to a277613~1. It never calls RecommendationEngine or generateAllHorizons. It uses useFullStockDetail/useStockChartData/useRealtimeQuote/useRealFundamentals (lines 74-85) and contains no 28500/30100/26200 literals. When the VPS quote is not OK, lines 243-251 pass realtimeUnavailableReason, and StockPriceSummary.tsx:57-70 then renders 'Không hiển thị giá giả' rather than prices. In src/services/market/stockDetailService.ts, valuation is NOT_COMPUTED with `fairValue: null` (lines 196-210), risk/reward is NOT_COMPUTED (244-257), money flow is UNAVAILABLE (211-227), and aiSignal confidence/target/stop are null (166-185). The hardcoded component scores and the 'UNDERVALUED price*1.2' valuation are gone.",
+  "severity": "none",
+  "fix": "None for the lead. Residual (optional, low): stockDetailService.ts still emits canned prose shown as analysis: executiveThesis at line 150 ('doanh nghiệp hàng đầu ... vị thế cạnh tranh vững chắc') and the hardcoded catalysts at lines 178-181 ('Dòng tiền giao dịch duy trì ở mức cao...', 'MA20 ... được củng cố vững chắc'), none of it derived from data. aiSignal.signalType at line 167 comes from the heuristic aiScore. The fix is to drop or neutralise the unsupported claims.",
+  "files_to_change": [
+   "src/services/market/stockDetailService.ts"
+  ],
+  "protected": false
+ },
+ {
+  "index": 6,
+  "file": "src/pages/StockScreenerPage.tsx",
+  "title": "Screener shows a fabricated universe: every stock at 28,500 VND, +1.24%, BUY, AI score 82/74",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/pages/StockScreenerPage.tsx is byte-identical to a277613~1 and no longer references VIETNAM_STOCKS_UNIVERSE or constant prices. Rows come from useTopMovers() plus useRecommendationRankings('SHORT_TERM') (lines 173-174). At lines 199-215 a symbol without a ranking gets `aiScore: null`, `pe: null`, `roe: null`, `rsi: null`, `recommendation: 'UNRATED'`. The AI-score filter is fail-closed (passesAiScoreMinimum, lines 59-67).",
+  "severity": "none",
+  "fix": "None for the fabrication. Residual (optional, low), from the lead's 'no loading/error state' remark: the page never reads moversQuery.isLoading/isError (lines 173-174), so during loading or after a failure the table shows 'Không tìm thấy cổ phiếu nào phù hợp với bộ lọc hiện tại.' (lines 445-449). Line 202 defaults a missing exchange to 'HOSE'. The Value and Oversold presets (lines 240-243) set maxPe/minRoe/maxRsi, which passesScreenerFilters ignores. The fix is to add loading/error/empty-source states, show '—' for an unknown exchange, and either wire or remove the presets.",
+  "files_to_change": [
+   "src/pages/StockScreenerPage.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 7,
+  "file": "src/pages/PaperTradingPage.tsx",
+  "title": "Paper-trading BUY no longer collects or sends stopLoss/targetPrice (P0-01 envelope removed)",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/pages/PaperTradingPage.tsx (restored; it differs from a277613~1 by one className only) has `stopLoss`/`targetPrice` state at lines 52-53 and the R:R preview at lines 78-87 and 421-423. It validates BUY at lines 153-164: 'Lệnh MUA bắt buộc có giá cắt lỗ hợp lệ...' and '...giá mục tiêu hợp lệ...'. It sends `...(side === 'BUY' ? { stopLoss: orderStopLoss, targetPrice: orderTarget } : {})` at line 176. The server side matches: TradingApiRouter.ts:161-171 forwards stopLoss/targetPrice to PaperOrderRiskBoundary.submit, and RISK_PARAMETERS_REQUIRED maps to 422 (line 87-88).",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 8,
+  "file": "src/pages/RiskCenterPage.tsx",
+  "title": "RiskCenterPage hardcodes ENFORCED/LIVE/compliant guardrails; limits contradict canonical risk policy",
+  "verdict": "STILL_PRESENT",
+  "evidence": "The page is metrics-backed again, and the risk modules exist (src/lib/trading/risk/RiskGuard.ts etc.), so the 'RiskGuard deleted / static cards' part is fixed. The fabricated compliance claims remain in the restored file. Line 98: `status={isLoading ? 'LOADING' : 'LIVE'}` is LIVE even when every query failed. Line 187: hardcoded '4/4 QUY TẮC ĐẠT CHUẨN'. Lines 204 and 217: unconditional `<Badge variant=\"up\">TUÂN THỦ</Badge>`. Line 199 says '< ngưỡng tối đa' even when concentration exceeds the limit. Line 213: 'Tất cả nhóm ngành đều tuân thủ dưới trần cho phép 35%', yet no sector rule exists in RiskGuard/RiskManager/TradingEngine. Lines 226/230: a stop-loss guard at '-7.0%' shown as 'BẬT', which does not exist. Line 239: a circuit breaker at 'drawdown ngày vượt ngưỡng 5.0%', which does not exist; the canonical daily loss limit is 3% (risk.ts:44, :182). Line 33: `maxPositionPct = 25`, while DEFAULT_RISK_GUARD_POLICY.maxPositionPercent = 20.0 (src/lib/trading/types/risk.ts:175) and the server's /risk-metrics policy is 20 (TradingApiRouter.ts:207). Line 62 `if (!m) return 'LIVE'` and freshnessState (lines 71-76) report LIVE for a missing metric. There is also a latent render crash at line 129: `badgeVariant={exposure?.value !== null && exposure.value > 0 ...}`. When /api/trading/risk-metrics fails, riskMetrics is undefined, `undefined !== null` is true, and `exposure.value` throws a TypeError.",
+  "severity": "high",
+  "fix": "Edit only RiskCenterPage.tsx. (1) Line 129: use `exposure?.value != null && exposure.value > 0`. (2) Derive the header status from the query errors (riskMetricsQuery.isError gives ERROR/DATA_UNAVAILABLE) instead of always LIVE, and make metricStatusLabel/freshnessState return DATA_UNAVAILABLE for an undefined metric. (3) Set maxPositionPct to 20, or import DEFAULT_RISK_GUARD_POLICY.maxPositionPercent read-only, and compute the single-position badge and text from concentration.value against that limit (VI PHẠM when it is exceeded, unavailable when the value is null). (4) Remove the sector-ceiling, -7% stop-loss and 5% circuit-breaker rows, or label them 'CHƯA THỰC THI' (not enforced by the engine). Replace the circuit-breaker text with the real 3% daily loss limit or the manual emergencyStop state. (5) Compute the 'x/y quy tắc' header from the rows instead of hardcoding 4/4. (6) Show '—' rather than '-0.00%' when totalEquity is unavailable (line 306).",
+  "files_to_change": [
+   "src/pages/RiskCenterPage.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 9,
+  "file": "src/pages/DataStatusPage.tsx",
+  "title": "DataStatusPage calls an HTTP 200 LIVE without proving data availability",
+  "verdict": "STILL_PRESENT",
+  "evidence": "Partly fixed by the restore. Every feed starts as 'LOADING' (lines 48-88), and `payloadDeclaresUnavailable` exists again (lines 34-39) and is applied at line 114. Two gaps remain. (a) Lines 108-113: if the body is not JSON (e.g. the `vite preview` SPA fallback returning index.html with a 200), `body = null`, and `payloadDeclaresUnavailable(null)` returns false (line 35), so the feed is marked LIVE (line 120). (b) Line 38 treats only 'DATA_UNAVAILABLE' | 'INSUFFICIENT_DATA' | 'UNAVAILABLE' as unavailable. The probed /api/market-data/quote/HPG answers 200 with dataStatus 'MISMATCH' | 'UNVERIFIED' | 'INVALID' (QuoteDataStatus, src/services/market/quoteValidation.ts:37; server.ts:698-699 `res.json(realtime)`), and those are reported LIVE. A `{success:false}` envelope with a 200 would also count as LIVE. In production, server.ts:1058-1060 now returns a JSON 404 for unknown /api paths, so gap (a) mostly affects `vite preview`. Gap (b) affects production.",
+  "severity": "medium",
+  "fix": "In payloadDeclaresUnavailable: return true when the body is null or not an object (it could not be parsed). When the body has a string `dataStatus`, treat anything other than 'OK' as not available (or add MISMATCH/UNVERIFIED/INVALID explicitly, perhaps as DEGRADED). Treat `success === false` as unavailable. Update the doc comment. A unit test of payloadDeclaresUnavailable for null, MISMATCH, UNVERIFIED, INVALID and success:false would lock this in.",
+  "files_to_change": [
+   "src/pages/DataStatusPage.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 10,
+  "file": "src/pages/RecommendationsPage.tsx",
+  "title": "RecommendationsPage crashes on nonexistent RecommendationEngine.rank",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/pages/RecommendationsPage.tsx is byte-identical to a277613~1. It no longer imports RecommendationEngine. Line 39 uses `useRecommendationRankings(strategy)` (GET /api/recommendations/rankings, served at server.ts:917). It renders `RankingsTable` (line 281) and `StockRecommendationsView` (line 308), and imports from './recommendations/metrics' (line 20-25). Both src/pages/recommendations/RankingsTable.tsx and metrics.ts exist again (currently untracked).",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 11,
+  "file": "src/types/recommendation.ts",
+  "title": "HORIZON_LABELS became an object: React #31 crash on /strategy-lab and /backtest, latent .split crash",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/types/recommendation.ts is byte-identical to a277613~1. Lines 25-29: `export const HORIZON_LABELS: Record<InvestmentHorizon, string> = { SHORT_TERM: 'Ngắn hạn (1-4 tuần)', MEDIUM_TERM: ..., LONG_TERM: ... }`. All usages render a string: StrategyLabPage.tsx:235, BacktestPage.tsx:209, StockRecommendationsView.tsx:136 (`.split(' ')[0]` on a string) and :161, RecommendationsPage.tsx:130 and :143. No caller reads `.vi`, `.en` or `.holding`.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 12,
+  "file": "src/lib/trading/api/TradingApiRouter.ts",
+  "title": "Paper trading, portfolio and backtest pages call API contracts the stub routers do not serve",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/lib/trading/api/TradingApiRouter.ts (227 lines) and BacktestApiRouter.ts (239 lines) are byte-identical to a277613~1. The trading router serves /status (line 113), /portfolio (128), /positions (137), /orders (146), POST /order (157), POST /cancel (189) and /risk-metrics (201). Every route returns the `{ success: true, data: ... }` envelope that the hooks read as `json.data` (useMarketQueries.ts:447-527). The backtest router serves GET /strategies (163) and POST /run (178), which BacktestPage.tsx:91 calls. server.ts:113 mounts `createTradingApiRouter(tradingEngine)` and server.ts:120-124 mounts `createBacktestApiRouter()`; the signatures match.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 13,
+  "file": "src/components/dashboard/MarketBreadthWidget.tsx",
+  "title": "Component and page type contracts broken by a277613's rewrite of the type files (250 tsc errors)",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/types/market.ts, stock.ts, stockDetail.ts, src/services/market/stockHistory.ts and src/services/market/providers/vps/types.ts are all byte-identical to a277613~1. The fields the lead names exist again: MarketBreadth.ceilings/exchangeBreakdown/volumeBreadth/isDemo (market.ts:92,113-129), AITopSignal.signalType (market.ts:138), StockSummary.ceilingPrice (stock.ts:29), SectorHeatmapItem.leaderSymbol (stock.ts:73), r1/pivot (stockDetail.ts:81-82) and bollinger (stockHistory.ts:19). Since a277613~1, the components differ only by the 55d3ff8 token/className migration plus `provenanceFromIsDemo(...)` calls. That helper is exported by SourceBadge.tsx:19, and it reads `isDemo` fields that exist on every type involved (market.ts:32,43,56,87,129,156; stock.ts:47,64,76). Caveat: tsc was not run because this audit is read-only, so the absence of errors is inferred from the restored types.",
+  "severity": "none",
+  "fix": "None. The orchestrator should confirm with `npx tsc --noEmit` against the 117-error baseline.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 14,
+  "file": "src/components/stock/StockHeader.tsx",
+  "title": "'REAL DATA' / 'Đang giao dịch' labels hardcoded on panels regardless of data state",
+  "verdict": "STILL_PRESENT",
+  "evidence": "src/components/common/SourceBadge.tsx:29-30 documents 'Defaults to `real`', and line 62 is `export function SourceBadge({ variant = 'real', ...`. Call sites that still pass no variant and therefore print 'REAL DATA': StockHeader.tsx:94, StockQuickViewModal.tsx:62, MarketOverview.tsx:20, MarketHeatmap.tsx:36, TopMovers.tsx:35, AIAnalystPage.tsx:20, and also MarketPage.tsx:89, WatchlistPage.tsx:359 and Footer.tsx:14. StockHeader.tsx:90-93 always renders the pulsing 'Đang giao dịch' pill, whatever the session or quote state. StockDetailPage.tsx:196 renders StockHeader even when the VPS quote is unavailable. The hardcoded 28500 quote and the fabricated indices/movers from the damaged tree are gone (data now comes from RealMarketDataProvider with isDemo:false), but empty or failed data still carries REAL DATA, and the trading pill is shown outside trading hours.",
+  "severity": "medium",
+  "fix": "Change the SourceBadge default to 'unavailable' (fail closed) and update its doc comment. At each listed call site pass a real variant, the same pattern 55d3ff8 applied to the other widgets: MarketOverview `provenanceFromIsDemo(indices.map(x=>x.isDemo))`, MarketHeatmap with sectors, TopMovers with gainers/losers/active, AIAnalystPage `[aiSummary?.isDemo]`, StockQuickViewModal `[stock.isDemo]`, WatchlistPage with the watchlist rows, MarketPage with indices. Give StockHeader new props (e.g. `provenance` and `marketState`) driven by StockDetailPage from the quote status. Render 'Đang giao dịch' only when the market status says TRADING, otherwise the real state or nothing. Footer: 'calculated' or remove it.",
+  "files_to_change": [
+   "src/components/common/SourceBadge.tsx",
+   "src/components/stock/StockHeader.tsx",
+   "src/pages/StockDetailPage.tsx",
+   "src/components/stock/StockQuickViewModal.tsx",
+   "src/components/dashboard/MarketOverview.tsx",
+   "src/components/dashboard/MarketHeatmap.tsx",
+   "src/components/dashboard/TopMovers.tsx",
+   "src/pages/AIAnalystPage.tsx",
+   "src/pages/MarketPage.tsx",
+   "src/pages/WatchlistPage.tsx",
+   "src/components/common/Footer.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 0,
+  "file": "src/components/dashboard/AIMarketSummaryCard.tsx",
+  "title": "AIMarketSummaryCard prints a fixed bullish narrative and a 'Hấp thụ tốt' badge regardless of data, labelled CALCULATED",
+  "verdict": "STILL_PRESENT",
+  "evidence": "The file is tracked and clean (HEAD 55d3ff8). The baseline a277613~1 has the same text, so the restore did not touch it. src/components/dashboard/AIMarketSummaryCard.tsx:62 `<Badge variant=\"up\" size=\"xs\">` (always 'up', even for summary.trend === 'TIÊU CỰC'). :68 has the static sentence 'Thị trường đang duy trì xu thế tăng điểm ngắn hạn trên các đường trung bình động (MA20)...'. :78-79 `<Badge variant=\"accent\" size=\"xs\">Hấp thụ tốt</Badge>`. :158-159 `<Badge variant=\"ref\" size=\"xs\">CALCULATED</Badge>`. Both /ai-analyst (AIAnalystPage.tsx:29) and DashboardPage.tsx:255 render it. Upstream, src/services/market/RealMarketDataProvider.ts:826-849 (restored, untracked) also hard-codes trendScore 72/55/38, a fixed moneyFlow sentence and fixed riskAlerts, and stamps `isDemo: false`. SourceBadge therefore shows 'real' for template text.",
+  "severity": "medium",
+  "fix": "In AIMarketSummaryCard, derive the trend badge variant from summary.trend: TÍCH CỰC→up, TIÊU CỰC→down, otherwise neutral/default. Replace the static MA20 paragraph with data-backed text (for example the trendScore and breadth-based overallComment), or remove it. Remove the hard-coded 'Hấp thụ tốt' badge. Relabel CALCULATED as a rule-based/template marker. Optional follow-up: in RealMarketDataProvider.getAIMarketSummary, stop emitting the fixed moneyFlow and riskAlerts strings as real data. Return null/unavailable for moneyFlow, or flag the text as a template.",
+  "files_to_change": [
+   "src/components/dashboard/AIMarketSummaryCard.tsx",
+   "src/services/market/RealMarketDataProvider.ts"
+  ],
+  "protected": false
+ },
+ {
+  "index": 1,
+  "file": "src/pages/MacroNewsPage.tsx",
+  "title": "MacroNewsPage crashes on a 200 response with a null or non-JSON body (fetchJson returns null as success)",
+  "verdict": "STILL_PRESENT",
+  "evidence": "The restore did NOT fix it. Baseline a277613~1:src/pages/MacroNewsPage.tsx:48-59 is `const body = await res.json().catch(() => null); if (!res.ok) {...throw} return body as T;`, so a 200 with a non-JSON body resolves to null. loadList (:204-208) stores {status:'success', data:null}, and the render at :517/:528/:541 dereferences `lists[listTab].data.items`. The current working tree, which has an in-progress OpenCode edit and should be ignored per the brief, already adds :58-60 `if (body === null || typeof body !== 'object') { throw new Error(`Phản hồi không hợp lệ (không phải JSON) từ ${url}`); }`. It also exports fetchJson and adds src/pages/__tests__/MacroNewsPageFetch.test.ts, which covers both the 200+invalid-JSON and the 200+null cases. So the defect exists in the restored code, and a pending fix addresses it.",
+  "severity": "medium",
+  "fix": "In fetchJson, throw when res.ok but the parsed body is null or not an object. Callers then take the existing error branch instead of {status:'success', data:null}. The pending OpenCode change does exactly this. Review its diff and run `npx vitest run src/pages/__tests__/MacroNewsPageFetch.test.ts` before accepting it. Optional hardening: guard the render with `lists[listTab].data?.items`.",
+  "files_to_change": [
+   "src/pages/MacroNewsPage.tsx",
+   "src/pages/__tests__/MacroNewsPageFetch.test.ts"
+  ],
+  "protected": false
+ },
+ {
+  "index": 2,
+  "file": "src/pages/FundamentalsPage.tsx",
+  "title": "FundamentalsPage shows 'LOADING' forever when the server's 200 payload lacks `annual`",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "FundamentalsPage.tsx matches the baseline (CRLF-normalised). The trigger is gone. src/services/market/realMarketDataService.ts was restored byte-exact (370 lines). getStockFundamentals (:345-369) now returns VpsProvider.getFundamentals output typed VpsNormalizedFundamentals, which contains `annual`, `quarterly`, `annualPeriods` and `quarterlyPeriods` (providers/vps/types.ts:224-249; VpsProvider.ts:271-285 builds `annual`). It throws MarketDataUnavailableError on failure, and server.ts:733-738 maps that to respondMarketDataUnavailable. A 200 with dataStatus 'OK' therefore always carries `annual`, and failures set `error`. Residual (latent, low): FundamentalsPage.tsx:331 `{!primaryBundle.fundamentals && !primaryBundle.error && (<EmptyState title=\"LOADING\" ...` would still spin if a future 200 payload lacked `annual`.",
+  "severity": "none",
+  "fix": "No fix required. Optional hardening: in loadBundle (FundamentalsPage.tsx:~78-91), set error = 'Phản hồi báo cáo tài chính không hợp lệ' when fund.ok && !fund.body?.annual, so the page fails closed instead of showing LOADING.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 3,
+  "file": "src/pages/WatchlistPage.tsx",
+  "title": "WatchlistPage rewrite dropped loading/error states, the group filter, sorting and export",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/pages/WatchlistPage.tsx is identical to a277613~1 (git diff --quiet a277613~1 passes; 487 lines). It uses useWatchlistData (:95) with isLoading/isError branches (:100-103, :368, :378-381 ErrorState). The selectedGroup filter is applied at :194-199 (including vn30 and sectorId). Sorting is done by makeWatchlistSorter (:222-226; it exists at src/components/watchlist/metrics.ts:176). Real handleExportCSV (:229) and handleExportJSON (:285) exist, as does copy-summary (:302). useWatchlistData exists at src/hooks/useMarketQueries.ts:314.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 4,
+  "file": "src/pages/SectorIntelligencePage.tsx",
+  "title": "SectorIntelligencePage shows trading value as '0.0 tỷ ₫' (divides values already in tỷ by 1e9) and ignores the intelligence snapshot",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/pages/SectorIntelligencePage.tsx is identical to a277613~1 (56 lines). There is no `1_000_000_000` or `1e9` division anywhere. The page now uses the canonical snapshot: `const metrics = intelligence?.sectors ?? [];` (:28), fail-closed `{!intelligence || metrics.length === 0 ? <EmptyState title=\"No sector data available\" ...` (:44), and a guarded formatter `function value(v) { return v == null || !Number.isFinite(v) ? '—' : `${v.toFixed(1)}${suffix}`; }` (:24). The unguarded `s.changePercent.toFixed(2)` is gone. Unrelated: this file uses the undefined tokens text-terminal-text/-muted/-positive/-negative, which lead 10 covers.",
+  "severity": "none",
+  "fix": "None for this lead (see lead 10 for the tokens).",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 5,
+  "file": "src/pages/portfolio/metrics.ts",
+  "title": "portfolio/metrics formatAmount appends ' ₫' to share quantities ('1.000 ₫ CP')",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/pages/portfolio/metrics.ts is identical to a277613~1. Lines 38-42: `export function formatAmount(value: unknown): string { if (!isFiniteNumber(value)) return UNAVAILABLE; return formatNumber(value); }`. No ' ₫' suffix. The restored src/pages/portfolio/__tests__/PortfolioHardening.test.tsx:424 asserts `formatAmount(1000)).toBe('1.000')`.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 6,
+  "file": "src/pages/PaperTradingPage.tsx",
+  "title": "PaperTradingPage trading gate fails open when the status payload lacks the flags",
+  "verdict": "STILL_PRESENT",
+  "evidence": "The restored page (it differs from the baseline only by one CSS class at :566) still has src/pages/PaperTradingPage.tsx:89-92: `const isEmergencyStop = status?.emergencyStop === true; const isTradingDisabled = status?.tradingEnabled === false; const isStatusUnavailable = status === undefined || status === null; const isBlocked = isEmergencyStop || isTradingDisabled || isStatusUnavailable;`. An object with missing or non-boolean flags therefore enables the order form (:445 `disabled={isBlocked || ...}`). Real-world exposure is now low. The restored TradingApiRouter.ts:113-125 always returns `{success:true, data:{tradingEnabled: engine.isTradingEnabled(), emergencyStop: engine.isEmergencyStopActive(), ...}}`. The server also refuses orders independently: TradingEngine.ts:260-278 rejects with EMERGENCY_STOP / TRADING_DISABLED. This is a client defence-in-depth gap, not an exploitable bypass.",
+  "severity": "low",
+  "fix": "Require explicit positive flags: `const isBlocked = !(status?.tradingEnabled === true && status?.emergencyStop === false);`. Add a matching blockReason for a malformed status, and add a case to src/pages/trading/__tests__/TradingHardening.test.tsx for a status object that lacks the flags.",
+  "files_to_change": [
+   "src/pages/PaperTradingPage.tsx",
+   "src/pages/trading/__tests__/TradingHardening.test.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 7,
+  "file": "src/pages/PracticeLabPage.tsx",
+  "title": "PracticeLabPage lab replaced by a placeholder that links to paper trading",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/pages/PracticeLabPage.tsx is identical to a277613~1 (76 lines). It imports LearningService (:3), DataBadgeChip/SafetyBanner (:4) and progressStore (:5), and uses `LearningService.listLabs()[0]` (:9). It records completion through `progressStore.completeLab(lab.id)` (:59) and renders `<SafetyBanner />` (:73). All of these exist: LearningService.ts:69 listLabs, ProgressStore.ts:115 completeLab, LearningWidgets.tsx:19 SafetyBanner.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 8,
+  "file": "src/pages/__tests__/PhaseFiveViews.test.tsx",
+  "title": "All 10 page test files were deleted by a277613; no page has test coverage",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "All 10 page test files from a277613~1 are back and match the baseline content byte-for-byte after CRLF normalisation: src/pages/__tests__/{DataStatusPayload.test.ts, PhaseFiveViews.test.tsx, StockScreenerAiScoreFilter.test.ts, StockScreenerFilterHardening.test.ts}, src/pages/backtest/__tests__/metrics.test.ts, src/pages/fundamentals/__tests__/metrics.test.ts, src/pages/portfolio/__tests__/PortfolioHardening.test.tsx, src/pages/recommendations/__tests__/{RankingsHardening,RecommendationsDeepDiveHardening}.test.tsx and src/pages/trading/__tests__/TradingHardening.test.tsx. A new MacroNewsPageFetch.test.ts also exists (from the in-progress task). They are untracked and were not run in this read-only check.",
+  "severity": "none",
+  "fix": "None. Running them (`npx vitest run src/pages`) is a separate verification step.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 9,
+  "file": "src/pages/PhasePlaceholderPage.tsx",
+  "title": "Orphaned components and an unused page",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/pages/PhasePlaceholderPage.tsx no longer exists: `D` in git status, and it was absent in a277613~1. The only remaining references are assertions in PhaseFiveViews.test.tsx:138 `expect(appSource).not.toContain('PhasePlaceholderPage')`. The restored StockDetailPage.tsx, identical to the baseline, imports and renders all four components again: :17 StockAnalysisCard (used at :341), :18 StockFundamentals (:323), :25 StockAIExplanation (:355), :27 DataSourceBadge (:211). They are no longer orphaned. Their per-file tsc error counts were not re-measured, since no tsc run is allowed in read-only mode.",
+  "severity": "none",
+  "fix": "None. Re-measure the tsc baseline separately.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 10,
+  "file": "src/components/stock/StockRecommendationsView.tsx",
+  "title": "Undefined Tailwind tokens and an invisible badge after the 55d3ff8 colour migration",
+  "verdict": "STILL_PRESENT",
+  "evidence": "Neither src/index.css (clean, HEAD) nor StockRecommendationsView.tsx (clean, HEAD 55d3ff8) was restored. The @theme in src/index.css:86-106 defines only terminal-text-primary/-secondary/-muted. It has no --color-terminal-text, terminal-muted, terminal-positive, terminal-negative or terminal-surface-high. StockRecommendationsView.tsx:112: `<span className=\"... bg-terminal-up text-terminal-up border border-terminal-up/20\">PHASE 17 REAL ENGINE` (green on green; the baseline was `bg-emerald-950 text-emerald-400`). The same file has 37 bare terminal-text uses: 21 text-terminal-text and 16 bg-/border-terminal-text, e.g. :32 `bg-terminal-text/60` and :43 `bg-terminal-text/60 border border-terminal-text/80`. These were mapped from slate backgrounds and now generate no class, so the panels are transparent. Restored pages that already carried the issue in the baseline: MarketPage.tsx (9 terminal-text, 22 terminal-muted, 4 positive, 4 negative, 3 surface-high), SectorIntelligencePage.tsx (6/13/3/2), Learning*/PracticeLab/JournalPage (terminal-text). components/ui/LoadingState.tsx:45 uses `bg-terminal-surface-high/70`.",
+  "severity": "low",
+  "fix": "(1) StockRecommendationsView.tsx:112 → `bg-terminal-up/10 text-terminal-up border-terminal-up/20`. Remap its bg-/border-terminal-text* classes to surface/border tokens (e.g. bg-terminal-surface-subtle, border-terminal-border). They must not become a light text colour used as a background. (2) Add the missing aliases to the src/index.css @theme: --color-terminal-text (=text-primary), --color-terminal-muted (=text-muted), --color-terminal-positive (=up), --color-terminal-negative (=down), --color-terminal-surface-high (=surface-elevated). Alternatively, rename those classes in MarketPage, SectorIntelligencePage, the Learning pages, JournalPage, PracticeLabPage and LoadingState.",
+  "files_to_change": [
+   "src/components/stock/StockRecommendationsView.tsx",
+   "src/index.css"
+  ],
+  "protected": false
+ },
+ {
+  "index": 11,
+  "file": "src/pages/LearningPathPage.tsx",
+  "title": "LearningPathPage calls useState after a conditional early return",
+  "verdict": "STILL_PRESENT",
+  "evidence": "The restored file is identical to the baseline. src/pages/LearningPathPage.tsx:11 `if (!path) return <div className=\"text-sm text-terminal-text-muted\">No published paths.</div>;` is followed by hooks at :24 `useState<string[]>([])`, :25, :26, :29, :30 and :31 (six useState calls after the conditional return). That violates the Rules of Hooks. It is harmless today because LearningService.listPaths() (LearningService.ts:63-65) filters a static PATHS catalog.",
+  "severity": "low",
+  "fix": "Move all useState declarations, and anything else hook-based, above the `if (!path) return ...` early return, or split the body into a child component that renders only when path exists.",
+  "files_to_change": [
+   "src/pages/LearningPathPage.tsx"
+  ],
+  "protected": false
+ },
+ {
+  "index": 12,
+  "file": "src/services/market/realMarketDataService.ts",
+  "title": "Market-data routes serve hard-coded quotes/fundamentals as real, and getHistoricalStockData contract break crashes 3 routes (a277613 mock of realMarketDataService.ts)",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "realMarketDataService.ts was restored byte-exact to a277613~1 (370 lines). getRealtimeQuote (:286-338) calls VpsProvider.getQuote with a KBS cross-check and validateRealtimeQuote, and sets dataStatus from the validation. getStockFundamentals (:345-369) calls VpsProvider.getFundamentals (real annual/quarterly series), and failures throw MarketDataUnavailableError. getHistoricalStockData (:199-260) returns {symbol, timeframe, source:'KBS', candles, bars, from, to, count, retrievedAt}. That matches the server.ts consumers at :663-674 (history.bars, history.candles, from/to), :758-759, :821-822 and :931-932. server.ts differs from the baseline only in the PORT logic (:94-97). No mock quote or ratio remains.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 13,
+  "file": "src/services/macro-regime/MacroRegimeService.ts",
+  "title": "GET /api/macro/radar builds the production macro regime from test fixtures and returns a shape the page cannot render",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "Both services were restored byte-exact to a277613~1. src/services/macro/MacroIntelligenceService.ts (which /api/macro/radar calls at server.ts:141) builds a MacroRadarSnapshot via MacroSnapshotBuilder.buildSnapshot from persisted `macro_observations`. It goes through DrizzleMacroRegimeDataSource and mapObservationsToRecords (:109-118, :125-138); an empty store yields no records and an UNKNOWN regime. That is the radar shape MacroNewsPage expects (it imports the MacroRadarSnapshot type at :16 and loads /api/macro/radar at :225-227). MacroRegimeService.ts also resolves observations from the DB data source (:79-90) and returns [] on failure. No production file imports __tests__/macroFixtures (grep of src and server.ts outside __tests__ finds nothing).",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 14,
+  "file": "src/lib/trading/api/TradingApiRouter.ts",
+  "title": "Paper-trading API replaced by a 2-route stub; order/positions/orders/risk routes 404 and the order pipeline is gone",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "TradingApiRouter.ts, TradingEngine.ts and PaperBroker.ts are byte-exact to a277613~1, and the deleted supporting modules (risk/, execution/, paper/PaperExecutionEngine.ts, etc.) are back. The router (227 lines) exposes GET /status (:113, `{success:true, data:{tradingEnabled, emergencyStop, ...}}`), GET /portfolio (:128), /positions (:137) and /orders (:146), POST /order (:157, through PaperOrderRiskBoundary → RiskGuard), POST /cancel (:189) and GET /risk-metrics (:201). All return the `{data: ...}` envelope that useTradingStatus and useTradingPortfolio read (useMarketQueries.ts:440-463, `return json.data`). server.ts:114 mounts it with `app.use('/api/trading', createTradingApiRouter(tradingEngine))`.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 0,
+  "file": "src/services/data/DailyPriceService.ts",
+  "title": "Daily-price read path returns the OLDEST N bars, so valuation/fundamental analysis prices off a stale close",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The restored DailyPriceService.ts:89-96 reads canonical_market_bars through CanonicalMarketDataRepository.getDailySeries, not PriceRepository/stock_daily. getDailySeries (src/lib/db/data/CanonicalMarketDataRepository.ts:474-480) does `.orderBy(desc(canonicalMarketBars.tradingDate)).limit(opts.limit)` and then `rows.reverse()`, so it returns the newest N bars in ascending order with numeric (toNum) values. server.ts:376-388 canonicalDailyBarsOr -> getDailyPrices, and :503/:536 take `latestBars[0].close` with limit 1, which is now the latest stored close. Valuation fails closed on a non-finite or non-positive close (server.ts:540-547).",
+  "severity": "none",
+  "fix": "None needed for this lead. Optional low-severity residual: neither route checks how old latestBars[0] is (if ingestion stopped, the last stored close is used whatever its age), and `latestRatios?.eps ? Number(...) : null` treats a real 0 as missing. A fix would compare bar.tradingDate with lastFinalizedSession in server.ts, which is protected.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 1,
+  "file": "server.ts",
+  "title": "EOD ingestion stub crashes the server at boot when EOD_INGEST_ENABLED=true (start() returns void, .then() is called on it)",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The restored src/services/data/EodIngestionScheduler.ts:117 is `async start(): Promise<void>` (it catches a catch-up check failure at :122-126), and :142-150 `status(): EodSchedulerStatus` exists. server.ts:1147-1148 `void eodScheduler.start().then(() => { const { nextRunAt, blockedReason } = eodScheduler.status(); ...` is now type- and runtime-correct. server.ts:164-176 constructs the real scheduler with runDailyBarIngestion.",
+  "severity": "none",
+  "fix": "None needed.",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 2,
+  "file": "src/services/replay/PaperReplayApiRouter.ts",
+  "title": "POST /api/replay/run fabricates a COMPLETED paper replay (+5% NAV, 12 trades, RECONCILED) with no bars, anonymously",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The hard-coded POST /run is gone. PaperReplayApiRouter.ts:51-102 is the fail-closed POST /runs: it returns 422 DATA_UNAVAILABLE when `input.bars` is empty (:57-66), 400 without a manifest (:68-70), and 409 EXECUTION_BLOCKED when `isSimulation === false` (:73-81). It runs the real engine with `replay.run(input)` (:84) and reports persistence truthfully (`persisted` is false if ReplayRepository.record throws, :85-91). PaperReplayEngine.ts:162 also refuses `!ports.executionPort.isSimulation`. The route is still anonymous (see lead 7).",
+  "severity": "none",
+  "fix": "None needed for the fabrication. The missing authentication is covered by lead 7.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 3,
+  "file": "src/services/research/ResearchApiRouter.ts",
+  "title": "POST /api/research/certify defaults all 8 governance gates to true, so an empty body is CERTIFIED",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "ResearchApiRouter.ts:74-100: `const missing = conditions.filter((c) => typeof body[c] !== 'boolean'); if (missing.length > 0) return res.status(422)... verdict: 'NON_CERTIFIED'`. There are no `= true` defaults, and the verdict comes only from `AuditEngine.certify(body)` (:98). POST /metrics (:53-60) now returns 400 MISSING_FIELD for a missing initialCapital/equity/tradeReturns/turnover/exposure, with no [] fallback.",
+  "severity": "none",
+  "fix": "None needed for this lead. RESIDUAL in the same file, separate and medium: POST /certifications (:182-200) persists any caller-supplied `verdict: String(body.verdict)` (for example 'CERTIFIED') through ResearchRepository.recordCertification without calling AuditEngine.certify. That contradicts server.ts:180 ('nothing else may claim CERTIFIED'). It also returns 201 success even when `db` is null (recordCertification returns early at ResearchRepository.ts:46), and it has no try/catch, so on Express 4.21 a DB rejection becomes an unhandled rejection. POST /decisions (:209-234) has the same no-catch and silent-success-without-db pattern. Minimal fix: in /certifications, accept only the 8 condition booleans, recompute the verdict with AuditEngine.certify, wrap the writes in try/catch, and report `persisted`. File: src/services/research/ResearchApiRouter.ts (not protected).",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 4,
+  "file": "src/services/data/CanonicalDataApiRouter.ts",
+  "title": "Canonical-data router claims ingestion/verification it never performs (no persistence, quality pre-set VALID, cross-check always VERIFIED, fabricated HOSE identity)",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The restored router (394 lines) fixes all three main claims. (1) Ingest: CanonicalDataApiRouter.ts:134-152 fetches KBS through fetchKbsDailyBatch, persists through `CanonicalMarketDataIngestionService.ingestBatch`, and returns 503 PERSISTENCE_UNAVAILABLE / written:false when `report.persistenceStatus === 'NOT_PERSISTED'`. A provider failure returns 503 SOURCE_UNAVAILABLE (:164-176). (2) No `quality: 'VALID'` stamping remains; validation happens inside ingestBatch. (3) Cross-source check (:246-269) requires both closes and calls recordCrossSourceCheck, which computes AGREE/TOLERATED/MISMATCH/INSUFFICIENT_DATA (CanonicalMarketDataIngestionService.ts:435-441). It is never a hard-coded VERIFIED. The ingest write path refuses an unknown exchange (:123-131).",
+  "severity": "none",
+  "fix": "None needed for the cited defects. RESIDUAL, low: resolveExchange (:60-63) still falls back to 'HOSE' for symbols outside the universe. As a result, GET /identity/:symbol (:272-287) returns success with a 'HOSE:<SYM>' identity for unknown tickers. POST /instrument (:293-327) also upserts an anonymous, caller-supplied identity (any instrumentId, status or validTo) into the instrument master under that fallback exchange. Minimal fix: return 404 UNSUPPORTED_SYMBOL from /identity and /instrument when supportedExchangeOf(symbol) is null, and put /instrument behind authentication (lead 7). File: src/services/data/CanonicalDataApiRouter.ts (not protected).",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 5,
+  "file": "src/services/assistant/aiChatService.ts",
+  "title": "AI copilot always shows 'no response': service returns {response} but the client reads reply/content/analysis; Gemini path removed and canned text is tagged [VERIFIED]",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "aiChatService.ts:26-32 declares `AiChatResponse { reply: string; advisoryOnly: true; source: 'GEMINI_ADVISORY' | 'SYSTEM_NOTICE' }`. :66-89 calls Gemini (`ai.models.generateContent({ model: 'gemini-2.5-flash' ... })`) and returns `reply: response.text`. Without a key, :56-63 returns an honest SYSTEM_NOTICE in `reply`. No '[VERIFIED]' canned text remains. AICopilot.tsx:126 reads `data.reply || ...`, which matches. server.ts:1014-1042 wires runAiChat with the 'expensive' rate-limit bucket.",
+  "severity": "none",
+  "fix": "None needed.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 6,
+  "file": "src/lib/trading/api/BacktestApiRouter.ts",
+  "title": "Backtest API stubbed: POST /api/backtest/run always answers NOT_CONFIGURED; BacktestEngine/DataProvider deleted",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "BacktestApiRouter.ts is back to 239 lines. It imports BacktestDataProvider/BacktestEngine (:19-21), and src/lib/trading/backtest/ contains BacktestDataProvider.ts, BacktestEngine.ts, BacktestMetrics.ts and BacktestTypes.ts. GET /strategies is restored (:163-176). POST /run (:178-236) validates fail-closed, fetches real KBS bars, returns 503 INSUFFICIENT_DATA under 30 bars, and runs `new BacktestEngine(...).run(candles)`. There is no NOT_CONFIGURED stub and no fake GET /status READY. server.ts:64/:123 mounts it behind rateLimit 'expensive'. BacktestPage.tsx:91 calls /api/backtest/run.",
+  "severity": "none",
+  "fix": "None needed.",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 7,
+  "file": "server.ts",
+  "title": "No server-side authorization on any write route; requirePermission/requireResource are wired nowhere",
+  "verdict": "STILL_PRESENT",
+  "evidence": "server.ts:311 `app.get('/api/users/me', requireAuth, ...)` is the only authenticated route. A grep shows requirePermission/requireResource (src/middleware/platform/requirePermission.ts:40,67) have no production importer. Mounts with no auth: server.ts:114 `/api/trading`, :159 `/api/canonical-data`, :181 `/api/research`, :184 `/api/replay`, :192 `/api/strategy`, :194 `/api/scenario`, :197 `/api/alerts`. The restore made this worse: these routes now write durable or shared state anonymously. ResearchApiRouter.ts:158 recordExperiment, :187 recordCertification (caller-supplied verdict), :216 recordDecision. CanonicalDataApiRouter.ts:135 ingestBatch (KBS fetch plus a write to canonical_market_bars, unthrottled), :254 cross-source ledger write, :300 InstrumentRepository.upsert. PaperReplayApiRouter.ts:87 ReplayRepository.record. TradingApiRouter.ts:157 POST /order and :189 POST /cancel mutate the single process-wide PaperBroker (server.ts:113). Only /api/backtest/run (:122) and /api/ai/chat (:1014) are rate-limited.",
+  "severity": "high",
+  "fix": "Gate every non-GET request on the write-bearing mounts with the existing Firebase `requireAuth` (src/middleware/auth.ts, which fails closed when unconfigured). The platform AuthorizationService is backed by an empty InMemoryMembershipStore, so requirePermission alone would deny everything. In server.ts, before the mounts at :114-197, add for example `const authWrites = (req,res,next) => req.method === 'GET' ? next() : requireAuth(req,res,next); app.use(['/api/trading','/api/canonical-data','/api/research','/api/replay','/api/strategy'], authWrites);`. Add an admin-claim check (req.user custom claim) for /api/canonical-data/ingest, /instrument and /cross-source-check and for /api/research/certifications. Add `rateLimit({ limiter: apiLimiter, bucket: 'expensive' })` to /api/canonical-data/ingest/:symbol. The client must then send the Firebase ID token on these POSTs. The fix needs user approval because server.ts and TradingApiRouter are protected.",
+  "files_to_change": [
+   "server.ts",
+   "src/lib/trading/api/TradingApiRouter.ts (only if per-route gating is preferred over the mount-level gate)"
+  ],
+  "protected": true
+ },
+ {
+  "index": 8,
+  "file": "src/lib/platform/api/AuthApiRouter.ts",
+  "title": "Login/password rate limit uses one global key: 10 bad logins per minute lock every user out; rate limiting also keys on the proxy IP (no trust proxy)",
+  "verdict": "STILL_PRESENT",
+  "evidence": "AuthApiRouter.ts:55 `if (!opts.limiter.allow('auth:login', req).allowed)`. The same constant keys appear at :96 'auth:password', :116 'auth:reset' and :128 'auth:session'. InMemoryRateLimiter.allow (src/lib/platform/security/rateLimiter.ts:58-75) builds the window key only from `${cls}:${key}` and ignores `req`. So all clients share one bucket of 10 requests per 60 s (DEFAULT_RULES.auth), and 10 anonymous requests a minute block login for everyone. The limiter comes from the shared platform context (createPlatformRouter.ts:102, :141). No `trust proxy` setting exists anywhere in server.ts or src (grep is empty). The rateLimit middleware (src/middleware/platform/rateLimit.ts:29) keys on `req.ip`, which is the proxy hop address behind Render or Cloud Run.",
+  "severity": "medium",
+  "fix": "In AuthApiRouter.ts, include the client identity in each key, for example `opts.limiter.allow(`auth:login:${rateLimitIdentity({ ip: req.ip ?? null })}`, req)`, using rateLimitIdentity from rateLimiter.ts. For login, also add a per-account key such as `auth:login:id:${identifier.toLowerCase()}` after parsing, so one IP cannot spray one account. Key /password/change by the authenticated userId. Separately, add `app.set('trust proxy', 1)` (the deployment's hop count) in server.ts so req.ip is the client address. AuthApiRouter.ts is not on the protected list, but server.ts is.",
+  "files_to_change": [
+   "src/lib/platform/api/AuthApiRouter.ts",
+   "server.ts"
+  ],
+  "protected": true
+ },
+ {
+  "index": 9,
+  "file": "src/services/business-api/BusinessApiRouterComposition.ts",
+  "title": "/api/billing uses an isolated empty IdentityService, so every authenticated route is 401 forever, and accountStatus is hard-coded 'ACTIVE'",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "BusinessApiRouterComposition.ts:43 `const platform = getPlatformContext();` and :62 `identity: platform.identity`. This is the same singleton context that createPlatformRouter (createPlatformRouter.ts:85-110, :118) uses for /api/platform/auth, so sessions issued there are honored. There is no private SessionManager/InMemorySessionStore. accountStatus (:51-58) resolves `platform.identity.getAccount(userId)?.status` and fails closed to 'LOCKED', so nothing is hard-coded 'ACTIVE'.",
+  "severity": "none",
+  "fix": "None needed.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 10,
+  "file": "src/middleware/platform/security.ts",
+  "title": "Security headers weakened by a277613 (clickjacking framing allowed, object/base/form CSP and COOP/CORP/Permissions-Policy dropped)",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "security.ts:74 `img-src 'self' data: blob:`. :77 `object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'`. :86 `X-Frame-Options: DENY`. :87 `Referrer-Policy: no-referrer`. :88-90 Cross-Origin-Opener-Policy same-origin, Cross-Origin-Resource-Policy same-origin, and Permissions-Policy geolocation=(), camera=(), microphone=(). script-src is 'self' in production (:70). server.ts:105 applies it globally.",
+  "severity": "none",
+  "fix": "None needed.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 11,
+  "file": "src/schemas/learningSchema.ts",
+  "title": "learningSchema rename breaks project submission: SubmitProjectSchema requires selectedEvidenceIds but the page sends ticked, so safeParse always fails silently",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "learningSchema.ts:18-22 `SubmitProjectSchema = z.object({ projectId: z.string().min(1).max(100), ticked: z.array(z.string().min(1).max(200)).max(20), thesis: z.string().min(1).max(2000) })`, which matches LearningPathPage.tsx:96 `SubmitProjectSchema.safeParse({ projectId: p.id, ticked, thesis })`. The max-length bounds and the string|string[] answer union are back (:3 ExerciseAnswerSchema).",
+  "severity": "none",
+  "fix": "None needed. Optional low UX residual: LearningPathPage.tsx:97 `if (!parsed.success) return;` still gives no feedback for an empty or too-long thesis or more than 20 ticks. Showing parsed.error would fix it (file not protected).",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 12,
+  "file": "src/services/newsMacro/NewsMacroListService.ts",
+  "title": "News/macro list service stub: limit floored at 20, nextCursor always null (no pagination), status filter dropped, missing timestamps become now",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The service is back to 475 lines. readLimit (:250-257) accepts 1..100 and throws INVALID_LIMIT otherwise (no Math.max(20, n)). run() over-fetches `Math.min(limit * 4, 400)` (:419) but slices `items.slice(0, limit)` (:438). It returns `nextCursor: hasMore && page.length > 0 ? encodeCursor(...) : null` (:446). `status: readFilter(params.status, ...)` is passed to the query (:424), and NewsMacroRepository applies `eq(policyEvents.status, ...)` / `eq(earningsCalendar.status, ...)`. NewsMacroListRouter.ts:62 forwards `status`. Missing timestamps no longer become now.",
+  "severity": "none",
+  "fix": "None needed for the cited defects. Optional low residual: a missing timestamp becomes the sentinel '1970-01-01T00:00:00.000Z' (:303, :335, :353, :392). It is exposed as canonicalTimestamp, where it can read as a real date, and it can end up encoded in a cursor. Returning null plus a flag would be cleaner.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 13,
+  "file": "src/services/market/MarketIntelligenceService.ts",
+  "title": "GET /api/market-intelligence builds from empty inputs but labels the snapshot dataFreshness 'CURRENT'",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "MarketIntelligenceService.ts is back to 137 lines. It fetches real 3M candles per universe symbol (:56-86) and VNINDEX (:92-107, [] on failure with no synthesis). It derives freshness (:110-119): 'UNAVAILABLE' when no constituent returned data, 'STALE' when coverage is below 50%. It passes the real `sourceTimestamp: latestSourceTime` to the builder (:122-129). Hard-coded empty inputs labeled 'CURRENT' are gone.",
+  "severity": "none",
+  "fix": "None needed for the cited defect. Optional low residual: 'CURRENT' (:110) is decided by coverage only. Neither the age of latestSourceTime nor a missing VN-INDEX downgrades it. Comparing latestSourceTime with the last finalized session would make the label truthful (file not protected).",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 14,
+  "file": "src/services/scenario/ScenarioApiRouter.ts",
+  "title": "ScenarioApiRouter (uncommitted) coerces malformed input instead of failing closed: bad quantity -> 0, unknown kind -> PRICE_SHOCK, bad value -> 0",
+  "verdict": "STILL_PRESENT",
+  "evidence": "ScenarioApiRouter.ts:53 `quantity: typeof p.quantity === 'number' ? p.quantity : 0`. :56 drops positions with no symbol (`.filter((p) => !!p.symbol)`) instead of rejecting them. :74-79 `kind = 'PRICE_SHOCK'` for an unknown or non-string kind. :82 `target: ... : ''`. :83 `value: typeof a.value === 'number' && Number.isFinite(a.value) ? a.value : 0`. :84 `label: ... : ''`. The 0 coercion defeats ScenarioEngine's own guard (ScenarioEngine.ts:122 `if (!Number.isFinite(a.value)) throw new Error('SCENARIO_SHOCK_INVALID')`). Engine validation errors then come back as 500 instead of 400 (:98-104). The header (:35) claims 'Validation is fail-closed'. The logic matches a277613~1. The working-tree diff only fixes the import path (:16) and turns the em-dashes in comments into mojibake ('â€”' at :2, :10, :11, :22, :29). No UI calls /api/scenario/evaluate today (only features.ts:208 cites it), and it is advisory and stateless, so the impact is limited to API callers.",
+  "severity": "low",
+  "fix": "In the normalizer, return 400 instead of coercing. Reject a position whose symbol is empty or whose quantity is not a non-negative integer (INVALID_POSITION, with the index). Reject an assumption whose kind is not one of the 4 kinds (INVALID_ASSUMPTION_KIND). For PRICE_SHOCK/ALLOCATION_DELTA/CASH_MOVE, reject a value that is not a finite number and a target that is empty (PRICE_SHOCK/ALLOCATION_DELTA). For MACRO_NOTE, pass NaN when value is absent, as the engine contract expects. Map engine errors whose message starts with 'SCENARIO_' to 400 with that code. Restore the '—' characters in the comments. File is not protected.",
+  "files_to_change": [
+   "src/services/scenario/ScenarioApiRouter.ts"
+  ],
+  "protected": false
+ },
+ {
+  "index": 0,
+  "file": "src/services/data/EodIngestionScheduler.ts",
+  "title": "EodIngestionScheduler stub: server crashes at startup when EOD_INGEST_ENABLED=true",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The full scheduler is back. EodIngestionScheduler.ts:117 has `async start(): Promise<void>` (catch-up check, then arm()/scheduleNext()), :135 has stop() and :142 has `status(): EodSchedulerStatus` returning enabled/running/nextRunAt/blockedReason/lastResult. server.ts:1147-1148 (`void eodScheduler.start().then(() => { const { nextRunAt, blockedReason } = eodScheduler.status();`) now matches that API, so `undefined.then` cannot happen. `git diff a277613~1 -- src/services/data` is empty: the directory is byte-identical to the pre-damage tree, and src/services/data/__tests__/EodIngestionScheduler.test.ts is back too.",
+  "severity": "none",
+  "fix": "None needed. Optionally run `npx vitest run src/services/data/__tests__/EodIngestionScheduler.test.ts` to confirm; I did not run it in this read-only check.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 1,
+  "file": "src/services/market/MarketIntelligenceService.ts",
+  "title": "MarketIntelligenceService forces dataFreshness CURRENT on an empty snapshot",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "MarketIntelligenceService.ts:109-119 now derives freshness: `let dataFreshness = 'CURRENT'; if (constituentData.length === 0) { dataFreshness = 'UNAVAILABLE'; } else { ... if (coverageRatio < 0.5) dataFreshness = 'STALE'; }`. It fetches real 3M KBS candles per constituent (:56-86) and VNINDEX (:91-107), and sourceTimestamp is the latest real bar (:122-129). An empty snapshot is therefore UNAVAILABLE, not CURRENT. Minor residual (low, optional): when coverage is at least 50% the service passes an explicit 'CURRENT'. That overrides the builder's own derivation (MarketIntelligenceSnapshotBuilder.ts:429-437 uses breadth.validConstituents / isFailClosed) and ignores the age of the latest bar and a missing VNINDEX series. Also, `options.universeSubset.sort()` at :32 mutates the caller's array.",
+  "severity": "none",
+  "fix": "None needed for this lead. Optional hardening: drop the explicit 'CURRENT' (pass only UNAVAILABLE/STALE and otherwise let the builder derive it), and use `[...options.universeSubset].sort()`. That would touch only src/services/market/MarketIntelligenceService.ts, which is not protected.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 2,
+  "file": "src/services/market/providers/providerHealth.ts",
+  "title": "Provider health, fallback and in-flight stats are fabricated on /api/health",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "providerHealth.ts:176-264 is the real ProviderHealthRegistry again. Entries are created only when observed, recordSuccess (:200) stores the measured latency, recordFailure (:216) classifies the failure, and all() (:254) returns only observed providers. It no longer reports a hard-coded KBS/VPS AVAILABLE at 45/30 ms. providerGuard.ts:99/124/129 calls recordFailure/recordSuccess. providerMatrix.ts:151-155 fallbackStats() returns real counters that runWithFallback increments (:176, :179, :192, :204). requestCoalescer.ts:23-43 is a real single-flight map, and inflightStats() reports size and the coalesced count. realMarketDataService.ts:184-189 cached() uses coalesceInFlight and is called with keys `history:${sym}:${timeframe}` (:215), `quote:${sym}` (:292) and `fundamentals:${sym}` (:351), so the server.ts:263-266 probes can see them. `git diff a277613~1 -- src/services/market` is empty.",
+  "severity": "none",
+  "fix": "None needed.",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 3,
+  "file": "src/services/market/stockUniverse.ts",
+  "title": "stockUniverse regressed: sectorId removed, 17 symbols dropped",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "stockUniverse.ts:8 has `sectorId: string;` in StockMetadata again, and every entry carries a sectorId (for example :14 HPG 'materials'). All 17 symbols are back, each present exactly once: BCM, BSI, BVH, CEO, DCM, DPM, FTS, GMD, HAH, HDG, MBS, PC1, PNJ, SHS, SSB, VCG, VJC. BCM, VJC, BVH and SSB are flagged isVN30 (:31-41). The exports are restored: UNIVERSE_SYMBOLS (:103), SECTOR_MAP (:105) and getStockMetadata (:127). MarketIntelligenceService.ts:68 passes meta?.sectorId to the sector engine.",
+  "severity": "none",
+  "fix": "None needed. Separately, it may be worth checking isVN30 flags against the current VN30 basket, which rebalances twice a year; that is not part of this lead.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 4,
+  "file": "src/services/market/stockHistory.ts",
+  "title": "StockChartDataBundle shrunk; chart bundle lacks rsi/macd/bollinger/snapshot and typed volume",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "stockHistory.ts:12-28 StockChartDataBundle has candles, sma20/50/200 as LinePoint[], rsi, macd, bollinger, volume as VolumeBarPoint[] (types.ts:31-36 includes time/value/color), snapshot, dataSource, from, to and latestValueVnd. buildChartDataBundleFromCandles(realCandles, provenance?) at :207-238 accepts the second argument that server.ts:665-669 passes (from, to, latestValueVnd). getHistoricalChartData no longer exists and has no callers. StockCandlestickChart.tsx reads chartData.volume/bollinger/rsi/macd/snapshot (:126-585), and those fields exist. Low residual: the deprecated synthetic generators generateCandlestickHistory (:53, a seeded random walk anchored at 2025-02-28) and buildChartDataBundle (:173) are still exported. They have no production caller; grep finds only the definitions.",
+  "severity": "none",
+  "fix": "None needed for this lead. Optional: delete the dead synthetic generateCandlestickHistory/buildChartDataBundle exports from src/services/market/stockHistory.ts (not protected), after checking that tests do not import them, so the no-synthetic-data rule cannot be bypassed by a future caller.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 5,
+  "file": "src/services/market/stockDetailService.ts",
+  "title": "getFullStockDetail returns a hard-coded BUY summary for any symbol",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The cited stub (price 28500, aiScore 82, UPTREND, 'BUY' for any symbol) is gone. stockDetailService.ts:37-59 reads the real price from realMarketDataProvider.getStockDetail, returns null when price <= 0 or VPS fundamentals are missing, and returns null when KBS bars are missing (:79-95). Valuation, risk/reward and money-flow are NOT_COMPUTED/UNAVAILABLE (:139-144, :195-253). The function is live again: StockDetailPage.tsx:80 calls useFullStockDetail, and the page renders aiSignal (:255) and aiExplanation (:355). Medium RESIDUAL in the same function, rendered on that page. The aiSignal catalysts are hard-coded claims for every symbol, whatever the data: stockDetailService.ts:176-179 `catalysts: ['Dòng tiền giao dịch duy trì ở mức cao so với bình quân 20 phiên', 'Hỗ trợ kỹ thuật ngắn hạn MA20 ngày được củng cố vững chắc']`. :150 `executiveThesis` calls every company 'doanh nghiệp hàng đầu ... vị thế cạnh tranh vững chắc và dòng tiền kinh doanh ổn định'. :166-167 BUY/MUA TÍCH LŨY comes from baseSummary.aiScore, which RealMarketDataProvider.ts:131-138 computes as 50 + 5 x one-day changePercent plus a volume bonus, yet it is labelled a medium-term ('Trung hạn (1 - 3 tháng)', :172) AI signal. For off-universe tickers, RealMarketDataProvider.ts:575 and :604 still default exchange to 'HOSE' and aiScore to a constant 60. The lead's 'protected: true' is wrong: src/services/market/stockDetailService.ts is not under providers/**.",
+  "severity": "medium",
+  "fix": "The lead itself needs no change; this severity is for the residual. Minimal residual fix: make catalysts data-conditional (include the volume claim only when the latest volume is above avgVolume20D, and the MA20 claim only when ma20 != null and the price is above ma20) or set catalysts to []. Replace the generic 'doanh nghiệp hàng đầu' thesis with a neutral factual line (company, sector, exchange). Either label the aiScore-derived signal as a one-day momentum heuristic, or set signalType to a NOT_COMPUTED/HOLD state with no medium-term timeframe. For off-universe tickers, use exchange null/UNKNOWN and aiScore null instead of 'HOSE' and 60. Add an assertion to src/services/market/__tests__/stockDetailServiceFailClosed.test.ts.",
+  "files_to_change": [
+   "src/services/market/stockDetailService.ts",
+   "src/services/market/RealMarketDataProvider.ts",
+   "src/services/market/__tests__/stockDetailServiceFailClosed.test.ts"
+  ],
+  "protected": false
+ },
+ {
+  "index": 6,
+  "file": "src/lib/indicators/snapshot.ts",
+  "title": "computeIndicatorSnapshot substitutes placeholder values when there is not enough history",
+  "verdict": "STILL_PRESENT",
+  "evidence": "This code is the same before and after the damage (src/lib/indicators matches a277613~1), and it is reachable in production: server.ts:665 buildChartDataBundleFromCandles -> stockHistory.ts:220 computeIndicatorSnapshot -> StockDetailPage.tsx:337 StockTechnicalIndicators. The placeholders are snapshot.ts:26-27 `const sma50Val = sma50Series.length > 0 ? ... : currentPrice; const sma200Val = sma200Series.length > 0 ? ... : currentPrice;`, :31 `rsiVal = ... : 50`, :51 `{ macd: 0, signal: 0, histogram: 0 }` (then classified 'BEARISH' at :65-67), :72 Bollinger `{ upper: currentPrice, ..., pb: 0.5, bandwidth: 0 }` (bandwidth 0 is then classified 'SQUEEZE' at :76), and :93 `latestVol.volumeMA || 1`. The default timeframe is '3M' (StockDetailPage.tsx:57), which realMarketDataService.ts:75 fetches as 140 calendar days, about 95 trading bars. So SMA200 is always the placeholder: the page shows MA200 = current price at 0.00%. Worse, :130 `goldenCross: sma50Val > sma200Val` becomes `sma50 > currentPrice`. The UI then shows a 'GOLDEN CROSS' badge and 'MA50 nằm trên MA200 - Trạng thái xu hướng Uptrend dài hạn lý tưởng' (StockTechnicalIndicators.tsx:193-217) exactly when price is below MA50, which is a bearish condition presented as bullish. 6M (about 175 bars) behaves the same way. The UI null-guards (hasSma200Val etc., :37-44) exist but never fire because the placeholders are positive finite numbers.",
+  "severity": "high",
+  "fix": "In snapshot.ts, emit null instead of placeholders: sma50/sma200 value/diffPercent/priceRelation are null when the series is empty, goldenCross is true only when both sma50Series and sma200Series exist (otherwise null/false with no badge), rsi is null when rsiSeries is empty, macd is null when macdSeries is empty, bollinger is null when bbSeries is empty, and volume ratio is null when volumeMA <= 0 (no `|| 1`). Make the matching IndicatorSnapshot fields nullable in types.ts. In StockTechnicalIndicators.tsx, render the GOLDEN CROSS badge only when `sma200.goldenCross === true` and show 'Chưa đủ dữ liệu' or '--' for null blocks. Null-guard StockCandlestickChart.tsx:565-586 (snapshot.rsi.value, snapshot.macd.*). Add a test with about 95 bars asserting that sma200 is null and goldenCross is not true. None of these files are protected.",
+  "files_to_change": [
+   "src/lib/indicators/snapshot.ts",
+   "src/lib/indicators/types.ts",
+   "src/components/stock/StockTechnicalIndicators.tsx",
+   "src/components/stock/StockCandlestickChart.tsx",
+   "src/lib/indicators/__tests__/indicators.test.ts"
+  ],
+  "protected": false
+ },
+ {
+  "index": 7,
+  "file": "src/services/data/dailyPriceReconciliation.ts",
+  "title": "scripts/reconcile-daily-prices.ts imports a deleted module; npm run data:reconcile-daily crashes at load",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/services/data/dailyPriceReconciliation.ts exists again, and :29 has `export async function reconcileLegacyDailyPrices(asOf: Date): Promise<DailyPriceReconciliation>`. Its imports resolve: src/db/index.ts, the db/schema.ts exports stocks (:45) and stockDaily (:87), src/lib/db/data/CanonicalMarketDataRepository.ts, and the kbsDailyObservations.ts exports AUTHORITATIVE_DAILY_SERIES (:22), instrumentIdFor (:33) and supportedExchangeOf (:38). scripts/reconcile-daily-prices.ts:11 imports it, and package.json:23 maps `data:reconcile-daily` to `tsx scripts/reconcile-daily-prices.ts`. The other script imports (src/db/bootstrapEnv.ts, src/db/databaseHealth.ts) exist.",
+  "severity": "none",
+  "fix": "None needed. I did not execute the script: it needs a database and this check was read-only.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 8,
+  "file": "src/services/data/DailyPriceApiRouter.ts",
+  "title": "GET /api/stocks/:symbol/daily: limit is not validated and every error is reported as DATABASE_UNAVAILABLE",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "DailyPriceApiRouter.ts:29 passes `limit: limitRaw === undefined ? undefined : Number(limitRaw)`, with no parseInt. DailyPriceService.ts:75-78 validates it: `if (!Number.isInteger(limit) || limit < 1 || limit > MAX_DAILY_LIMIT) return { status: 'INVALID_QUERY', ... }`, where MAX_DAILY_LIMIT = 2_000 (:23) and DEFAULT_DAILY_LIMIT = 120 (:22). Negative, NaN and huge values all reach the reachable INVALID_QUERY -> 400 branch (router :34-35). Only real DB faults map to DATABASE_UNAVAILABLE (`if (isDatabaseUnavailable(error)) return {...DATABASE_UNAVAILABLE...}; throw error;` at :97-99). Programming errors propagate to the router catch and sendDataError (:52-55). Responses carry provenance in X-Data-Status/Source/Version/Missing-Sessions headers (:46-49), plus instrumentId per row via toLegacyDailyRow.",
+  "severity": "none",
+  "fix": "None needed.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 9,
+  "file": "src/lib/indicators/rsi.ts",
+  "title": "RSI returns 100 (OVERBOUGHT) for a flat or suspended price series",
+  "verdict": "STILL_PRESENT",
+  "evidence": "rsi.ts:53-54 `let rs = avgLoss === 0 ? 100 : avgGain / avgLoss; let rsi = avgLoss === 0 ? 100 : 100 - 100 / (1 + rs);` and the same at :70-71 in the smoothing loop. With zero gains and zero losses (a completely flat window), RSI comes out as 100, which snapshot.ts:35-37 labels OVERBOUGHT ('Quá mua'). The same function feeds TechnicalScoreEngine, StockAnalysisEngine, MarketRegimeEngine, SectorIntelligenceEngine, the three backtest strategies and stockDetailService. Scope is narrower than the lead says. Wilder smoothing keeps avgLoss above 0 once any loss has occurred, so 100 is only wrong when the window has had no down-closes at all and no up-closes. A pure ceiling-locked run with gains and no losses is a legitimate 100. In practice this hits fully flat or suspended or untraded series, mostly off-universe or illiquid UPCoM names. No test asserts the flat-series value; QuantPropertyBasedHardening.test.ts:69 only checks <= 100.",
+  "severity": "low",
+  "fix": "In rsi.ts at both sites (:53-54 and :70-71), handle the undefined case explicitly: `if (avgGain === 0 && avgLoss === 0) rsi = 50; else if (avgLoss === 0) rsi = 100; else rsi = 100 - 100 / (1 + avgGain / avgLoss);`. 50 is the neutral, no-momentum value, and the choice should be documented. The stricter fail-closed alternative is to omit or null the point, but that requires LinePoint/consumer changes. Add a flat-series test to src/lib/indicators/__tests__/indicators.test.ts. Not protected; src/lib/trading does not import this module.",
+  "files_to_change": [
+   "src/lib/indicators/rsi.ts",
+   "src/lib/indicators/__tests__/indicators.test.ts"
+  ],
+  "protected": false
+ },
+ {
+  "index": 10,
+  "file": "src/services/market/freshness/dataFreshness.ts",
+  "title": "resolveDataFreshness API weakened (TTL optional, invalid TTL no longer UNAVAILABLE, referenceTimeMs renamed)",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The input is `ttlMs: number` (required, :29), and `referenceTimeMs?: number` is back (:27). The verdict has `reason` again (:39), and parseSourceTimestamp is exported again (:48). An invalid TTL is fail-closed: :113-119 `if (!Number.isFinite(input.ttlMs) || input.ttlMs <= 0) return { status: 'UNAVAILABLE', reason: 'INVALID_TTL_CONFIGURATION', ... }`. A future timestamp beyond the skew tolerance is INVALID (:101-107). Callers line up: RealMarketDataProvider.ts:40-43 and VPSMarketDataProvider.ts:184-187 pass referenceTimeMs plus ttlMs, and VietnamCorporateActionsRegistry.ts:30, DerivativesDataProvider.ts:140/204 and EtfDataProvider.ts:145 pass sourceTimestamp plus ttlMs. No caller passes the old `now` key.",
+  "severity": "none",
+  "fix": "None needed.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 11,
+  "file": "src/services/market/realMarketDataService.ts",
+  "title": "All 15 market-data / ingestion test files were deleted; the provider and quote layers have zero tests",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The test directories are back. src/services/market/__tests__ has 9 files (dataFreshnessRemediation, p27AntiFabrication, p27FallbackAndCache, p27ProviderHealth, quoteValidation, realMarketDataService, realtimeQuoteValidation, stockDetailServiceFailClosed, vpsAndHistoryBundle). providers/kbs/__tests__ has kbsProvider.test.ts, providers/vps/__tests__ has vpsNormalize and vpsProvider, and src/services/data/__tests__ has 5 files, including EodIngestionScheduler.test.ts. That is 17 tracked test files under src/services/{market,data}, the same count as a277613~1, and `git diff a277613~1 -- src/services/market src/services/data` is empty. I have not verified that they pass; I did not run tests in this read-only check.",
+  "severity": "none",
+  "fix": "None needed for restoration. To confirm they pass, run `npx vitest run src/services/market src/services/data` (the pglite tests may need their own setup).",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 0,
+  "file": "src/lib/business/features.ts",
+  "title": "Strategy/alerts/ingestion-status routers reduced to /status stubs while /api/billing/plans still advertises their deleted routes as reachable evidence",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "features.ts is byte-identical to a277613~1. Every path and route it names exists again. src/lib/replay/PaperReplayEngine.ts exists. PaperReplayApiRouter.ts:51 serves router.post('/runs'). TradingApiRouter.ts:128 serves '/portfolio' and :201 serves '/risk-metrics'. ScenarioApiRouter.ts:37 and AlertApiRouter.ts:33 serve '/evaluate', and ResearchApiRouter serves /metrics, /certify and /experiments. StrategyApiRouter.ts (107 lines) is back with GET /list (:36) and POST /signal (:53). AlertApiRouter.ts (76 lines) is back with GET /list (:21) and POST /evaluate (:33). IngestionStatusApiRouter.ts:20 is the real status reader. All are mounted in server.ts:114-197. One cosmetic leftover: the comments at features.ts:203-205 and :230-232 still say SCENARIO and ALERTS are unreachable, while the entries set reachable:true and name productionCaller 'server.ts' instead of the router file. The facts are true; the comments are stale.",
+  "severity": "none",
+  "fix": "None required. Optionally update the stale P1-03 comments at features.ts:203-205 and :230-232, and set productionCaller to the router files.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 1,
+  "file": "src/schemas/stockSchema.ts",
+  "title": "stockSchema loosened by a277613: accepts price 0 or negative and forbids null for change/volume/index value (forces 0 placeholders)",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The file is identical to a277613~1. stockSchema.ts:43 has `price: z.number().positive()`. :45-59 make change, changePercent, volume, tradingValue, OHLC, ref/ceiling/floor, marketCap, pe, pb and roe nullable. :60 is `rsi: z.number().min(0).max(100).nullable()` and :62 is `aiScore: z.number().min(0).max(100)`. :66-69 bring back dataStatus, dataFreshness, fetchedAt and sourceTimestamp, and :71 adds the CURRENT-requires-sourceTimestamp superRefine. IndexDataSchema :105 is `value: z.number().positive().nullable()` and carries levelSource/levelProvenance. The contract tests src/schemas/__tests__/stockSummarySchemaContract.test.ts and dataFreshnessIntegrity.test.ts are tracked again.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 2,
+  "file": "src/services/research/ResearchApiRouter.ts",
+  "title": "Routers leak internal error messages in production, bypassing sendSafeError",
+  "verdict": "STILL_PRESENT",
+  "evidence": "Partly fixed. DailyPriceApiRouter.ts:54 now calls `sendDataError(res, 'Lỗi khi tải lịch sử giá', error)`. CanonicalDataApiRouter.ts:164-175, :221-224 and :317-326 log the error and return only generic text.\n\nStill leaking:\n(1) ResearchApiRouter.ts:173-174 `} catch (error: any) { return fail(res, 400, 'EXPERIMENT_REJECTED', error?.message ?? ...)`. That try block also covers `await ResearchRepository.recordExperiment(...)` at :158, so a Drizzle 0.45 / pg error goes to an anonymous caller as a 400 with its SQL text and parameters (for example a duplicate experimentId). :66 does the same for /metrics; that path is engine-only, so it is lower risk.\n(2) src/lib/macro/api/macroRouter.ts:28, :41, :64, :92, :118, :139 `res.status(500).json({ error: error.message || ... })`. This is latent today because MacroService defaults to EmptyMacroDataProvider.\n(3) Protected: src/lib/trading/api/TradingApiRouter.ts:133, :142, :151, :221 `message: err.message || ...`.\n\nPaperReplayApiRouter.ts:100 is acceptable: persistence errors are caught separately at :86-91, so only engine validation text reaches the client.\n\nAdjacent, more serious finding in the same router: ResearchApiRouter /certifications (:187) and /decisions (:216) `await` DB inserts with no try/catch. package.json pins express ^4.21.2, which ignores rejected promises from handlers. src/db/index.ts:32 `db` is always truthy, so the `if (!db) return` guards never skip the insert. No process.on('unhandledRejection') handler exists in server.ts or src (only in a test). On Node >=22 an anonymous POST that hits a DB error (DB down or unique violation) is therefore an unhandled rejection that ends the process. Severity HIGH; it should be fixed together with this lead.",
+  "severity": "low",
+  "fix": "Replace the raw messages with the existing helpers from src/middleware/platform/security.ts. In ResearchApiRouter /experiments, move the recordExperiment call into its own try/catch that calls sendDataError(res, 'Experiment persistence failed', error). Keep the 400 EXPERIMENT_REJECTED only for ExperimentEngine.create validation errors. Wrap /certifications and /decisions in try/catch with sendDataError. In macroRouter, change each catch to sendSafeError(res, 500, '<public message>', error). The TradingApiRouter change (same pattern, using fail() with a fixed message) needs the user's approval.",
+  "files_to_change": [
+   "src/services/research/ResearchApiRouter.ts",
+   "src/lib/macro/api/macroRouter.ts",
+   "src/lib/trading/api/TradingApiRouter.ts"
+  ],
+  "protected": true
+ },
+ {
+  "index": 3,
+  "file": "server.ts",
+  "title": "Unvalidated limit query params on inline DB routes (NaN, negative or huge values go to SQL)",
+  "verdict": "STILL_PRESENT",
+  "evidence": "server.ts:329 `const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;` (GET /api/stocks). server.ts:398 `const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 200;` followed by :399 `PriceRepository.getIntradayHistory(stock.id, limit)`. server.ts:469 does the same for GET /api/signals.\n\nThe repositories do no bounds checking. src/lib/db/StockRepository.ts and SignalRepository.ts use `if (options?.limit) query = query.limit(options.limit)`, so NaN means no LIMIT at all and a negative value becomes a PG error that is answered as 500. src/lib/db/PriceRepository.ts:73-80 passes `.limit(limit)` straight through, so ?limit=100000000 reads without bound.\n\nThe DailyPriceService part of the lead is fixed: DailyPriceService.ts:75-78 rejects non-integers and values outside 1..2000 with INVALID_QUERY, which the router turns into a 400.\n\nAdjacent findings: StockRepository.getStocks takes exchange and sector but never applies them, so GET /api/stocks?exchange=HNX returns every active stock. PriceRepository.getIntradayHistory orders asc() before LIMIT, so it returns the OLDEST ticks.",
+  "severity": "low",
+  "fix": "Add a small parseLimit(raw, def, max) helper in server.ts that answers 400 INVALID_QUERY for non-integers or values below 1, and caps at a maximum (for example 500 for /stocks and /signals, 2000 for /intraday). That change needs the user's approval because server.ts is protected. Without touching protected code, the same bound can be applied inside src/lib/db/StockRepository.ts, SignalRepository.ts and PriceRepository.ts (src/lib/db is not src/db): coerce a non-finite or below-1 limit to the default and cap at the maximum.",
+  "files_to_change": [
+   "server.ts",
+   "src/lib/db/StockRepository.ts",
+   "src/lib/db/SignalRepository.ts",
+   "src/lib/db/PriceRepository.ts"
+  ],
+  "protected": true
+ },
+ {
+  "index": 4,
+  "file": "server.ts",
+  "title": "d365ccd made non-production ignore process.env.PORT (only --port or NODE_ENV=production honour a port)",
+  "verdict": "STILL_PRESENT",
+  "evidence": "server.ts:95-97 `const portArgIdx = process.argv.indexOf('--port'); const portFromArg = ...; const PORT = portFromArg || (process.env.NODE_ENV === 'production' && process.env.PORT ? Number(process.env.PORT) : 3000);`. This hunk is the only remaining difference between HEAD server.ts and a277613~1, whose :95 read `const PORT = Number(process.env.PORT) || 3000;` with the note 'AI Studio forwards a dynamic port'.\n\nProduction is not affected: Dockerfile:78-80 and render.yaml set NODE_ENV=production, and `npm start` uses cross-env NODE_ENV=production. `npm run dev` (`tsx server.ts`, which server.ts:1057 says is the command AI Studio runs) ignores a platform-assigned PORT and binds 3000.\n\nThe new comment ('AI Studio dev runs on port 3000') suggests the change may be intentional, so this needs a decision from the user.",
+  "severity": "low",
+  "fix": "`const PORT = portFromArg || Number(process.env.PORT) || 3000;`. Keep --port as the highest precedence and honour PORT in every mode. This change needs the user's approval because server.ts is protected.",
+  "files_to_change": [
+   "server.ts"
+  ],
+  "protected": true
+ },
+ {
+  "index": 5,
+  "file": "src/middleware/__tests__/rateLimit.test.ts",
+  "title": "Server-api regression tests deleted by a277613; the stubs that replaced the routers have no tests",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "Every test the lead lists is tracked and present again: src/lib/trading/__tests__/TradingApiRouter.test.ts, src/services/strategy/__tests__/StrategyApiRouter.test.ts, src/middleware/platform/__tests__/rateLimit.test.ts, src/schemas/__tests__/stockSummarySchemaContract.test.ts and dataFreshnessIntegrity.test.ts, src/services/data/__tests__/EodIngestionScheduler.test.ts, CanonicalMarketDataPersistence.test.ts, CanonicalIngestionPersistenceHealth.test.ts, DailyPriceCanonical.pglite.test.ts, src/services/newsMacro/__tests__/NewsMacroListService.test.ts and src/test/platform.e2e.test.ts. The replacement src/middleware/__tests__/ directory is gone. The stub routers it complained about were replaced by the real restored routers. One gap remains and dates from before a277613: no test drives server.ts itself (the /api JSON 404 guard at server.ts:1058-1060, the SPA fallback). It is not a regression. I did not run the tests, because this pass is read-only.",
+  "severity": "none",
+  "fix": "None for the regression. Optionally, later, add a supertest-style test for the /api 404 guard (it touches server.ts or needs a test harness, so it needs the user's approval).",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 6,
+  "file": "src/services/market/realMarketDataService.ts",
+  "title": "getRealtimeQuote fabricates a fixed 28,500 VND quote for any symbol, including on the order/risk path",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "realMarketDataService.ts is identical to a277613~1. getRealtimeQuote (:286-337) calls VpsProvider.getQuote through callProvider, which applies the providerGuard and the capability matrix, and throws MarketDataUnavailableError on failure (:300-304). It cross-checks against the KBS daily closes (:308-315), validates with validateRealtimeQuote using exchange price limits (:317-318), and returns dataStatus plus an error whenever the status is not OK (:323, :333). The literals 28500, 28150, 30100 and 26200 do not appear anywhere in src/services/market. PaperOrderRiskBoundary.ts (protected, also identical to pre) refuses a quote at :542 `if (!quote || quote.dataStatus !== 'OK' || !quote.quote)`.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 7,
+  "file": "src/services/market/realMarketDataService.ts",
+  "title": "getStockFundamentals returns hard-coded ratios labelled dataStatus OK; VPS type contract shrunk (~37 tsc errors)",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "realMarketDataService.ts:345-371: getStockFundamentals calls VpsProvider.getFundamentals through callProvider and throws MarketDataUnavailableError on failure. No constant P/E, P/B, ROE or EPS values remain. src/services/market/providers/vps/types.ts is identical to a277613~1 and has statementUnit (:232), quarterlyPeriods and annualPeriods (:236-237) and periodMetadata (:238). server.ts:734 still adds `{ ...fundamentals, dataStatus: 'OK' }`, but the payload is now real VPS data carrying its own AMBIGUOUS period metadata. The tsc error count was not re-run because this pass is read-only.",
+  "severity": "none",
+  "fix": "None. Confirm with `npx tsc --noEmit` against the 117 baseline when verification is allowed.",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 8,
+  "file": "src/services/market/realMarketDataService.ts",
+  "title": "getHistoricalStockData contract regressed: callers pass a timeframe as startDate, 4 KBS-history routes return 500 (~33 tsc errors)",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "realMarketDataService.ts:199-203 `export async function getHistoricalStockData(symbol: string, timeframe: TimeframeOption, options?: { timeoutMs?: number; forceRefresh?: boolean }): Promise<HistoricalStockData>`. It returns {symbol, timeframe, source, candles, bars, from, to, count, retrievedAt} (:244-254), refuses 1D and intraday explicitly (:208-213), and throws KBS_EMPTY_HISTORY instead of returning [] (:237-242). Callers match the restored contract: server.ts:663-668 reads history.bars and history.candles from that object. The tsc error count was not re-run.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 9,
+  "file": "src/services/market/index.ts",
+  "title": "marketService lost the MarketDataProvider contract; 10 methods the UI calls do not exist (dashboard/market routes crash)",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "src/services/market/index.ts:1-6 is `import { MarketDataProvider } from '../../types/provider'; import { RealMarketDataProvider, realMarketDataProvider } from './RealMarketDataProvider'; ... export const marketService: MarketDataProvider = marketDataProvider;`. src/types/provider.ts and RealMarketDataProvider.ts exist and are identical to pre. `class RealMarketDataProvider implements MarketDataProvider` (RealMarketDataProvider.ts:17) implements every method the UI calls: getMarketIndices :212, getMarketStatus :358, getSectorHeatmap :369, getTopMovers :425, getAllStocks :464, getWatchlist :468, searchStocks :546, getStockDetail :558, getMarketBreadth :619, getMarketSentiment :697, getAITopSignals :764, getAIMarketSummary :819. useMarketQueries.ts:2 and App.tsx:45 import marketService from './services/market'.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 10,
+  "file": "src/services/market/RealMarketDataProvider.ts",
+  "title": "Dashboard aggregates and stock search are hard-coded synthetic data, mostly without a demo marker",
+  "verdict": "STILL_PRESENT",
+  "evidence": "Narrowed, with a lower severity. The numeric constants are gone: the literals 1288.52, 345bn, 268/154 and 28500 no longer exist. Indices, heatmap, movers, breadth and search are computed from real VPS quotes (RealMarketDataProvider.ts:87-188). The index level is reported as null/UNAVAILABLE (:262-269), and search filters real summaries (:546-556).\n\nHard-coded market claims are still shown with isDemo:false and rendered by the dashboard:\n- getMarketSentiment :747 `description: ... với dòng tiền tập trung tại các nhóm ngành dẫn dắt`, :749 `liquidityTrend: 'Thanh khoản duy trì ở mức cao và ổn định...'`, :753 shortTermOutlook, :754-758 keyFactors including 'Khối ngoại duy trì vị thế cân bằng ở các mã đầu ngành'. The last one contradicts :729-741 of the same function, which declares that no foreign-flow feed exists. Rendered at MarketSentimentWidget.tsx:216-222.\n- getAITopSignals :805-809 attaches the same three catalysts to every stock ('Dòng tiền khớp lệnh chủ động vượt trung bình 20 phiên', 'Triển vọng tăng trưởng lợi nhuận quý đạt kỳ vọng cao'). Rendered at AITopSignalsWidget.tsx:266-269 and StockAISignalCard.tsx:134. :775-776 also default signalType to 'BUY' / 'Khuyến nghị MUA' for any aiScore between 41 and 64.\n- getAIMarketSummary :839 has a fixed moneyFlow narrative and :847 a disclaimer claiming the text is compiled from real market data.\n- getStockDetail for an off-universe ticker: :571 `const price = quote.price as number;` (a null price passes through), :575 `exchange: 'HOSE'` is hard-coded, :604 `aiScore: 60` and :606 `sparkline: [price, price]` are constants.\n- With an empty universe, getMarketSentiment (:701 `total = all.length || 1`, :705 clamp) reports score 15 'CỰC KỲ BI QUAN' as if it were real.\n\nThis code dates from before a277613; the restore did not introduce it.",
+  "severity": "medium",
+  "fix": "In RealMarketDataProvider.ts, remove the fabricated narrative and do not invent replacements:\n- keyFactors: [] and catalysts: []. Set liquidityTrend, shortTermOutlook and moneyFlow to an explicit 'KHÔNG CÓ DỮ LIỆU' / UNAVAILABLE label, and limit description and overallComment to the computed counts.\n- Default signalType to 'HOLD' / 'THEO DÕI' unless aiScore >= 65.\n- getStockDetail: return null when quote.price is null or not positive, and use the quote's exchange or the universe metadata instead of 'HOSE'.\n- getMarketSentiment: when all.length === 0, throw or return an UNAVAILABLE state instead of a clamped score.\nThen run the existing component tests (StockHardenedComponents.test.tsx) and the provider tests.",
+  "files_to_change": [
+   "src/services/market/RealMarketDataProvider.ts"
+  ],
+  "protected": false
+ },
+ {
+  "index": 11,
+  "file": "src/services/market/providers/kbs/KbsHistoricalProvider.ts",
+  "title": "KbsHistoricalProvider rewritten: unverified endpoint, swallows every error into [], no bar validation",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The file is identical to a277613~1. KbsHistoricalProvider.ts:7 `const KBS_BASE_URL = 'https://kbbuddywts.kbsec.com.vn/iis-server/investment/stocks';` with :9 REQUIRED_USER_AGENT and :109 `.../data_day?sdate=...&edate=...`. Failures throw KbsApiError: timeout and network (:127-135), HTTP status (:138-143), non-JSON (:148-150), non-object (:152-154) and the vendor error envelope (:159-166). validateRawBar (:46-62) rejects non-finite or non-positive OHLC, negative volume and high/low inconsistencies, and the provider dedupes and sorts by date (:172-186).",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": true
+ },
+ {
+  "index": 12,
+  "file": "src/services/data/DailyPriceService.ts",
+  "title": "DailyPriceService reads legacy stock_daily oldest-first: 'latest' price is the oldest bar, close is a string",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The file is identical to a277613~1. getDailyPrices (DailyPriceService.ts:64-112) reads canonical_market_bars through CanonicalMarketDataRepository.getDailySeries, not stock_daily. That repository (CanonicalMarketDataRepository.ts:474-480) runs `.orderBy(desc(canonicalMarketBars.tradingDate)).limit(opts.limit)` then `rows.reverse()`, so limit=N returns the N MOST RECENT VALID, non-synthetic, point-in-time-visible bars in ascending order. close is converted with toNum (:489), so it is a number. With limit 1, server.ts:506/:540 latestBars[0].close is the latest bar. limit is validated to 1..2000 (DailyPriceService.ts:75-78).",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 13,
+  "file": "src/services/data/CanonicalDataApiRouter.ts",
+  "title": "CanonicalDataApiRouter rewritten: ingest returns success without persisting, fabricates trading value, hard-codes HOSE identity",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "The file is identical to a277613~1.\n- POST /ingest (:86-177) fetches through fetchKbsDailyBatch and persists through CanonicalMarketDataIngestionService.ingestBatch. It returns 503 PERSISTENCE_UNAVAILABLE with written:false when report.persistenceStatus === 'NOT_PERSISTED' (:140-152), refuses caller-asserted sources (:107-117), and refuses unknown symbols instead of guessing an exchange (:123-131, via supportedExchangeOf, which returns null rather than a default).\n- Trading value comes from the source: kbsDailyObservations.ts:82 `turnoverVnd: b.value > 0 ? b.value : null`, so there is no close*volume.\n- Quality is assigned by the ingestion service's validation, not stamped in the router.\n- GET /bars filters point in time on effective_time <= asOf (CanonicalMarketDataRepository.ts:409), where effective_time is publicationTime or barTime (CanonicalMarketDataIngestionService.ts:247).\n- Remaining nit: the read-only routes (/bars, /quality, /identity) still default an unknown symbol to HOSE through resolveExchange (:60-63). That causes no data fabrication: the reads come back empty, and InstrumentIdentityEngine.register is pure.",
+  "severity": "none",
+  "fix": "None. Optionally make GET /identity/:symbol return 404 for symbols outside the universe.",
+  "files_to_change": [],
+  "protected": false
+ },
+ {
+  "index": 14,
+  "file": "src/services/data/DailyBarIngestionJob.ts",
+  "title": "EOD ingestion job is a no-op that reports COMPLETE; the backfill script exits 0",
+  "verdict": "FIXED_BY_RESTORE",
+  "evidence": "DailyBarIngestionJob.ts (436 lines) is identical to a277613~1. runDailyBarIngestion (:194) returns FAILED for invalid requests (:233, :252, :258), CALENDAR_NOT_COVERED (:239), NO_FINAL_SESSION (:241), lock or DB unavailability (:277) and RUN_NOT_RECORDED (:287). It reports per-symbol outcomes with retries (:317-348) and derives an overall COMPLETE / PARTIAL / FAILED status (:394-395). dailyIngestionRuntime.ts:43-69 createDatabaseIngestionDeps wires the PG advisory lock, IngestionRunRepository, fetchKbsDailyBatch, ingestBatch, instrumentsWithDailyBar and getDailySeries, instead of returning {}. IngestionStatusApiRouter.ts:20-59 reads real run history and coverage, and answers 503 DATA_UNAVAILABLE when the DB is not connected. scripts/backfill-daily-bars.ts is identical to pre.",
+  "severity": "none",
+  "fix": "None.",
+  "files_to_change": [],
+  "protected": false
+ }
+]
