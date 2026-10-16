@@ -31,14 +31,16 @@ export class TechnicalScoreEngine {
   /**
    * Evaluates technical strength based on 7 deterministic pillars:
    * Trend (20%), Momentum (15%), Volume (15%), RSI (10%), MACD (10%), Support (15%), Breakout (15%).
+   * @param asOfIndex - inclusive index; only candles[0..asOfIndex] are used (look-ahead prevention).
    */
-  static evaluate(candles: CandleInput[]): TechnicalScoreResult {
+  static evaluate(candles: CandleInput[], asOfIndex?: number): TechnicalScoreResult {
+    const effectiveCandles = asOfIndex !== undefined ? candles.slice(0, asOfIndex + 1) : candles;
     const reasons: string[] = [];
     const warnings: string[] = [];
 
-    const valid = validateCandles(candles);
+    const effectiveValid = effectiveCandles.length > 0 ? validateCandles(effectiveCandles) : [];
 
-    if (valid.length === 0) {
+    if (effectiveValid.length === 0) {
       return {
         score: 0,
         breakdown: {
@@ -55,12 +57,12 @@ export class TechnicalScoreEngine {
       };
     }
 
-    if (valid.length < 20) {
-      warnings.push(`Số lượng nến (${valid.length}) ít hơn khuyến nghị tối thiểu 20 phiên.`);
+    if (effectiveValid.length < 20) {
+      warnings.push(`Số lượng nến (${effectiveValid.length}) ít hơn khuyến nghị tối thiểu 20 phiên.`);
     }
 
-    const latest = valid[valid.length - 1];
-    const prev = valid.length > 1 ? valid[valid.length - 2] : latest;
+    const latest = effectiveValid[effectiveValid.length - 1];
+    const prev = effectiveValid.length > 1 ? effectiveValid[effectiveValid.length - 2] : latest;
 
     // Check zero volume
     if (latest.volume === 0) {
@@ -69,8 +71,8 @@ export class TechnicalScoreEngine {
 
     // 1. TREND PILLAR (Weight: 20%)
     let trendScore = 50;
-    const sma20 = calculateSMA(valid, 20);
-    const sma50 = calculateSMA(valid, 50);
+    const sma20 = calculateSMA(effectiveCandles, 20);
+    const sma50 = calculateSMA(effectiveCandles, 50);
 
     if (sma20.length > 0) {
       const ma20Val = sma20[sma20.length - 1].value;
@@ -99,8 +101,8 @@ export class TechnicalScoreEngine {
 
     // 2. MOMENTUM PILLAR (Weight: 15%)
     let momentumScore = 50;
-    const ema12 = calculateEMA(valid, 12);
-    const ema26 = calculateEMA(valid, 26);
+    const ema12 = calculateEMA(effectiveCandles, 12);
+    const ema26 = calculateEMA(effectiveCandles, 26);
 
     if (ema12.length > 0 && ema26.length > 0) {
       const e12Val = ema12[ema12.length - 1].value;
@@ -127,7 +129,7 @@ export class TechnicalScoreEngine {
 
     // 3. VOLUME PILLAR (Weight: 15%)
     let volumeScore = 50;
-    const volSMA = calculateVolumeSMA(valid, 20);
+    const volSMA = calculateVolumeSMA(effectiveCandles, 20);
 
     if (volSMA.length > 0) {
       const avgVol = volSMA[volSMA.length - 1].value;
@@ -156,7 +158,7 @@ export class TechnicalScoreEngine {
 
     // 4. RSI PILLAR (Weight: 10%)
     let rsiScore = 50;
-    const rsiSeries = calculateRSI(valid, 14);
+    const rsiSeries = calculateRSI(effectiveCandles, 14);
 
     if (rsiSeries.length > 0) {
       const currentRSI = rsiSeries[rsiSeries.length - 1].value;
@@ -183,7 +185,7 @@ export class TechnicalScoreEngine {
 
     // 5. MACD PILLAR (Weight: 10%)
     let macdScore = 50;
-    const macdSeries = calculateMACD(valid, 12, 26, 9);
+    const macdSeries = calculateMACD(effectiveCandles, 12, 26, 9);
 
     if (macdSeries.length > 0) {
       const currentMACD = macdSeries[macdSeries.length - 1];
@@ -212,7 +214,7 @@ export class TechnicalScoreEngine {
 
     // 6. SUPPORT & RESISTANCE PILLAR (Weight: 15%)
     let supportScore = 50;
-    const bbSeries = calculateBollingerBands(valid, 20, 2);
+    const bbSeries = calculateBollingerBands(effectiveCandles, 20, 2);
 
     if (bbSeries.length > 0) {
       const bb = bbSeries[bbSeries.length - 1];
@@ -240,10 +242,10 @@ export class TechnicalScoreEngine {
 
     // 7. BREAKOUT PILLAR (Weight: 15%)
     let breakoutScore = 50;
-    const lookback = Math.min(valid.length - 1, 20);
+    const lookback = Math.min(effectiveValid.length - 1, 20);
 
     if (lookback >= 5) {
-      const recentCandles = valid.slice(valid.length - lookback - 1, valid.length - 1);
+      const recentCandles = effectiveValid.slice(effectiveValid.length - lookback - 1, effectiveValid.length - 1);
       const maxHigh = Math.max(...recentCandles.map((c) => c.high));
       const minLow = Math.min(...recentCandles.map((c) => c.low));
 
