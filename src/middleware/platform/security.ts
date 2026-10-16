@@ -1,158 +1,125 @@
-/**
- * PLATFORM-03 — REQUEST CORRELATION (§26) + SECURITY HEADERS (§28/§54)
- *
- * Correlation: every HTTP request gets a requestId; an inbound x-correlation-id is
- * honoured (sanitised) so a trace can be stitched across the whole request chain.
- * Neither value is ever derived from financial data.
- */
-import { randomBytes } from 'node:crypto';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { isDatabaseUnavailable } from '../../db/dbFailure.ts';
 
-const SAFE_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
-
-export function newRequestId(): string {
-  return `req_${randomBytes(8).toString('hex')}`;
+declare global {
+  namespace Express {
+    interface Request {
+      id?: string;
+      correlationId?: string;
+    }
+  }
 }
+
+const SAFE_CORRELATION_ID_REGEX = /^[a-zA-Z0-9_\-.:]{1,64}$/;
 
 export function sanitizeCorrelationId(value: unknown): string | null {
-  if (typeof value !== 'string' || !SAFE_ID.test(value)) return null;
-  return value;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 64) return null;
+  if (!SAFE_CORRELATION_ID_REGEX.test(trimmed)) return null;
+  return trimmed;
 }
 
-declare module 'express-serve-static-core' {
-  interface Request {
-    requestId?: string;
-    correlationId?: string | null;
-  }
+export function buildContentSecurityPolicy(): string {
+  const isDev = process.env.NODE_ENV !== 'production';
+  const scriptSrc = isDev ? "'self' 'unsafe-inline'" : "'self'";
+  // In development and AI Studio Preview, allow framing from Google AI Studio / Cloud Run
+  const frameAncestors =
+    process.env.FRAME_ANCESTORS ||
+    (isDev
+      ? "'self' https: http://localhost:* http://127.0.0.1:*"
+      : "'self' https://*.google.com https://*.run.app");
+
+  return [
+    "default-src 'self'",
+    `script-src ${scriptSrc}`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: https:",
+    "connect-src 'self' https://bgapidatafeed.vps.com.vn https://kbbuddywts.kbsec.com.vn https://fonts.googleapis.com https://fonts.gstatic.com",
+    `frame-ancestors ${frameAncestors}`,
+  ].join('; ');
 }
 
 export function correlationMiddleware(req: Request, res: Response, next: NextFunction): void {
-  req.requestId = newRequestId();
-  req.correlationId = sanitizeCorrelationId(req.headers['x-correlation-id']);
-  res.setHeader('x-request-id', req.requestId);
-  if (req.correlationId) res.setHeader('x-correlation-id', req.correlationId);
+  const requestId = crypto.randomUUID();
+  req.id = requestId;
+  res.setHeader('x-request-id', requestId);
+
+  const rawCorrelation = req.headers['x-correlation-id'];
+  const sanitized = sanitizeCorrelationId(rawCorrelation);
+  if (sanitized) {
+    req.correlationId = sanitized;
+    res.setHeader('x-correlation-id', sanitized);
+  }
+
   next();
 }
 
-/**
- * Outbound hosts the SPA legitimately contacts from the browser.
- *
- * The market-data service layer (src/services/market|etf|derivatives) fetches the
- * public VPS/KBS feeds directly, and index.html loads webfonts from Google Fonts.
- * Both were denied by the previous policy, so the browser blocked them with
- * "Refused to connect" / CSP violations and those panels could never load.
- *
- * This is an explicit allowlist of two known public market-data origins plus the
- * Google Fonts CDN — NOT a wildcard. Same-origin, script, and object policies are
- * unchanged, so no new XSS or exfiltration surface is opened, and no secret is
- * ever exposed to the browser (AI/Gemini and database access stay server-side).
- */
-const CSP_ALLOWED_CONNECT_HOSTS = [
-  'https://bgapidatafeed.vps.com.vn',
-  'https://kbbuddywts.kbsec.com.vn',
-].join(' ');
-
-/**
- * Build the CSP for the current environment.
- *
- * Production keeps `script-src 'self'` (no inline execution).
- *
- * Development MUST allow `'unsafe-inline'` for scripts: the Vite dev server injects an
- * inline React-Refresh preamble, and `script-src 'self'` blocks it. That produced a
- * completely BLANK screen in dev (bodyChars 0, "Executing inline script violates ...
- * Content Security Policy"), which is fatal in Google AI Studio because the editor
- * runs `npm run dev`. The relaxation is scoped to non-production only — the deployed
- * build is unaffected.
- */
-export function buildContentSecurityPolicy(env: string | undefined = process.env.NODE_ENV): string {
-  const isDev = env !== 'production';
-  const scriptSrc = isDev ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'";
-  return "default-src 'self'; "
-    + `${scriptSrc}; `
-    + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-    + "img-src 'self' data: blob:; "
-    + `connect-src 'self' ${CSP_ALLOWED_CONNECT_HOSTS}; `
-    + "font-src 'self' data: https://fonts.gstatic.com; "
-    + `object-src 'none'; base-uri 'self'; frame-ancestors ${frameAncestors(env)}; form-action 'self'`;
-}
-
-/** Dev-server embedders: the Google AI Studio Preview (an https origin) and local preview hosts. */
-const DEV_FRAME_ANCESTORS = "'self' https: http://localhost:* http://127.0.0.1:*";
-
-/**
- * Who may embed the app in a frame.
- *
- * Production and test stay non-frameable ('none', plus X-Frame-Options: DENY). The dev
- * server must be frameable: Google AI Studio runs `npm run dev` and shows it inside an
- * iframe on its own origin, and `frame-ancestors 'none'` made that Preview blank while
- * `GET /` still answered 200 ("Framing ... violates the following Content Security Policy
- * directive: frame-ancestors 'none'", reproduced 2026-10-15). `FRAME_ANCESTORS` overrides
- * the source list in any environment; a value that could break out of the directive is
- * ignored.
- */
-export function frameAncestors(
-  env: string | undefined = process.env.NODE_ENV,
-  override: string | undefined = process.env.FRAME_ANCESTORS
-): string {
-  const custom = override?.trim();
-  if (custom && /^[\w\s'*:./-]+$/.test(custom)) return custom;
-  return env === 'production' || env === 'test' ? "'none'" : DEV_FRAME_ANCESTORS;
-}
-
-/**
- * Conservative header set. No external dependency (helmet is not in the project), and
- * no claim is made that this replaces a full CSP audit — see the architecture doc.
- */
 export function securityHeaders(_req: Request, res: Response, next: NextFunction): void {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  // X-Frame-Options cannot express an allow-list, so it is only sent when nothing may frame the app.
-  if (frameAncestors() === "'none'") res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-  res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
   res.setHeader('Content-Security-Policy', buildContentSecurityPolicy());
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Omit X-Frame-Options in dev mode to allow AI Studio iframe preview
+  if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_IFRAME) {
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  }
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+
   next();
 }
 
-/**
- * §48/§29 graceful response helpers.
- * `safeError` never forwards internal detail to the client in production.
- */
-export function isProduction(env: string | undefined = process.env.NODE_ENV): boolean {
-  return env === 'production';
-}
-
-export function sendSafeError(res: Response, status: number, publicMessage: string, internal?: unknown): void {
-  if (!isProduction() && internal !== undefined) {
-    // Development diagnostics only, never enabled in production (§29).
-    res.status(status).json({ error: publicMessage, dev: internal instanceof Error ? internal.message : String(internal) });
-    return;
-  }
-  res.status(status).json({ error: publicMessage });
-}
-
-/**
- * Handler error helper for data routes.
- *
- * A dependency outage (Postgres unreachable / not configured) is answered with
- * 503 + `code: DATA_UNAVAILABLE` so clients and operators can tell "the store is
- * down" from "the handler is broken"; everything else stays a 500. The public
- * message is unchanged and no internal detail is exposed in production (§29).
- */
-export function sendDataError(res: Response, publicMessage: string, internal?: unknown): void {
-  if (!isDatabaseUnavailable(internal)) {
-    sendSafeError(res, 500, publicMessage, internal);
-    return;
-  }
+export function sendSafeError(
+  res: Response,
+  statusCode: number,
+  message: string,
+  error?: unknown
+): void {
+  const isProd = process.env.NODE_ENV === 'production';
   const body: Record<string, unknown> = {
-    error: publicMessage,
-    code: 'DATA_UNAVAILABLE',
-    dataStatus: 'DATA_UNAVAILABLE',
+    error: message,
   };
-  if (!isProduction() && internal !== undefined) {
-    body.dev = internal instanceof Error ? internal.message : String(internal);
+
+  if (!isProd && error instanceof Error) {
+    body.dev = error.message;
   }
-  res.status(503).json(body);
+
+  res.status(statusCode).json(body);
+}
+
+export function sendDataError(
+  res: Response,
+  message: string,
+  error?: unknown
+): void {
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (isDatabaseUnavailable(error)) {
+    const body: Record<string, unknown> = {
+      error: message,
+      code: 'DATA_UNAVAILABLE',
+      dataStatus: 'DATA_UNAVAILABLE',
+    };
+
+    if (!isProd && error instanceof Error) {
+      body.dev = error.message;
+    }
+
+    res.status(503).json(body);
+    return;
+  }
+
+  const body: Record<string, unknown> = {
+    error: message,
+  };
+
+  if (!isProd && error instanceof Error) {
+    body.dev = error.message;
+  }
+
+  res.status(500).json(body);
 }

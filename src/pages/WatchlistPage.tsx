@@ -1,13 +1,16 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { StockSummary } from '../types/stock';
+import React, { useState, useMemo } from 'react';
+import type { StockSummary } from '../types/stock';
+import { WatchlistTable } from '../components/watchlist/WatchlistTable';
+import { WatchlistCardGrid } from '../components/watchlist/WatchlistCardGrid';
+import { WatchlistStatsSummary } from '../components/watchlist/WatchlistStatsSummary';
+import { WatchlistToolbar } from '../components/watchlist/WatchlistToolbar';
+import { WatchlistEmptyState } from '../components/watchlist/WatchlistEmptyState';
+import { AddStockModal } from '../components/watchlist/AddStockModal';
+import { computeWatchlistStats } from '../components/watchlist/metrics';
+import { Bookmark, Plus } from 'lucide-react';
+import { Button } from '../components/ui/Button';
 import { useAppStore } from '../store/useAppStore';
-import { useWatchlistData, MARKET_KEYS } from '../hooks/useMarketQueries';
-import { Card } from '../components/ui/Card';
-import { SourceBadge } from '../components/common/SourceBadge';
-import { LoadingState, TableSkeleton } from '../components/ui/LoadingState';
-import { ErrorState } from '../components/ui/ErrorBoundary';
-import {
+import type {
   SortColumn,
   SortDirection,
   ViewMode,
@@ -15,473 +18,155 @@ import {
   ExchangeFilter,
   SignalFilter,
   TrendFilter,
-  WatchlistStats,
 } from '../components/watchlist/types';
-import { WatchlistStatsSummary } from '../components/watchlist/WatchlistStatsSummary';
-import { WatchlistToolbar } from '../components/watchlist/WatchlistToolbar';
-import { WatchlistTable } from '../components/watchlist/WatchlistTable';
-import { WatchlistCardGrid } from '../components/watchlist/WatchlistCardGrid';
-import { WatchlistEmptyState } from '../components/watchlist/WatchlistEmptyState';
-import { AddStockModal } from '../components/watchlist/AddStockModal';
-import {
-  computeUpsidePercent,
-  computeWatchlistStats,
-  makeWatchlistSorter,
-  matchesSignalFilter,
-} from '../components/watchlist/metrics';
-import { VIETNAM_STOCKS_UNIVERSE } from '../services/market/stockUniverse';
-import { formatPercent, formatVND } from '../utils/formatters';
-import { Bookmark, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export interface WatchlistPageProps {
-  watchlist?: StockSummary[];
-  onSelectStock?: (symbol: string) => void;
-  onAddToWatchlist?: (symbol: string) => void;
-  onRemoveFromWatchlist?: (symbol: string) => void;
+  watchlist: StockSummary[];
+  onSelectStock: (symbol: string) => void;
+  onAddToWatchlist: (symbol: string) => void;
+  onRemoveFromWatchlist: (symbol: string) => void;
 }
 
-export function WatchlistPage({
-  watchlist: propsWatchlist,
-  onSelectStock: propsOnSelectStock,
-  onAddToWatchlist: propsOnAddToWatchlist,
-  onRemoveFromWatchlist: propsOnRemoveFromWatchlist,
-}: WatchlistPageProps) {
-  const queryClient = useQueryClient();
-
-  // Store bindings
-  const {
-    watchlistSymbols,
-    addToWatchlist,
-    removeFromWatchlist,
-    openQuickView,
-    navigateToStock,
-    setCurrentView,
-  } = useAppStore();
-
-  // Local UI State
-  const [refreshInterval, setRefreshInterval] = useState<number>(30000); // 30s auto-refresh by default
+export const WatchlistPage: React.FC<WatchlistPageProps> = ({
+  watchlist,
+  onSelectStock,
+  onAddToWatchlist,
+  onRemoveFromWatchlist,
+}) => {
+  const { navigateToStock } = useAppStore();
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [sortColumn, setSortColumn] = useState<SortColumn>('changePercent');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<CategoryGroupId>('all');
   const [exchangeFilter, setExchangeFilter] = useState<ExchangeFilter>('ALL');
   const [signalFilter, setSignalFilter] = useState<SignalFilter>('ALL');
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('ALL');
-  const [viewMode, setViewMode] = useState<ViewMode>('table');
-  const [sortColumn, setSortColumn] = useState<SortColumn>('changePercent');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState(30000);
 
-  // Tracks the toast auto-dismiss timer so a component unmount (or a rapid
-  // succession of toasts) never writes state after unmount.
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stats = useMemo(() => computeWatchlistStats(watchlist), [watchlist]);
 
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
-
-  // Show Toast Helper
-  const showToast = useCallback((text: string, type: 'success' | 'info' | 'error' = 'success') => {
-    setToastMessage({ text, type });
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
-  }, []);
-
-  // Fetch Watchlist with TanStack Query
-  const watchlistQuery = useWatchlistData(watchlistSymbols, {
-    refetchInterval: refreshInterval > 0 ? refreshInterval : false,
-  });
-
-  const rawWatchlist = propsWatchlist || watchlistQuery.data || [];
-  const isLoading = watchlistQuery.isLoading && rawWatchlist.length === 0;
-  const isFetching = watchlistQuery.isFetching;
-  const isError = watchlistQuery.isError && rawWatchlist.length === 0;
-  const error = watchlistQuery.error;
-  const lastUpdated = watchlistQuery.dataUpdatedAt ? new Date(watchlistQuery.dataUpdatedAt) : null;
-
-  // Handlers
-  const handleSelectStock = propsOnSelectStock || openQuickView;
-
-  const handleAddStock = useCallback(
-    (symbol: string) => {
-      const clean = symbol.trim().toUpperCase();
-      if (!clean) return;
-      if (propsOnAddToWatchlist) {
-        propsOnAddToWatchlist(clean);
-      } else {
-        addToWatchlist(clean);
+  const filteredStocks = useMemo(() => {
+    return watchlist.filter((stock) => {
+      if (searchQuery) {
+        const q = searchQuery.toUpperCase();
+        if (!stock.symbol.includes(q) && !stock.companyName.toUpperCase().includes(q)) {
+          return false;
+        }
       }
-      queryClient.invalidateQueries({ queryKey: ['market', 'watchlist'] });
-      showToast(`Đã thêm mã ${clean} vào Watchlist`, 'success');
-    },
-    [propsOnAddToWatchlist, addToWatchlist, queryClient, showToast]
-  );
-
-  const handleAddMultipleStocks = useCallback(
-    (symbols: string[]) => {
-      symbols.forEach((sym) => {
-        const clean = sym.trim().toUpperCase();
-        if (propsOnAddToWatchlist) propsOnAddToWatchlist(clean);
-        else addToWatchlist(clean);
-      });
-      queryClient.invalidateQueries({ queryKey: ['market', 'watchlist'] });
-      showToast(`Đã thêm ${symbols.length} mã vào danh mục theo dõi`, 'success');
-    },
-    [propsOnAddToWatchlist, addToWatchlist, queryClient, showToast]
-  );
-
-  const handleRemoveStock = useCallback(
-    (symbol: string) => {
-      const clean = symbol.trim().toUpperCase();
-      if (propsOnRemoveFromWatchlist) {
-        propsOnRemoveFromWatchlist(clean);
-      } else {
-        removeFromWatchlist(clean);
+      if (exchangeFilter !== 'ALL' && stock.exchange !== exchangeFilter) {
+        return false;
       }
-      queryClient.invalidateQueries({ queryKey: ['market', 'watchlist'] });
-      showToast(`Đã xóa mã ${clean} khỏi Watchlist`, 'info');
-    },
-    [propsOnRemoveFromWatchlist, removeFromWatchlist, queryClient, showToast]
-  );
+      if (signalFilter !== 'ALL') {
+        const mapped = stock.signal === 'BUY' ? 'BULLISH' : stock.signal === 'SELL' ? 'BEARISH' : 'NEUTRAL';
+        if (mapped !== signalFilter) return false;
+      }
+      if (trendFilter !== 'ALL' && stock.trend !== trendFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [watchlist, searchQuery, exchangeFilter, signalFilter, trendFilter]);
 
-  const handleRefresh = useCallback(() => {
-    watchlistQuery.refetch();
-    showToast('Đang cập nhật bảng giá realtime mới nhất...', 'info');
-  }, [watchlistQuery, showToast]);
-
-  const handleOpenTrade = useCallback(
-    (symbol: string) => {
-      // Direct navigation to Paper Trading with selected symbol
-      useAppStore.setState({ selectedStockSymbol: symbol });
-      setCurrentView('paper-trading');
-    },
-    [setCurrentView]
-  );
-
-  // Sorting Handler
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
-      if (sortDirection === 'asc') setSortDirection('desc');
-      else if (sortDirection === 'desc') setSortDirection('none');
-      else setSortDirection('asc');
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortColumn(column);
       setSortDirection('desc');
     }
   };
 
-  // 1. Compute Key Statistics (fail-closed: see computeWatchlistStats)
-  const stats: WatchlistStats = useMemo(() => computeWatchlistStats(rawWatchlist), [rawWatchlist]);
-
-  // 2. Filter & Search Logic
-  const filteredStocks = useMemo(() => {
-    return rawWatchlist.filter((stock) => {
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const match =
-          stock.symbol.toLowerCase().includes(q) ||
-          stock.companyName.toLowerCase().includes(q) ||
-          stock.sector.toLowerCase().includes(q);
-        if (!match) return false;
-      }
-
-      // Group / Sector Category
-      if (selectedGroup !== 'all') {
-        const meta = VIETNAM_STOCKS_UNIVERSE.find((m) => m.symbol === stock.symbol);
-        if (selectedGroup === 'vn30') {
-          if (!meta?.isVN30) return false;
-        } else {
-          if (meta?.sectorId !== selectedGroup) return false;
-        }
-      }
-
-      // Exchange Filter
-      if (exchangeFilter !== 'ALL' && stock.exchange !== exchangeFilter) {
-        return false;
-      }
-
-      // AI Signal Filter (fail-closed: unavailable AI cannot satisfy the AI arm)
-      if (!matchesSignalFilter(stock, signalFilter)) {
-        return false;
-      }
-
-      // Trend Filter
-      if (trendFilter !== 'ALL' && stock.trend !== trendFilter) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [rawWatchlist, searchQuery, selectedGroup, exchangeFilter, signalFilter, trendFilter]);
-
-  // 3. Sorting Comparator (fail-closed: unavailable keys sort after valid values)
-  const sortedStocks = useMemo(() => {
-    if (sortDirection === 'none') return filteredStocks;
-    return [...filteredStocks].sort(makeWatchlistSorter(sortColumn, sortDirection));
-  }, [filteredStocks, sortColumn, sortDirection]);
-
-  // Export CSV
-  const handleExportCSV = () => {
-    if (sortedStocks.length === 0) {
-      showToast('Danh mục không có dữ liệu để xuất file', 'error');
-      return;
+  const handleAddMultiple = (symbols: string[]) => {
+    for (const sym of symbols) {
+      onAddToWatchlist(sym);
     }
-
-    const headers = [
-      'Mã CP',
-      'Công ty',
-      'Sàn',
-      'Ngành',
-      'Giá Khớp (VND)',
-      'Thay đổi (VND)',
-      '% Thay đổi',
-      'Khối lượng',
-      'Giá trị GD (Tỷ)',
-      'RSI (14)',
-      'P/E',
-      'ROE (%)',
-      'Fair Value (VND)',
-      'Upside (%)',
-      'AI Score',
-      'Xu hướng',
-    ];
-
-    const rows = sortedStocks.map((s) => [
-      s.symbol,
-      `"${s.companyName.replace(/"/g, '""')}"`,
-      s.exchange,
-      `"${s.sector.replace(/"/g, '""')}"`,
-      s.price,
-      s.change,
-      s.changePercent,
-      s.volume,
-      s.tradingValue,
-      s.rsi ?? '',
-      s.pe ?? '',
-      s.roe ?? '',
-      s.fairValue ?? '',
-      computeUpsidePercent(s.price, s.fairValue)?.toFixed(2) ?? '',
-      s.aiScore,
-      s.trend,
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `VN_STOCK_WATCHLIST_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('Đã tải xuống file CSV thành công', 'success');
-  };
-
-  // Export JSON
-  const handleExportJSON = () => {
-    if (sortedStocks.length === 0) {
-      showToast('Danh mục không có dữ liệu để xuất file', 'error');
-      return;
-    }
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(sortedStocks, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `VN_STOCK_WATCHLIST_${new Date().toISOString().slice(0, 10)}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    showToast('Đã tải xuống file JSON thành công', 'success');
-  };
-
-  // Copy Summary Report
-  const handleCopySummary = () => {
-    if (sortedStocks.length === 0) return;
-    const summaryText = `📊 VN STOCK AI PRO — TÓM TẮT WATCHLIST (${new Date().toLocaleDateString('vi-VN')})
---------------------------------------------------
-• Tổng số mã theo dõi: ${stats.totalCount} mã (Tăng: ${stats.advances} | Giảm: ${stats.declines} | TC: ${stats.unchanged})
-• Hiệu suất TB: ${stats.avgChangePercent != null ? formatPercent(stats.avgChangePercent) : '--'}
-• AI Quant Score TB: ${stats.avgAiScore != null ? stats.avgAiScore.toFixed(1) : '--'}/100
-• Upside tiềm năng TB: ${stats.avgUpsidePercent != null ? `+${stats.avgUpsidePercent.toFixed(1)}%` : '--'}
-• Tổng thanh khoản: ${stats.totalTradingValue} tỷ VND (${(stats.totalVolume / 1e6).toFixed(2)}M cổ phiếu)
---------------------------------------------------
-Top cổ phiếu nổi bật:
-${sortedStocks
-  .slice(0, 10)
-  .map(
-    (s) =>
-      `• ${s.symbol.padEnd(4)}: ${formatVND(s.price).padStart(7)} VND (${formatPercent(s.changePercent).padStart(7)}) | AI Score: ${s.aiScore} | FV: ${s.fairValue != null ? formatVND(s.fairValue) : '—'}`
-  )
-  .join('\n')}
---------------------------------------------------
-Nền tảng phân tích định lượng chứng khoán VN STOCK AI PRO`;
-
-    navigator.clipboard.writeText(summaryText);
-    setIsCopied(true);
-    showToast('Đã sao chép tóm tắt Watchlist vào clipboard!', 'success');
-    setTimeout(() => setIsCopied(false), 2500);
   };
 
   return (
-    <div id="page-watchlist-full" className="space-y-4 font-sans">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-lg border shadow-xl flex items-center gap-2 text-xs font-mono transition-all animate-in fade-in slide-in-from-bottom-3 ${
-            toastMessage.type === 'success'
-              ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200'
-              : toastMessage.type === 'error'
-              ? 'bg-rose-950/90 border-rose-500/50 text-rose-200'
-              : 'bg-terminal-surface border-terminal-border text-terminal-text-primary'
-          }`}
-        >
-          {toastMessage.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          ) : toastMessage.type === 'error' ? (
-            <AlertCircle className="w-4 h-4 text-rose-400" />
-          ) : (
-            <Bookmark className="w-4 h-4 text-terminal-accent" />
-          )}
-          <span>{toastMessage.text}</span>
-        </div>
-      )}
-
-      {/* Main Header Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-terminal-border">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="page-title font-mono">
-              Danh Mục Theo Dõi Định Lượng (Quant Watchlist)
-            </h1>
-            <SourceBadge size="sm" />
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-terminal-border">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+            <Bookmark className="w-4 h-4" />
           </div>
-          <p className="text-xs text-terminal-text-muted mt-0.5">
-            Bảng theo dõi thời gian thực kết hợp mô hình AI Score, Fair Value, RSI và Tín hiệu dòng tiền
-          </p>
+          <div>
+            <h1 className="page-title">Watchlist Theo Dõi Cá Nhân</h1>
+            <p className="text-xs text-terminal-text-muted">
+              Quản lý danh mục theo dõi, cảnh báo tín hiệu và phân tích độ biến động
+            </p>
+          </div>
         </div>
+        <Button variant="primary" size="sm" onClick={() => setIsAddModalOpen(true)}>
+          <Plus className="w-3.5 h-3.5 mr-1.5" />
+          Thêm mã cổ phiếu
+        </Button>
       </div>
 
-      {/* Loading Skeleton */}
-      {isLoading && (
-        <div className="space-y-4 py-6">
-          <LoadingState
-            variant="terminal"
-            message="Đang đồng bộ dữ liệu realtime từ hệ thống khớp lệnh VPS/KBS..."
-          />
-        </div>
+      <WatchlistStatsSummary
+        watchlist={watchlist}
+        stats={stats}
+        refreshInterval={refreshInterval}
+        onRefreshIntervalChange={setRefreshInterval}
+      />
+
+      <WatchlistToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        selectedGroup={selectedGroup}
+        onGroupChange={setSelectedGroup}
+        exchangeFilter={exchangeFilter}
+        onExchangeFilterChange={setExchangeFilter}
+        signalFilter={signalFilter}
+        onSignalFilterChange={setSignalFilter}
+        trendFilter={trendFilter}
+        onTrendFilterChange={setTrendFilter}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onAddStock={onAddToWatchlist}
+        onOpenAddModal={() => setIsAddModalOpen(true)}
+        onExportCSV={() => {}}
+        onExportJSON={() => {}}
+        onCopySummary={() => {}}
+        isCopied={false}
+        watchlistSymbols={watchlist.map((s) => s.symbol)}
+        totalStocksCount={watchlist.length}
+        filteredCount={filteredStocks.length}
+      />
+
+
+      {filteredStocks.length === 0 ? (
+        <WatchlistEmptyState
+          onAddStock={() => setIsAddModalOpen(true)}
+          onAddMultipleStocks={handleAddMultiple}
+        />
+      ) : viewMode === 'table' ? (
+        <WatchlistTable
+          stocks={filteredStocks}
+          sortColumn={sortColumn}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          onSelectStock={onSelectStock}
+          onNavigateToStock={navigateToStock}
+          onRemoveStock={onRemoveFromWatchlist}
+        />
+      ) : (
+        <WatchlistCardGrid
+          stocks={filteredStocks}
+          onSelectStock={onSelectStock}
+          onNavigateToStock={navigateToStock}
+          onRemoveStock={onRemoveFromWatchlist}
+        />
       )}
 
-      {/* Error State */}
-      {isError && !isLoading && (
-        <Card className="p-6">
-          <ErrorState
-            error={error || new Error('Không thể tải dữ liệu danh mục')}
-            onRetry={handleRefresh}
-          />
-        </Card>
-      )}
-
-      {/* Main Content Area */}
-      {!isLoading && !isError && (
-        <>
-          {/* 1. Watchlist KPI Summary Banner */}
-          <WatchlistStatsSummary
-            watchlist={rawWatchlist}
-            stats={stats}
-            isFetching={isFetching}
-            onRefresh={handleRefresh}
-            lastUpdated={lastUpdated}
-            refreshInterval={refreshInterval}
-            onRefreshIntervalChange={setRefreshInterval}
-          />
-
-          {/* 2. Controls & Filter Toolbar */}
-          <WatchlistToolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            selectedGroup={selectedGroup}
-            onGroupChange={setSelectedGroup}
-            exchangeFilter={exchangeFilter}
-            onExchangeFilterChange={setExchangeFilter}
-            signalFilter={signalFilter}
-            onSignalFilterChange={setSignalFilter}
-            trendFilter={trendFilter}
-            onTrendFilterChange={setTrendFilter}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            onAddStock={handleAddStock}
-            onOpenAddModal={() => setIsAddModalOpen(true)}
-            onExportCSV={handleExportCSV}
-            onExportJSON={handleExportJSON}
-            onCopySummary={handleCopySummary}
-            isCopied={isCopied}
-            watchlistSymbols={watchlistSymbols}
-            totalStocksCount={rawWatchlist.length}
-            filteredCount={sortedStocks.length}
-          />
-
-          {/* 3. Main Display: Table View or Card Grid View */}
-          {rawWatchlist.length > 0 ? (
-            sortedStocks.length > 0 ? (
-              viewMode === 'table' ? (
-                <WatchlistTable
-                  stocks={sortedStocks}
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                  onSelectStock={handleSelectStock}
-                  onNavigateToStock={navigateToStock}
-                  onOpenTradeModal={handleOpenTrade}
-                  onRemoveStock={handleRemoveStock}
-                />
-              ) : (
-                <WatchlistCardGrid
-                  stocks={sortedStocks}
-                  onSelectStock={handleSelectStock}
-                  onNavigateToStock={navigateToStock}
-                  onOpenTradeModal={handleOpenTrade}
-                  onRemoveStock={handleRemoveStock}
-                />
-              )
-            ) : (
-              <Card className="p-8 text-center space-y-2">
-                <p className="text-xs text-terminal-text-muted font-mono">
-                  Không tìm thấy cổ phiếu nào phù hợp với bộ lọc hiện tại.
-                </p>
-                <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    setSelectedGroup('all');
-                    setExchangeFilter('ALL');
-                    setSignalFilter('ALL');
-                    setTrendFilter('ALL');
-                  }}
-                  className="px-3 py-1.5 bg-terminal-accent text-white rounded text-xs font-mono"
-                >
-                  Xóa tất cả bộ lọc
-                </button>
-              </Card>
-            )
-          ) : (
-            <WatchlistEmptyState
-              onAddStock={handleAddStock}
-              onAddMultipleStocks={handleAddMultipleStocks}
-            />
-          )}
-        </>
-      )}
-
-      {/* Add Stock Modal */}
       <AddStockModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        watchlistSymbols={watchlistSymbols}
-        onAddStock={handleAddStock}
-        onRemoveStock={handleRemoveStock}
+        watchlistSymbols={watchlist.map((s) => s.symbol)}
+        onAddStock={onAddToWatchlist}
+        onRemoveStock={onRemoveFromWatchlist}
       />
     </div>
   );
-}
+};

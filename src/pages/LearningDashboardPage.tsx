@@ -57,10 +57,10 @@ export const LearningDashboardPage: React.FC = () => {
           <div className="text-[11px] font-mono text-terminal-text-muted">CONTINUE</div>
           <div className="text-sm text-terminal-text mt-1">{rec.kind === 'COMPLETE' ? 'Path complete' : `${rec.kind}: ${rec.refId}`}</div>
           <div className="text-xs text-terminal-text-muted mt-1">{rec.reason}</div>
-          <div className="text-xs text-terminal-text-muted mt-1">Adaptive: {adaptive.kind === 'COMPLETE' ? 'Path complete' : `${adaptive.kind}: ${adaptive.refId}`} — {adaptive.explanation.whyNow}</div>
-          {adaptive.explanation.evidence[0] && <div className="text-[11px] font-mono text-terminal-text-muted mt-1">Evidence: {adaptive.explanation.evidence[0]}</div>}
+          <div className="text-xs text-terminal-text-muted mt-1">Adaptive: {adaptive.kind === 'COMPLETE' ? 'Path complete' : `${adaptive.kind}: ${adaptive.refId}`} — {adaptive.reason}</div>
           <button onClick={openRec} className="mt-2 text-[11px] font-mono px-2 py-1 rounded bg-terminal-accent text-white hover:opacity-90">Continue</button>
         </div>
+
         <div className="rounded border border-terminal-border bg-terminal-surface p-4">
           <div className="text-[11px] font-mono text-terminal-text-muted">NEEDS REVIEW</div>
           {weak.length === 0 ? <div className="text-xs text-terminal-text-muted mt-1">Nothing weak yet. Keep going.</div> :
