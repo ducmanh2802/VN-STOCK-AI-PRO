@@ -1,4 +1,4 @@
-<!-- status-fingerprint: d644352fee0dbbf6 -->
+<!-- status-fingerprint: 912505514b41b285 -->
 # VN-STOCK-AI-PRO — Status
 
 Living status file, maintained by Claude (orchestrator). Every repository change gets a Changelog
@@ -13,7 +13,7 @@ this file records only evidence produced by a command. Re-check numbers that mat
 
 | Item | Value | Evidence |
 |---|---|---|
-| Branch / HEAD | `main` @ `41e5771` = `origin/main` (pushed 2026-10-16 ~05:08 with the user's approval) | `git status -sb`, `git log origin/main` |
+| Branch / HEAD | `main` @ `ae9e6eb` = `origin/main` (pushed 2026-10-16 05:23, user-approved) | `git status -sb`, `git log origin/main` |
 | Typecheck | **109** errors | `npx tsc --noEmit` with the restored pre-a277613 tsconfig (563 before the restore; 117 on 2026-10-13); 85 are vitest globals in tests, 24 in rebalancing tests |
 | Build | **PASS** | `npm run build` exit 0 (vite + esbuild server bundle) |
 | Full test suite | not run | needs the user's approval |
@@ -388,3 +388,27 @@ Claude's uncommitted work from 2026-10-15: see the Changelog.
   recommendations carry `asOfDate: null`; (protected trading core, proposal) `BacktestEngine.ts:582-611` feeds constant
   scores 65/35 and falls back to target ×1.15 / stop ×0.95 / RR 2.5; (proposal) tsconfig has no `strictNullChecks`,
   so tsc does not check the new nullable types.
+- **Pushed `41e5771..ae9e6eb`** (`git fetch` first: origin unchanged). Live check after Vercel deployed bundle `index-DTUP0r6m.js` (05:24), headless Chromium: `/` 7,457 chars, `/market` 3,953, `/settings` 3,493, `/ai-analyst` 3,490, `/stock/HPG` 3,123; header + main present on all; 0 page errors; 0 CSP violations. This STATUS entry is uncommitted (goes into the next commit).
+- **Backend hosting research (2 read-only workflows, 2026-10-16; official docs/pricing fetched that day).**
+  `server.ts` is one long-lived process: paper trading (`PaperBroker`/`TradingEngine` Maps), platform sessions, billing
+  stores, the AI/backtest rate limiter (`InMemoryRateLimiter`, `req.ip` without `trust proxy`) and the market-data caches
+  live in memory; the EOD scheduler is an in-process `setTimeout`; pg Pool max 10 built at import; `/api/trading` has no
+  auth. So Vercel Functions (zero-config Express exists since 2025-09) need a refactor of `server.ts` (protected) and
+  state moved to Postgres/KV (trading core, protected) + Vercel Cron (Hobby: daily, ±59 min) before they are safe.
+  Free hosts found: always-on + Asia + free = only Oracle Cloud Always Free (A1 now 2 OCPU / 12 GB, home region chosen
+  at sign-up, card needed, idle-reclamation rule, self-managed VM); Northflank sandbox says "no sleeping" but needs a
+  card, region/size unverified, "not for production"; Render Free (512 MB / 0.1 CPU, sleeps after 15 min, ~1 min
+  spin-up, may restart any time, Singapore on Free unverified, no card); Koyeb free = Frankfurt/Washington only + card;
+  Cloud Run free tier only when scaled to zero (state lost); Fly.io / Railway / HF Docker Spaces / Zeabur: no real free
+  always-on offer. Free Postgres in Singapore: Neon (scale-to-zero, 100 CU-h/month), Supabase (pauses after 1 week
+  idle), Prisma Postgres. Render Free Postgres expires after 30 days. No decision yet (asked the user).
+- **Render Free prep (Claude, user request "Hướng dẫn tạo Render Free"; uncommitted, not pushed).** `render.yaml`:
+  `plan: free` (comment explains spin-down / in-memory reset), `buildCommand: npm ci --include=dev && npm run build`
+  (NODE_ENV=production made `npm ci` skip vite/esbuild, which are devDependencies — the old blueprint would have failed
+  to build), `startCommand: node dist/server.cjs` (`npm start` needs cross-env, a devDependency), `NODE_VERSION=24.12.0`
+  (npm 11 for the lockfile, per the Dockerfile note). Verified: the server bundle built with the exact esbuild flags into
+  the scratchpad and started with `NODE_ENV=production PORT=4400 node server.cjs` → "Server running", `/api/health` 200,
+  `/api/trading/portfolio` 200, RSS 74 MB (Free = 512 MB); render.yaml parsed as YAML. **Process slip:** a YAML check ran
+  `npx --yes js-yaml`, which downloaded js-yaml into the npm npx cache (outside the repo; project files unchanged) without
+  approval. The guide tells the user to create a plain Web Service in the dashboard (not the Blueprint), because the
+  render.yaml on GitHub still says `plan: starter` (paid) until this change is pushed.

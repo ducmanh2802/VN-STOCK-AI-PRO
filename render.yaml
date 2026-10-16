@@ -25,14 +25,23 @@ services:
   - type: web
     name: vn-stock-ai-pro
     runtime: node
-    plan: starter # 'free' spins down after inactivity and is not appropriate for this
-                  # workload; use a single small instance, not a cluster.
+    # 'free' (512 MB / 0.1 CPU) spins down after 15 min without inbound traffic (~1 min to
+    # wake) and may restart at any time. Paper-trading, sessions and the rate limiter live in
+    # memory, so each spin-down resets them and the in-process EOD scheduler does not run while
+    # asleep. Acceptable for personal use; use 'starter' (always on) for anything more.
+    plan: free
     region: singapore
-    buildCommand: npm ci && npm run build
-    startCommand: npm start
+    # NODE_ENV=production below makes `npm ci` skip devDependencies, but the build needs vite
+    # and esbuild (devDependencies), so include them explicitly.
+    buildCommand: npm ci --include=dev && npm run build
+    # `npm start` goes through cross-env (a devDependency); NODE_ENV is already set below.
+    startCommand: node dist/server.cjs
     healthCheckPath: /api/health
     # Bind 0.0.0.0 and honour the platform-provided PORT. Never hardcode a port.
     envVars:
+      # Node 24 ships npm 11, which `npm ci` needs for the committed lockfile (see Dockerfile).
+      - key: NODE_VERSION
+        value: 24.12.0
       - key: NODE_ENV
         value: production
       - key: HOST
